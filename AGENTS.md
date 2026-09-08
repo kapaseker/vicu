@@ -9,6 +9,7 @@
 - Add or update dependencies through `gradle/libs.versions.toml`; module build files reference them with `libs.*` rather than hard-coding versions.
 - Keep repository-level Gradle configuration and module structure unchanged unless the task requires a change.
 - When editing files containing non-ASCII text, especially Android resources and Markdown, use an explicit UTF-8 read/write path and verify the result contains neither replacement characters nor mojibake.
+- FFmpeg functionality comes from the bundled `ffmpeg-kit-next` AAR (`app/libs/ffmpeg-kit-next-api.aar`); for SDK usage, refer to the official Android docs: https://github.com/arthenica/ffmpeg-kit-next/tree/main/android.
 
 ## Architecture and Dependency Injection
 

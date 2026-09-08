@@ -1,0 +1,19 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+/.kotlin/
+.DS_Store
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+.omx
+.cursor/
+.trae/
+.agents/
+.codex/
+app/release/
+
+# Ignore all Gradle/Android build output directories.
+**/build/

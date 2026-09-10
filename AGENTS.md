@@ -29,6 +29,7 @@
 - For new widgets, keep Page- or Screen-local widgets nearby and normally `private`; place widgets shared across Pages in `component/`.
 - Promote code to a shared package only after two or more features use it. Feature packages do not depend on each other.
 - Put user-facing or localizable text in string resources. Reuse the existing theme and resource definitions for colors, dimensions, and drawables rather than scattering reusable visual values through Composables.
+- Any UI/visual change (colors, typography, spacing, shapes, components) must first read `DESIGN.md` at the repo root and follow its tokens (Auralis palette, Inter typography, spacing/radius scale) and component specs.
 
 ## Verification
 

@@ -1,18 +1,35 @@
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.plugin.compose")
+    alias(libs.plugins.com.android.application)
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
     namespace = "com.rockbyte.vicu"
-    compileSdk = 37
+    compileSdk = libs.versions.sdk.compile.get().toInt()
 
     defaultConfig {
         applicationId = "com.rockbyte.vicu"
-        minSdk = 29
-        targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        minSdk = libs.versions.sdk.min.get().toInt()
+        versionCode = libs.versions.version.code.get().toInt()
+        versionName = libs.versions.version.name.get()
+    }
+
+    signingConfigs {
+        create("app") {
+            storeFile = rootProject.file("app.jks")
+            storePassword = "007007"
+            keyAlias = "vicuvicu"
+            keyPassword = "007007"
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("app")
+        }
+        release {
+            signingConfig = signingConfigs.getByName("app")
+        }
     }
 
     compileOptions {
@@ -25,23 +42,36 @@ android {
     }
 }
 
+// APK 产物命名：应用名前缀 + 变体 + 版本号，如 vicu-release-1.0.apk（与 defaultConfig 同读 version catalog，保持单一来源）
+androidComponents {
+    onVariants { variant ->
+        variant.outputs.forEach { output ->
+            output.outputFileName.set("vicu-${variant.name}-${libs.versions.version.name.get()}.apk")
+        }
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        // Styles API 为实验性：foundation.style + 继承文本样式均需 opt-in
+        freeCompilerArgs.add("-opt-in=androidx.compose.foundation.style.ExperimentalFoundationStyleApi")
+        freeCompilerArgs.add("-opt-in=androidx.compose.foundation.ExperimentalFoundationApi")
     }
 }
 
 dependencies {
     implementation(files("libs/ffmpeg-kit-next-api.aar"))
-    implementation("com.arthenica:smart-exception-java:0.2.1")
-    implementation("androidx.annotation:annotation:1.9.1")
-    implementation("androidx.activity:activity-compose:1.13.0")
-    implementation(platform("androidx.compose:compose-bom:2026.08.00"))
-    implementation("androidx.compose.foundation:foundation-layout")
-    implementation("androidx.compose.material:material")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
+    implementation(libs.smart.exception.java)
+    implementation(libs.androidx.annotation)
+    implementation(platform(libs.compose.bom))
+    implementation(libs.compose.activity)
+    implementation(libs.compose.foundation)
+    implementation(libs.compose.foundation.layout)
+    implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.lifecycle.viewmodel)
+    implementation(libs.lifecycle.viewmodel.compose)
+    debugImplementation(libs.compose.ui.tooling)
 
-    testImplementation("junit:junit:4.13.2")
+    testImplementation(libs.junit)
 }

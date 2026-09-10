@@ -7,6 +7,7 @@ import android.os.Build
 import android.util.Size
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,6 +50,7 @@ import com.rockbyte.vicu.repo.MediaItem
 import com.rockbyte.vicu.repo.MediaKind
 import com.rockbyte.vicu.ui.component.VicuButton
 import com.rockbyte.vicu.ui.component.VicuScaffold
+import com.rockbyte.vicu.ui.component.iconRes
 import com.rockbyte.vicu.ui.theme.VicuSpacing
 import com.rockbyte.vicu.ui.theme.VicuTheme
 import kotlinx.coroutines.Dispatchers
@@ -66,28 +68,22 @@ internal fun mediaPermissionsForSdk(sdkInt: Int): List<String> = if (sdkInt >= B
     listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
 }
 
-private val MediaKind.iconRes: Int
-    get() = when (this) {
-        MediaKind.IMAGE -> R.drawable.ic_pic
-        MediaKind.VIDEO -> R.drawable.ic_video
-        MediaKind.AUDIO -> R.drawable.ic_music
-    }
-
 /**
  * 首页：MediaStore 聚合的媒体库 grid（图片/视频/音频），
- * 每格左上角类型角标区分多媒体类型；未授权时展示权限提示。
+ * 每格左上角类型角标区分多媒体类型；点击进入功能列表；未授权时展示权限提示。
  */
 @Composable
-fun HomePage() {
+fun HomePage(onMediaClick: (MediaItem) -> Unit) {
     val viewModel = koinViewModel<HomeViewModel>()
     val state by viewModel.uiState.collectAsState()
-    HomePageContent(state = state, onRefresh = viewModel::refresh)
+    HomePageContent(state = state, onRefresh = viewModel::refresh, onMediaClick = onMediaClick)
 }
 
 @Composable
 private fun HomePageContent(
     state: MediaLibraryUiState,
     onRefresh: () -> Unit,
+    onMediaClick: (MediaItem) -> Unit,
 ) {
     val context = LocalContext.current
     val requiredPermissions = remember { mediaPermissionsForSdk(Build.VERSION.SDK_INT) }
@@ -109,6 +105,7 @@ private fun HomePageContent(
         state = state,
         hasPermission = hasPermission,
         onRequestPermission = { permissionLauncher.launch(requiredPermissions.toTypedArray()) },
+        onMediaClick = onMediaClick,
     )
 }
 
@@ -117,10 +114,11 @@ private fun HomePageBody(
     state: MediaLibraryUiState,
     hasPermission: Boolean,
     onRequestPermission: () -> Unit,
+    onMediaClick: (MediaItem) -> Unit,
 ) {
     VicuScaffold(title = stringResource(R.string.app_name)) {
         if (hasPermission) {
-            MediaGrid(state)
+            MediaGrid(state, onMediaClick)
         } else {
             PermissionPrompt(onRequest = onRequestPermission)
         }
@@ -128,7 +126,7 @@ private fun HomePageBody(
 }
 
 @Composable
-private fun MediaGrid(state: MediaLibraryUiState) {
+private fun MediaGrid(state: MediaLibraryUiState, onMediaClick: (MediaItem) -> Unit) {
     if (!state.loading && state.items.isEmpty()) {
         Box(Modifier.fillMaxSize()) {
             BasicText(
@@ -152,19 +150,24 @@ private fun MediaGrid(state: MediaLibraryUiState) {
         verticalArrangement = Arrangement.spacedBy(VicuSpacing.unit),
     ) {
         items(state.items, key = { it.uri }) { item ->
-            MediaTile(item)
+            MediaTile(item, onMediaClick)
         }
     }
 }
 
 @Composable
-private fun MediaTile(item: MediaItem, modifier: Modifier = Modifier) {
+private fun MediaTile(
+    item: MediaItem,
+    onMediaClick: (MediaItem) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val tileState = remember { MutableStyleState(null) }
     Box(
         modifier
             .aspectRatio(1f)
             .clip(VicuTheme.shapes.xl)
             .styleable(tileState, VicuTheme.styles.mediaTile)
+            .clickable { onMediaClick(item) }
     ) {
         when (item.kind) {
             MediaKind.IMAGE, MediaKind.VIDEO -> MediaThumbnail(item)
@@ -261,6 +264,7 @@ private fun HomePageGridPreview() {
                 )
             ),
             onRefresh = {},
+            onMediaClick = {},
         )
     }
 }
@@ -272,6 +276,7 @@ private fun HomePageEmptyPreview() {
         HomePageContent(
             state = MediaLibraryUiState(),
             onRefresh = {},
+            onMediaClick = {},
         )
     }
 }
@@ -284,6 +289,7 @@ private fun HomePagePermissionPreview() {
             state = MediaLibraryUiState(),
             hasPermission = false,
             onRequestPermission = {},
+            onMediaClick = {},
         )
     }
 }

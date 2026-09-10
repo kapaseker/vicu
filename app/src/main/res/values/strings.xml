@@ -1,14 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Vicu</string>
-    <string name="app_title">视频转 MP3</string>
-    <string name="screen_description">选择一个视频，提取第一个音频流并导出为固定 192 kb/s MP3。</string>
-    <string name="choose_video">选择视频</string>
-    <string name="export_mp3">导出 MP3（192 kb/s）</string>
-    <string name="selected_file">已选择：%1$s</string>
-    <string name="exporting">正在导出…</string>
-    <string name="export_complete">已保存到相册的 Music/FFmpegKitNext 文件夹。</string>
+    <string name="app_title">导出音频</string>
+    <string name="screen_description">从视频中提取音频，支持导出为原声、MP3 或 M4A 格式。</string>
+    <string name="selected_file">视频：%1$s</string>
+    <string name="source_audio_info">源音频：%1$s</string>
+    <string name="export_format_label">格式</string>
+    <string name="export_quality_label">质量</string>
+    <string name="format_original">原声</string>
+    <string name="format_mp3">MP3</string>
+    <string name="format_m4a">M4A</string>
+    <string name="quality_best">最佳</string>
+    <string name="quality_high">高</string>
+    <string name="quality_medium">中</string>
+    <string name="quality_low">低</string>
+    <string name="export_audio">导出音频</string>
+    <string name="exporting">导出中…</string>
+    <string name="export_success">导出成功</string>
+    <string name="export_failed_retry">导出失败，重试</string>
+    <string name="export_complete">已保存到 Music/FFmpegKitNext 文件夹。</string>
     <string name="export_failed">导出失败：%1$s</string>
+    <string name="functions_description">选择要对此视频执行的操作。</string>
+    <string name="coming_soon">敬请期待</string>
     <string name="media_permission_rationale">需要媒体访问权限，用于展示设备上的图片、视频和音乐。</string>
     <string name="grant_media_permission">授予权限</string>
     <string name="media_empty">未找到媒体文件</string>

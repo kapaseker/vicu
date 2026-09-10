@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Vicu</string>
     <string name="app_title">视频转 MP3</string>
     <string name="screen_description">选择一个视频，提取第一个音频流并导出为固定 192 kb/s MP3。</string>
     <string name="choose_video">选择视频</string>
@@ -8,4 +9,7 @@
     <string name="exporting">正在导出…</string>
     <string name="export_complete">已保存到相册的 Music/FFmpegKitNext 文件夹。</string>
     <string name="export_failed">导出失败：%1$s</string>
+    <string name="media_permission_rationale">需要媒体访问权限，用于展示设备上的图片、视频和音乐。</string>
+    <string name="grant_media_permission">授予权限</string>
+    <string name="media_empty">未找到媒体文件</string>
 </resources>

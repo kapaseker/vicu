@@ -1,4 +1,4 @@
-package com.rockbyte.vicu
+package com.rockbyte.vicu.page
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Test

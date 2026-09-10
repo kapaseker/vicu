@@ -1,4 +1,4 @@
-package com.rockbyte.vicu
+package com.rockbyte.vicu.page
 
 import android.app.Application
 import android.content.ContentValues
@@ -14,7 +14,6 @@ import com.arthenica.ffmpegkit.ReturnCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -35,14 +34,15 @@ class AudioExportViewModel(application: Application) : AndroidViewModel(applicat
 
     private val resolver = application.contentResolver
     private val appContext = application.applicationContext
-    private val _uiState = MutableStateFlow(AudioExportUiState())
-    val uiState: StateFlow<AudioExportUiState> = _uiState.asStateFlow()
+
+    val uiState: StateFlow<AudioExportUiState>
+        field = MutableStateFlow(AudioExportUiState())
 
     private var selectedVideoUri: Uri? = null
 
     fun selectVideo(uri: Uri) {
         selectedVideoUri = uri
-        _uiState.value = AudioExportUiState(
+        uiState.value = AudioExportUiState(
             selectedFileName = displayName(uri),
             phase = ExportPhase.Ready
         )
@@ -53,7 +53,7 @@ class AudioExportViewModel(application: Application) : AndroidViewModel(applicat
         val inputName = uiState.value.selectedFileName ?: "video"
 
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update { it.copy(phase = ExportPhase.Exporting) }
+            uiState.update { it.copy(phase = ExportPhase.Exporting) }
             var outputUri: Uri? = null
 
             try {
@@ -68,10 +68,10 @@ class AudioExportViewModel(application: Application) : AndroidViewModel(applicat
                 }
 
                 publishOutput(outputUri)
-                _uiState.update { it.copy(phase = ExportPhase.Complete(outputUri)) }
+                uiState.update { it.copy(phase = ExportPhase.Complete(outputUri)) }
             } catch (error: Exception) {
                 outputUri?.let(::deleteOutput)
-                _uiState.update {
+                uiState.update {
                     it.copy(phase = ExportPhase.Failed(error.message ?: "无法导出 MP3"))
                 }
             }

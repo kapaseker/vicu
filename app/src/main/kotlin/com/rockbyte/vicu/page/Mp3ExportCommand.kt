@@ -1,4 +1,4 @@
-package com.rockbyte.vicu
+package com.rockbyte.vicu.page
 
 object Mp3ExportCommand {
 

@@ -77,4 +77,18 @@ object VicuStyles {
         shape(shapes.full)
         background(colors.secondary)
     }
+
+    /** 媒体 tile：Level-1 panel 底 + 24dp 圆角（缩略图加载态与音频占位共用底色）。 */
+    val mediaTile: Style = Style {
+        shape(shapes.xl)
+        background(colors.surfaceContainerLow)
+    }
+
+    /** 媒体类型角标：24dp 白底 base 圆角块 + 1px 边框，承载 16dp tint 图标。 */
+    val typeBadge: Style = Style {
+        size(24.dp)
+        shape(shapes.base)
+        background(colors.surfaceContainerLowest)
+        border(1.dp, colors.outlineVariant)
+    }
 }

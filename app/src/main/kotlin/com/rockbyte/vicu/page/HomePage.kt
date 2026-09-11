@@ -45,14 +45,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.repo.MediaItem
 import com.rockbyte.vicu.repo.MediaKind
 import com.rockbyte.vicu.ui.component.VicuButton
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.component.iconRes
-import com.rockbyte.vicu.ui.theme.VicuSpacing
 import com.rockbyte.vicu.ui.theme.VicuTheme
 import com.rockbyte.vicu.ui.theme.vicuRipple
 import kotlinx.coroutines.Dispatchers
@@ -140,16 +138,16 @@ private fun MediaGrid(state: MediaLibraryUiState, onMediaClick: (MediaItem) -> U
         return
     }
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 384.dp),
+        columns = GridCells.Adaptive(minSize = VicuTheme.dimensions.homeMediaGridMinSize),
         modifier = Modifier
             .fillMaxSize()
             .navigationBarsPadding(),
         contentPadding = PaddingValues(
-            horizontal = VicuSpacing.gutter,
-            vertical = VicuSpacing.gutter,
+            horizontal = VicuTheme.dimensions.screenGutter,
+            vertical = VicuTheme.dimensions.screenGutter,
         ),
-        horizontalArrangement = Arrangement.spacedBy(VicuSpacing.unit),
-        verticalArrangement = Arrangement.spacedBy(VicuSpacing.unit),
+        horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
+        verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
     ) {
         items(state.items, key = { it.uri }) { item ->
             MediaTile(item, onMediaClick)
@@ -182,7 +180,7 @@ private fun MediaTile(
         }
         TypeBadge(item.kind, Modifier
             .align(Alignment.TopStart)
-            .padding(VicuSpacing.unit))
+            .padding(VicuTheme.dimensions.spacingUnit))
     }
 }
 
@@ -216,7 +214,7 @@ private fun BoxScope.KindIcon(item: MediaItem) {
         contentDescription = item.name,
         modifier = Modifier
             .align(Alignment.Center)
-            .size(32.dp),
+            .size(VicuTheme.dimensions.iconLarge),
         colorFilter = ColorFilter.tint(VicuTheme.colors.onSurfaceVariant),
     )
 }
@@ -231,7 +229,7 @@ private fun TypeBadge(kind: MediaKind, modifier: Modifier = Modifier) {
         Image(
             painter = painterResource(kind.iconRes),
             contentDescription = null,
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier.size(VicuTheme.dimensions.iconSmall),
             colorFilter = ColorFilter.tint(VicuTheme.colors.onSurfaceVariant),
         )
     }
@@ -243,9 +241,9 @@ private fun PermissionPrompt(onRequest: () -> Unit) {
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
-                .padding(horizontal = VicuSpacing.gutter),
+                .padding(horizontal = VicuTheme.dimensions.screenGutter),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(VicuSpacing.unit * 2),
+            verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit * 2),
         ) {
             BasicText(
                 text = stringResource(R.string.media_permission_rationale),

@@ -19,12 +19,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.ui.theme.VicuTheme
 import com.rockbyte.vicu.ui.theme.vicuRipple
@@ -40,6 +40,7 @@ fun VicuScaffold(
     title: String,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
+    backEnabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val screenState = remember { MutableStyleState(null) }
@@ -49,7 +50,7 @@ fun VicuScaffold(
             .styleable(screenState, VicuTheme.styles.screen)
     ) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            VicuTopAppBar(title = title, onBack = onBack)
+            VicuTopAppBar(title = title, onBack = onBack, backEnabled = backEnabled)
             content()
         }
     }
@@ -61,6 +62,7 @@ fun VicuTopAppBar(
     title: String,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
+    backEnabled: Boolean = true,
 ) {
     val headerState = remember { MutableStyleState(null) }
     Row(
@@ -69,13 +71,17 @@ fun VicuTopAppBar(
             .styleable(headerState, VicuTheme.styles.header),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (onBack != null) BackButton(onBack)
+        if (onBack != null) BackButton(onClick = onBack, enabled = backEnabled)
         BasicText(
             text = title,
             style = VicuTheme.typography.topAppBarTitle,
             modifier = Modifier.padding(
-                start = if (onBack == null) 12.dp else 4.dp,
-                end = 4.dp,
+                start = if (onBack == null) {
+                    VicuTheme.dimensions.topAppBarTitlePaddingWithoutNavigation
+                } else {
+                    VicuTheme.dimensions.topAppBarTitlePadding
+                },
+                end = VicuTheme.dimensions.topAppBarTitlePadding,
             ),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -84,23 +90,26 @@ fun VicuTopAppBar(
 }
 
 @Composable
-private fun BackButton(onBack: () -> Unit) {
+private fun BackButton(onClick: () -> Unit, enabled: Boolean) {
     val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
-            .size(48.dp)
+            .size(VicuTheme.dimensions.navigationTouchSize)
             .clip(CircleShape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = vicuRipple(),
-                onClick = onBack,
+                enabled = enabled,
+                onClick = onClick,
             ),
         contentAlignment = Alignment.Center,
     ) {
         Image(
             painter = painterResource(R.drawable.ic_left),
             contentDescription = stringResource(R.string.back),
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier
+                .size(VicuTheme.dimensions.iconMedium)
+                .alpha(if (enabled) VicuTheme.alpha.full else VicuTheme.alpha.disabled),
             colorFilter = ColorFilter.tint(VicuTheme.colors.onSurface),
         )
     }

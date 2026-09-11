@@ -4,6 +4,8 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rockbyte.vicu.repo.AudioExportFormat
+import com.rockbyte.vicu.repo.AudioExportError
+import com.rockbyte.vicu.repo.AudioExportException
 import com.rockbyte.vicu.repo.AudioExportQuality
 import com.rockbyte.vicu.repo.AudioExportRepo
 import com.rockbyte.vicu.repo.SourceAudioInfo
@@ -25,7 +27,7 @@ sealed interface ExportPhase {
     data object Ready : ExportPhase
     data object Exporting : ExportPhase
     data class Complete(val outputUri: Uri) : ExportPhase
-    data class Failed(val reason: String) : ExportPhase
+    data class Failed(val error: AudioExportError) : ExportPhase
 }
 
 /** 导出音频页状态：格式/质量选择 + 源音频探测 + 导出流程。 */
@@ -66,9 +68,12 @@ class AudioExportViewModel(private val audioExportRepo: AudioExportRepo) : ViewM
                 uiState.update { it.copy(phase = ExportPhase.Complete(outputUri)) }
             } catch (error: Exception) {
                 uiState.update {
-                    it.copy(phase = ExportPhase.Failed(error.message ?: "导出失败"))
+                    it.copy(phase = ExportPhase.Failed(error.toAudioExportError()))
                 }
             }
         }
     }
 }
+
+internal fun Throwable.toAudioExportError(): AudioExportError =
+    (this as? AudioExportException)?.error ?: AudioExportError.Unknown

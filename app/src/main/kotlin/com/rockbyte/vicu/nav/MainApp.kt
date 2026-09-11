@@ -53,7 +53,10 @@ fun MainApp() {
                 )
             }
             entry<AudioExportRoute> { route ->
-                AudioExportPage(route)
+                AudioExportPage(
+                    route = route,
+                    onBack = { backStack.removeLastOrNull() },
+                )
             }
         },
     )

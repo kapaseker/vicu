@@ -27,13 +27,11 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.nav.MediaFunctionsRoute
 import com.rockbyte.vicu.repo.MediaKind
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.component.iconRes
-import com.rockbyte.vicu.ui.theme.VicuSpacing
 import com.rockbyte.vicu.ui.theme.VicuTheme
 import com.rockbyte.vicu.ui.theme.vicuRipple
 
@@ -80,7 +78,7 @@ private fun VideoFunctionsContent(name: String, onExportAudio: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .navigationBarsPadding()
-            .padding(VicuSpacing.gutter),
+            .padding(VicuTheme.dimensions.screenGutter),
     ) {
         BasicText(
             text = stringResource(R.string.functions_description, abbreviateMediaFileName(name)),
@@ -97,11 +95,11 @@ private fun FunctionGrid(onExportAudio: () -> Unit) {
         FunctionEntry(R.drawable.ic_audio, R.string.export_audio, onExportAudio),
     )
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(96.dp),
+        columns = GridCells.Adaptive(VicuTheme.dimensions.mediaFunctionsGridMinSize),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = VicuSpacing.gutter),
-        horizontalArrangement = Arrangement.spacedBy(VicuSpacing.unit),
-        verticalArrangement = Arrangement.spacedBy(VicuSpacing.unit),
+        contentPadding = PaddingValues(top = VicuTheme.dimensions.screenGutter),
+        horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
+        verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
     ) {
         items(functions, key = { it.labelRes }) { entry ->
             FunctionTile(
@@ -140,12 +138,15 @@ private fun FunctionTile(
             )
             .styleable(styleState, VicuTheme.styles.functionTile),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(VicuSpacing.unit, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.spacedBy(
+            VicuTheme.dimensions.spacingUnit,
+            Alignment.CenterVertically,
+        ),
     ) {
         Image(
             painter = painterResource(iconRes),
             contentDescription = null,
-            modifier = Modifier.size(32.dp),
+            modifier = Modifier.size(VicuTheme.dimensions.iconLarge),
             colorFilter = ColorFilter.tint(VicuTheme.colors.onSurfaceVariant),
         )
         BasicText(
@@ -161,14 +162,14 @@ private fun ComingSoonContent(kind: MediaKind) {
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
-                .padding(horizontal = VicuSpacing.gutter),
+                .padding(horizontal = VicuTheme.dimensions.screenGutter),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(VicuSpacing.unit * 2),
+            verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit * 2),
         ) {
             Image(
                 painter = painterResource(kind.iconRes),
                 contentDescription = null,
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(VicuTheme.dimensions.iconLarge),
                 colorFilter = ColorFilter.tint(VicuTheme.colors.onSurfaceVariant),
             )
             BasicText(

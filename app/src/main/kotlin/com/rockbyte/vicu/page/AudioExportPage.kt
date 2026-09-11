@@ -7,20 +7,25 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.style.MutableStyleState
 import androidx.compose.foundation.style.Style
-import androidx.compose.foundation.style.contentPaddingHorizontal
 import androidx.compose.foundation.style.styleable
 import androidx.compose.foundation.style.then
 import androidx.compose.foundation.text.BasicText
@@ -33,20 +38,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.nav.AudioExportRoute
+import com.rockbyte.vicu.repo.AudioExportError
 import com.rockbyte.vicu.repo.AudioExportFormat
 import com.rockbyte.vicu.repo.AudioExportQuality
-import com.rockbyte.vicu.repo.SourceAudioInfo
 import com.rockbyte.vicu.ui.component.VicuButton
-import com.rockbyte.vicu.ui.component.VicuTopAppBar
-import com.rockbyte.vicu.ui.theme.VicuSpacing
+import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.theme.VicuTheme
+import com.rockbyte.vicu.ui.theme.vicuRipple
 import org.koin.androidx.compose.koinViewModel
 
 /**
@@ -54,7 +61,7 @@ import org.koin.androidx.compose.koinViewModel
  * 导出过程中锁定全部操作并拦截系统返回。
  */
 @Composable
-fun AudioExportPage(route: AudioExportRoute) {
+fun AudioExportPage(route: AudioExportRoute, onBack: () -> Unit) {
     val viewModel = koinViewModel<AudioExportViewModel>()
     val videoUri = remember(route.uri) { Uri.parse(route.uri) }
     LaunchedEffect(videoUri, route.name) { viewModel.bind(videoUri, route.name) }
@@ -65,6 +72,7 @@ fun AudioExportPage(route: AudioExportRoute) {
         onSelectFormat = viewModel::selectFormat,
         onSelectQuality = viewModel::selectQuality,
         onExport = viewModel::export,
+        onBack = onBack,
     )
 }
 
@@ -74,138 +82,159 @@ private fun AudioExportContent(
     onSelectFormat: (AudioExportFormat) -> Unit,
     onSelectQuality: (AudioExportQuality) -> Unit,
     onExport: () -> Unit,
+    onBack: () -> Unit,
 ) {
     val exporting = state.phase is ExportPhase.Exporting
     BackHandler(enabled = exporting) { /* 导出中锁定，拦截系统返回 */ }
 
-    val screenState = remember { MutableStyleState(null) }
-    Box(
-        Modifier
-            .fillMaxSize()
-            .styleable(screenState, VicuTheme.styles.screen)
+    VicuScaffold(
+        title = stringResource(R.string.export_audio),
+        onBack = onBack,
+        backEnabled = !exporting,
     ) {
-        OrbBackground()
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            VicuTopAppBar(title = stringResource(R.string.export_audio))
-            Column(
-                modifier = Modifier
-                    .padding(horizontal = VicuSpacing.gutter)
-                    .padding(vertical = VicuSpacing.gutter)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(VicuSpacing.unit * 2),
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding()
+                .padding(VicuTheme.dimensions.screenGutter)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit * 2),
+        ) {
+            RadioOptionGroup(
+                label = stringResource(R.string.export_format_label),
+                options = AudioExportFormat.entries,
+                selected = state.format,
+                enabled = !exporting,
+                optionLabel = { stringResource(it.labelRes) },
+                onSelect = onSelectFormat,
+            )
+            RadioOptionGroup(
+                label = stringResource(R.string.export_quality_label),
+                options = AudioExportQuality.entries,
+                selected = state.quality,
+                enabled = !exporting,
+                optionLabel = { stringResource(it.labelRes) },
+                onSelect = onSelectQuality,
+            )
+            VicuButton(
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !exporting && state.videoName.isNotBlank(),
+                onClick = onExport,
             ) {
-                val cardState = remember { MutableStyleState(null) }
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .styleable(cardState, VicuTheme.styles.card),
-                    verticalArrangement = Arrangement.spacedBy(VicuSpacing.unit * 2),
-                ) {
-                    BasicText(
-                        stringResource(R.string.screen_description),
-                        style = VicuTheme.typography.bodyLg
-                    )
+                Image(
+                    painter = painterResource(R.drawable.ic_export),
+                    contentDescription = null,
+                    modifier = Modifier.size(VicuTheme.dimensions.iconMedium),
+                    colorFilter = ColorFilter.tint(VicuTheme.colors.onPrimary),
+                )
+                BasicText(
+                    text = exportButtonText(state.phase),
+                    modifier = Modifier.padding(start = VicuTheme.dimensions.spacingUnit),
+                )
+            }
 
-                    BasicText(
-                        stringResource(R.string.selected_file, state.videoName),
-                        style = VicuTheme.typography.bodySm
-                    )
-
-                    state.sourceInfo?.let { info ->
-                        BasicText(
-                            stringResource(R.string.source_audio_info, sourceInfoText(info)),
-                            style = VicuTheme.typography.bodySm.copy(color = VicuTheme.colors.onSurfaceVariant),
-                        )
-                    }
-
-                    OptionGroupLabel(stringResource(R.string.export_format_label))
-                    OptionRow(
-                        options = AudioExportFormat.entries,
-                        selected = state.format,
-                        enabled = !exporting,
-                        label = { stringResource(it.labelRes) },
-                        onSelect = onSelectFormat,
-                    )
-
-                    OptionGroupLabel(stringResource(R.string.export_quality_label))
-                    OptionRow(
-                        options = AudioExportQuality.entries,
-                        selected = state.quality,
-                        enabled = !exporting,
-                        label = { stringResource(it.labelRes) },
-                        onSelect = onSelectQuality,
-                    )
-
-                    VicuButton(
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !exporting && state.videoName.isNotBlank(),
-                        onClick = onExport,
-                    ) {
-                        BasicText(exportButtonText(state.phase))
-                    }
-
-                    when (val phase = state.phase) {
-                        ExportPhase.Exporting -> StatusRow(
-                            dotColor = VicuTheme.colors.secondary,
-                            text = stringResource(R.string.exporting),
-                            pulsing = true,
-                        )
-                        is ExportPhase.Complete -> StatusRow(
-                            dotColor = VicuTheme.colors.onSurfaceVariant,
-                            text = stringResource(R.string.export_complete),
-                        )
-                        is ExportPhase.Failed -> StatusRow(
-                            dotColor = VicuTheme.colors.error,
-                            text = stringResource(R.string.export_failed, phase.reason),
-                            textColor = VicuTheme.colors.error,
-                        )
-                        else -> Unit
-                    }
-                }
+            when (val phase = state.phase) {
+                ExportPhase.Exporting -> StatusRow(
+                    dotColor = VicuTheme.colors.secondary,
+                    text = stringResource(R.string.exporting),
+                    pulsing = true,
+                )
+                is ExportPhase.Complete -> StatusRow(
+                    dotColor = VicuTheme.colors.onSurfaceVariant,
+                    text = stringResource(R.string.export_complete),
+                )
+                is ExportPhase.Failed -> StatusRow(
+                    dotColor = VicuTheme.colors.error,
+                    text = stringResource(
+                        R.string.export_failed,
+                        stringResource(phase.error.messageRes),
+                    ),
+                    textColor = VicuTheme.colors.error,
+                )
+                else -> Unit
             }
         }
     }
 }
 
 @Composable
-private fun OptionGroupLabel(text: String) {
-    BasicText(
-        text,
-        style = VicuTheme.typography.caption,
-    )
-}
-
-/** 等宽选项行：选中项主按钮、未选项次按钮；压缩内边距以容纳 4 档质量。 */
-@Composable
-private fun <T> OptionRow(
+private fun <T> RadioOptionGroup(
+    label: String,
     options: List<T>,
     selected: T,
     enabled: Boolean,
-    label: @Composable (T) -> String,
+    optionLabel: @Composable (T) -> String,
     onSelect: (T) -> Unit,
 ) {
-    val compactPadding = Style { contentPaddingHorizontal(8.dp) }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(VicuSpacing.unit),
+    val cardState = remember { MutableStyleState(null) }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .styleable(cardState, VicuTheme.styles.card),
+        verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
     ) {
-        options.forEach { option ->
-            val isSelected = option == selected
-            VicuButton(
-                modifier = Modifier.weight(1f),
-                onClick = { onSelect(option) },
-                enabled = enabled,
-                style = if (isSelected) {
-                    compactPadding
-                } else {
-                    VicuTheme.styles.secondaryButton then compactPadding
-                },
-                // 选中=黑底取 onPrimary（默认）；未选中=浅面板取 onSurface
-                rippleColor = if (isSelected) VicuTheme.colors.onPrimary else VicuTheme.colors.onSurface,
-            ) {
-                BasicText(label(option))
+        BasicText(label, style = VicuTheme.typography.caption)
+        Column(
+            modifier = Modifier.selectableGroup(),
+            verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit / 2),
+        ) {
+            options.forEach { option ->
+                RadioOption(
+                    label = optionLabel(option),
+                    selected = option == selected,
+                    enabled = enabled,
+                    onClick = { onSelect(option) },
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun RadioOption(
+    label: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val indicatorColor = if (selected) VicuTheme.colors.primary else VicuTheme.colors.outline
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(VicuTheme.shapes.base)
+            .selectable(
+                selected = selected,
+                enabled = enabled,
+                role = Role.RadioButton,
+                interactionSource = interactionSource,
+                indication = vicuRipple(),
+                onClick = onClick,
+            )
+            .padding(
+                horizontal = VicuTheme.dimensions.spacingUnit,
+                vertical = VicuTheme.dimensions.radioItemVerticalPadding,
+            )
+            .alpha(if (enabled) VicuTheme.alpha.full else VicuTheme.alpha.disabled),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(VicuTheme.dimensions.radioOuterSize)
+                .border(VicuTheme.dimensions.radioBorderWidth, indicatorColor, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) {
+                Box(
+                    Modifier
+                        .size(VicuTheme.dimensions.radioInnerSize)
+                        .clip(CircleShape)
+                        .background(VicuTheme.colors.primary)
+                )
+            }
+        }
+        BasicText(label, style = VicuTheme.typography.bodyLg)
     }
 }
 
@@ -224,6 +253,13 @@ private val AudioExportQuality.labelRes: Int
         AudioExportQuality.LOW -> R.string.quality_low
     }
 
+internal val AudioExportError.messageRes: Int
+    get() = when (this) {
+        AudioExportError.TranscodeFailed -> R.string.export_error_transcode
+        AudioExportError.OutputCreationFailed -> R.string.export_error_output_creation
+        AudioExportError.Unknown -> R.string.export_error_unknown
+    }
+
 @Composable
 private fun exportButtonText(phase: ExportPhase): String = stringResource(
     when (phase) {
@@ -234,11 +270,6 @@ private fun exportButtonText(phase: ExportPhase): String = stringResource(
     }
 )
 
-private fun sourceInfoText(info: SourceAudioInfo): String {
-    val codec = info.codec?.uppercase() ?: "?"
-    return if (info.bitrateKbps != null) "$codec · ${info.bitrateKbps} kb/s" else codec
-}
-
 @Composable
 private fun StatusRow(
     dotColor: Color,
@@ -248,21 +279,23 @@ private fun StatusRow(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(VicuSpacing.unit),
+        horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
     ) {
         val dotAlpha = if (pulsing) {
             val transition = rememberInfiniteTransition(label = "statusPulse")
             transition.animateFloat(
-                initialValue = 0.3f,
-                targetValue = 1f,
+                initialValue = VicuTheme.alpha.statusPulseMinimum,
+                targetValue = VicuTheme.alpha.full,
                 animationSpec = infiniteRepeatable(
-                    animation = tween(durationMillis = 600),
+                    animation = tween(
+                        durationMillis = VicuTheme.motion.statusPulseDurationMillis,
+                    ),
                     repeatMode = RepeatMode.Reverse,
                 ),
                 label = "dotAlpha",
             ).value
         } else {
-            1f
+            VicuTheme.alpha.full
         }
         val dotState = remember { MutableStyleState(null) }
         Box(
@@ -274,40 +307,6 @@ private fun StatusRow(
     }
 }
 
-@Composable
-private fun OrbBackground() {
-    // ponytail: DESIGN.md 的模糊渐变 orb 以纯 radialGradient 近似——Modifier.blur 需 API 31+
-    // （minSdk 29）；升级路径：按 SDK_INT 分级加 blur 或改 RenderEffect。
-    Box(Modifier.fillMaxSize()) {
-        Box(
-            Modifier
-                .align(Alignment.TopEnd)
-                .size(360.dp)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            VicuTheme.colors.surfaceTint.copy(alpha = 0.10f),
-                            Color.Transparent,
-                        ),
-                    )
-                )
-        )
-        Box(
-            Modifier
-                .align(Alignment.BottomStart)
-                .size(240.dp)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            VicuTheme.colors.outlineVariant.copy(alpha = 0.15f),
-                            Color.Transparent,
-                        ),
-                    )
-                )
-        )
-    }
-}
-
 @Preview(showBackground = true)
 @Composable
 private fun AudioExportPageReadyPreview() {
@@ -315,12 +314,12 @@ private fun AudioExportPageReadyPreview() {
         AudioExportContent(
             state = AudioExportUiState(
                 videoName = "sample_video.mp4",
-                sourceInfo = SourceAudioInfo("aac", 128),
                 phase = ExportPhase.Ready,
             ),
             onSelectFormat = {},
             onSelectQuality = {},
             onExport = {},
+            onBack = {},
         )
     }
 }
@@ -332,11 +331,12 @@ private fun AudioExportPageFailedPreview() {
         AudioExportContent(
             state = AudioExportUiState(
                 videoName = "sample_video.mp4",
-                phase = ExportPhase.Failed("FFmpeg 转码失败"),
+                phase = ExportPhase.Failed(AudioExportError.TranscodeFailed),
             ),
             onSelectFormat = {},
             onSelectQuality = {},
             onExport = {},
+            onBack = {},
         )
     }
 }

@@ -15,9 +15,12 @@ import androidx.compose.runtime.staticCompositionLocalOf
  */
 @Immutable
 class VicuTheme(
+    val dimensions: VicuDimensions,
+    val motion: VicuMotion,
     val colors: AuralisColors = LightAuralisColors,
     val typography: VicuTypography = LightTypography,
     val shapes: VicuShapes = VicuShapes,
+    val alpha: VicuAlpha = VicuAlpha(),
 ) {
     companion object {
         val colors: AuralisColors
@@ -32,18 +35,36 @@ class VicuTheme(
             @Composable @ReadOnlyComposable
             get() = LocalVicuTheme.current.shapes
 
+        val dimensions: VicuDimensions
+            @Composable @ReadOnlyComposable
+            get() = LocalVicuTheme.current.dimensions
+
+        val motion: VicuMotion
+            @Composable @ReadOnlyComposable
+            get() = LocalVicuTheme.current.motion
+
+        val alpha: VicuAlpha
+            @Composable @ReadOnlyComposable
+            get() = LocalVicuTheme.current.alpha
+
         val styles: VicuStyles = VicuStyles
     }
 }
 
-internal val LocalVicuTheme = staticCompositionLocalOf { VicuTheme() }
+internal val LocalVicuTheme = staticCompositionLocalOf<VicuTheme> {
+    error("VicuTheme is not provided")
+}
 
 @Composable
 fun VicuTheme(content: @Composable () -> Unit) {
     // 开启 Style 的文本属性继承（contentColor/textStyle 沿 styleable 容器传播给 BasicText），
     // 避免每个文案节点显式传色。
     ComposeFoundationFlags.isInheritedTextStyleEnabled = true
-    CompositionLocalProvider(LocalVicuTheme provides VicuTheme()) {
+    val theme = VicuTheme(
+        dimensions = resourceDimensions(),
+        motion = resourceMotion(),
+    )
+    CompositionLocalProvider(LocalVicuTheme provides theme) {
         content()
     }
 }
@@ -57,3 +78,9 @@ val StyleScope.typography: VicuTypography
 
 val StyleScope.shapes: VicuShapes
     get() = LocalVicuTheme.currentValue.shapes
+
+val StyleScope.dimensions: VicuDimensions
+    get() = LocalVicuTheme.currentValue.dimensions
+
+val StyleScope.alpha: VicuAlpha
+    get() = LocalVicuTheme.currentValue.alpha

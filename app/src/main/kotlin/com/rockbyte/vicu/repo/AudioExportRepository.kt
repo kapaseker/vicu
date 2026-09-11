@@ -30,7 +30,7 @@ class AudioExportRepository(context: Context) : AudioExportRepo {
                     inputUrl,
                 )
             )
-            check(ReturnCode.isSuccess(session.getReturnCode())) { "FFprobe 探测失败" }
+            if (!ReturnCode.isSuccess(session.getReturnCode())) return@runCatching null
             val columns = session.getOutput().trim().lineSequence().firstOrNull()
                 ?.split(',')
                 ?: return@runCatching null
@@ -60,15 +60,17 @@ class AudioExportRepository(context: Context) : AudioExportRepo {
                     target = target,
                 )
             )
-            check(ReturnCode.isSuccess(session.getReturnCode())) {
-                session.getFailStackTrace()?.takeIf(String::isNotBlank)
-                    ?: "FFmpeg 转码失败，返回码：${session.getReturnCode()}"
+            if (!ReturnCode.isSuccess(session.getReturnCode())) {
+                throw AudioExportException(AudioExportError.TranscodeFailed)
             }
             publishOutput(outputUri)
             outputUri
-        } catch (error: Exception) {
+        } catch (error: AudioExportException) {
             deleteOutput(outputUri)
             throw error
+        } catch (error: Exception) {
+            deleteOutput(outputUri)
+            throw AudioExportException(AudioExportError.Unknown, error)
         }
     }
 
@@ -82,12 +84,10 @@ class AudioExportRepository(context: Context) : AudioExportRepo {
             )
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
-        return checkNotNull(
-            resolver.insert(
-                MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
-                values,
-            )
-        ) { "无法在媒体库中创建 ${format.extension} 文件" }
+        return resolver.insert(
+            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+            values,
+        ) ?: throw AudioExportException(AudioExportError.OutputCreationFailed)
     }
 
     private fun publishOutput(uri: Uri) {

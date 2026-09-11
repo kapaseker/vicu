@@ -7,9 +7,7 @@ import androidx.compose.foundation.style.contentPaddingHorizontal
 import androidx.compose.foundation.style.disabled
 import androidx.compose.foundation.style.size
 import androidx.compose.foundation.style.then
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.shadow.Shadow
-import androidx.compose.ui.unit.dp
 
 /**
  * DESIGN.md Components/Elevation 规格的组件样式。
@@ -24,8 +22,8 @@ object VicuStyles {
         contentColor(colors.onPrimary)
         shape(shapes.full)
         textStyle(typography.button)
-        contentPaddingHorizontal(24.dp)
-        minHeight(52.dp) // DESIGN.md 未规定按钮高度，取 pill 通用高度
+        contentPaddingHorizontal(dimensions.buttonHorizontalPadding)
+        minHeight(dimensions.buttonMinHeight) // DESIGN.md 未规定按钮高度，取 pill 通用高度
         disabled {
             background(colors.outlineVariant)
         }
@@ -37,8 +35,8 @@ object VicuStyles {
         contentColor(colors.onSecondaryContainer)
         shape(shapes.full)
         textStyle(typography.button)
-        contentPaddingHorizontal(24.dp)
-        minHeight(52.dp)
+        contentPaddingHorizontal(dimensions.buttonHorizontalPadding)
+        minHeight(dimensions.buttonMinHeight)
         disabled {
             background(colors.surfaceContainerHighest)
         }
@@ -48,13 +46,13 @@ object VicuStyles {
     val card: Style = Style {
         shape(shapes.xl)
         background(colors.surfaceContainerLowest)
-        border(1.dp, colors.outlineVariant)
-        contentPadding(VicuSpacing.cardPadding)
+        border(dimensions.cardBorderWidth, colors.outlineVariant)
+        contentPadding(dimensions.cardPadding)
         dropShadow(
             Shadow(
-                radius = 40.dp,
-                color = Color.Black,
-                alpha = 0.02f,
+                radius = dimensions.cardShadowRadius,
+                color = colors.primary,
+                alpha = alpha.ambientShadow,
             )
         )
     }
@@ -70,7 +68,7 @@ object VicuStyles {
      * 降到 16dp。后续功能变多或 tile 尺寸放大时可回到 card 默认。
      */
     val functionTile: Style = card then Style {
-        contentPadding(VicuSpacing.unit * 2)
+        contentPadding(dimensions.functionTilePadding)
     }
 
     /**
@@ -79,14 +77,14 @@ object VicuStyles {
      */
     val header: Style = Style {
         background(colors.surface)
-        height(VicuSpacing.headerHeight)
-        contentPaddingHorizontal(4.dp)
+        height(dimensions.topAppBarHeight)
+        contentPaddingHorizontal(dimensions.topAppBarHorizontalPadding)
         contentColor(colors.onSurface)
     }
 
     /** 状态指示：小圆点 + 文案，而非大面积横幅（DESIGN.md Visual Indicators）。 */
     val statusDot: Style = Style {
-        size(8.dp)
+        size(dimensions.statusDotSize)
         shape(shapes.full)
         background(colors.secondary)
     }
@@ -99,9 +97,9 @@ object VicuStyles {
 
     /** 媒体类型角标：24dp 白底 base 圆角块 + 1px 边框，承载 16dp tint 图标。 */
     val typeBadge: Style = Style {
-        size(24.dp)
+        size(dimensions.typeBadgeSize)
         shape(shapes.base)
         background(colors.surfaceContainerLowest)
-        border(1.dp, colors.outlineVariant)
+        border(dimensions.cardBorderWidth, colors.outlineVariant)
     }
 }

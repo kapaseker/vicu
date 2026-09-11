@@ -13,6 +13,19 @@ enum class AudioExportFormat(val mime: String, val extension: String) {
 /** 导出质量档位。 */
 enum class AudioExportQuality { BEST, HIGH, MEDIUM, LOW }
 
+/** 可由 UI 本地化展示的导出失败类型；Repo 不持有用户可见文案。 */
+sealed interface AudioExportError {
+    data object TranscodeFailed : AudioExportError
+    data object OutputCreationFailed : AudioExportError
+    data object Unknown : AudioExportError
+}
+
+/** Repo 对外的结构化失败，底层异常仅作为 cause 保留用于诊断。 */
+class AudioExportException(
+    val error: AudioExportError,
+    cause: Throwable? = null,
+) : Exception(null, cause)
+
 /** FFprobe 探测到的源音频流信息；字段可能缺失。 */
 data class SourceAudioInfo(val codec: String?, val bitrateKbps: Int?)
 
@@ -37,22 +50,21 @@ fun resolveTarget(
     format: AudioExportFormat,
     quality: AudioExportQuality,
     source: SourceAudioInfo?,
-): EncodeTarget = when {
-    format == AudioExportFormat.ORIGINAL && quality == AudioExportQuality.BEST &&
-        (source?.codec == null || source.codec == "aac") -> EncodeTarget.Copy
+): EncodeTarget {
+    if (
+        format == AudioExportFormat.ORIGINAL &&
+        quality == AudioExportQuality.BEST &&
+        (source?.codec == null || source.codec == "aac")
+    ) {
+        return EncodeTarget.Copy
+    }
 
-    quality == AudioExportQuality.BEST -> EncodeTarget.Bitrate(
-        (source?.bitrateKbps ?: MAX_TRANSCODE_KBPS).coerceAtMost(MAX_TRANSCODE_KBPS)
-    )
-
-    else -> EncodeTarget.Bitrate(
-        when (quality) {
-            AudioExportQuality.HIGH -> 320
-            AudioExportQuality.MEDIUM -> 192
-            AudioExportQuality.LOW -> 128
-            AudioExportQuality.BEST -> error("已在上方分支处理")
-        }.clampedTo(source)
-    )
+    val targetKbps = when (quality) {
+        AudioExportQuality.BEST, AudioExportQuality.HIGH -> MAX_TRANSCODE_KBPS
+        AudioExportQuality.MEDIUM -> 192
+        AudioExportQuality.LOW -> 128
+    }
+    return EncodeTarget.Bitrate(targetKbps.clampedTo(source))
 }
 
 /** 视频导出音频（domain-facing 数据操作）。 */

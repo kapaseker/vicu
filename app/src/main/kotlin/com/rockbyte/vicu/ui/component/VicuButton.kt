@@ -13,11 +13,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import com.rockbyte.vicu.ui.theme.VicuTheme
+import com.rockbyte.vicu.ui.theme.vicuRipple
 
 /**
  * 设计系统按钮（Styles API）。默认为基础主按钮样式（黑 pill）；
  * 传入 [VicuTheme.styles.secondaryButton] 等样式时按 then 语义整体覆盖（后者优先）。
+ * 修饰符顺序为 clip → styleable → clickable：背景先绘制、ripple 叠加其上并裁进 pill 形状。
+ * [rippleColor] 默认深色主按钮取 onPrimary；浅底样式（secondaryButton）传 onSurface。
  */
 @Composable
 fun VicuButton(
@@ -25,6 +30,7 @@ fun VicuButton(
     modifier: Modifier = Modifier,
     style: Style = Style,
     enabled: Boolean = true,
+    rippleColor: Color = VicuTheme.colors.onPrimary,
     interactionSource: MutableInteractionSource? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
@@ -34,13 +40,14 @@ fun VicuButton(
     }
     Row(
         modifier = modifier
+            .clip(VicuTheme.shapes.full)
+            .styleable(styleState, VicuTheme.styles.primaryButton then style)
             .clickable(
                 onClick = onClick,
                 enabled = enabled,
                 interactionSource = source,
-                indication = null,
-            )
-            .styleable(styleState, VicuTheme.styles.primaryButton then style),
+                indication = vicuRipple(rippleColor),
+            ),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
         content = content,

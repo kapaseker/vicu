@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -53,6 +54,7 @@ import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.component.iconRes
 import com.rockbyte.vicu.ui.theme.VicuSpacing
 import com.rockbyte.vicu.ui.theme.VicuTheme
+import com.rockbyte.vicu.ui.theme.vicuRipple
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koin.androidx.compose.koinViewModel
@@ -138,7 +140,7 @@ private fun MediaGrid(state: MediaLibraryUiState, onMediaClick: (MediaItem) -> U
         return
     }
     LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
+        columns = GridCells.Adaptive(minSize = 384.dp),
         modifier = Modifier
             .fillMaxSize()
             .navigationBarsPadding(),
@@ -162,12 +164,17 @@ private fun MediaTile(
     modifier: Modifier = Modifier,
 ) {
     val tileState = remember { MutableStyleState(null) }
+    val interactionSource = remember { MutableInteractionSource() }
     Box(
         modifier
             .aspectRatio(1f)
             .clip(VicuTheme.shapes.xl)
             .styleable(tileState, VicuTheme.styles.mediaTile)
-            .clickable { onMediaClick(item) }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = vicuRipple(),
+                onClick = { onMediaClick(item) },
+            )
     ) {
         when (item.kind) {
             MediaKind.IMAGE, MediaKind.VIDEO -> MediaThumbnail(item)

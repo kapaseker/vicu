@@ -1,13 +1,20 @@
 package com.rockbyte.vicu.page
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.style.MutableStyleState
 import androidx.compose.foundation.style.styleable
 import androidx.compose.foundation.text.BasicText
@@ -15,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -23,53 +31,127 @@ import androidx.compose.ui.unit.dp
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.nav.MediaFunctionsRoute
 import com.rockbyte.vicu.repo.MediaKind
-import com.rockbyte.vicu.ui.component.VicuButton
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.component.iconRes
 import com.rockbyte.vicu.ui.theme.VicuSpacing
 import com.rockbyte.vicu.ui.theme.VicuTheme
+import com.rockbyte.vicu.ui.theme.vicuRipple
 
 /**
  * 媒体功能列表页：所有多媒体点击后进入。
- * 视频提供「导出音频」入口；其余类型展示敬请期待占位。
+ * 标题与功能集随媒体类型变化；视频提供「导出音频」入口，其余类型展示敬请期待占位。
  */
 @Composable
-fun MediaFunctionsPage(route: MediaFunctionsRoute, onExportAudio: () -> Unit) {
-    VicuScaffold(title = route.name) {
+fun MediaFunctionsPage(
+    route: MediaFunctionsRoute,
+    onExportAudio: () -> Unit,
+    onBack: () -> Unit,
+) {
+    VicuScaffold(
+        title = stringResource(route.kind.functionTitleRes()),
+        onBack = onBack,
+    ) {
         when (route.kind) {
-            MediaKind.VIDEO -> VideoFunctionsContent(onExportAudio)
+            MediaKind.VIDEO -> VideoFunctionsContent(route.name, onExportAudio)
             MediaKind.IMAGE, MediaKind.AUDIO -> ComingSoonContent(route.kind)
         }
     }
 }
 
+/**
+ * 文件名超长省略：按名称（不含扩展名）计数，超过 10 字符 → 前 5 + "***" + 后 5，再补回扩展名。
+ */
+internal fun abbreviateMediaFileName(name: String): String {
+    val stem = name.substringBeforeLast('.')
+    val shown = if (stem.length <= 10) stem else stem.take(5) + "***" + stem.takeLast(5)
+    val ext = name.substringAfterLast('.', "")
+    return if (ext.isEmpty()) shown else "$shown.$ext"
+}
+
+private fun MediaKind.functionTitleRes(): Int = when (this) {
+    MediaKind.VIDEO -> R.string.functions_title_video
+    MediaKind.IMAGE -> R.string.functions_title_image
+    MediaKind.AUDIO -> R.string.functions_title_audio
+}
+
 @Composable
-private fun VideoFunctionsContent(onExportAudio: () -> Unit) {
+private fun VideoFunctionsContent(name: String, onExportAudio: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = VicuSpacing.gutter)
-            .padding(vertical = VicuSpacing.gutter),
-        verticalArrangement = Arrangement.spacedBy(VicuSpacing.unit * 2),
+            .navigationBarsPadding()
+            .padding(VicuSpacing.gutter),
     ) {
-        val cardState = remember { MutableStyleState(null) }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .styleable(cardState, VicuTheme.styles.card),
-            verticalArrangement = Arrangement.spacedBy(VicuSpacing.unit * 2),
-        ) {
-            BasicText(
-                stringResource(R.string.functions_description),
-                style = VicuTheme.typography.bodyLg,
+        BasicText(
+            text = stringResource(R.string.functions_description, abbreviateMediaFileName(name)),
+            style = VicuTheme.typography.bodyLg.copy(color = VicuTheme.colors.onSurfaceVariant),
+        )
+        FunctionGrid(onExportAudio)
+    }
+}
+
+/** 功能按钮 grid：自适应列（tile 最小 96dp，宽屏自动多列），为后续功能扩展预留。 */
+@Composable
+private fun FunctionGrid(onExportAudio: () -> Unit) {
+    val functions = listOf(
+        FunctionEntry(R.drawable.ic_audio, R.string.export_audio, onExportAudio),
+    )
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(96.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = VicuSpacing.gutter),
+        horizontalArrangement = Arrangement.spacedBy(VicuSpacing.unit),
+        verticalArrangement = Arrangement.spacedBy(VicuSpacing.unit),
+    ) {
+        items(functions, key = { it.labelRes }) { entry ->
+            FunctionTile(
+                iconRes = entry.iconRes,
+                label = stringResource(entry.labelRes),
+                onClick = entry.onClick,
             )
-            VicuButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onExportAudio,
-            ) {
-                BasicText(stringResource(R.string.export_audio))
-            }
         }
+    }
+}
+
+private class FunctionEntry(
+    val iconRes: Int,
+    val labelRes: Int,
+    val onClick: () -> Unit,
+)
+
+/** 单个功能按钮：竖向 icon + 文字，卡片视觉直接落在页面上（不套外层容器）。 */
+@Composable
+private fun FunctionTile(
+    iconRes: Int,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val styleState = remember { MutableStyleState(null) }
+    val interactionSource = remember { MutableInteractionSource() }
+    Column(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(VicuTheme.shapes.xl)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = vicuRipple(),
+                onClick = onClick,
+            )
+            .styleable(styleState, VicuTheme.styles.functionTile),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(VicuSpacing.unit, Alignment.CenterVertically),
+    ) {
+        Image(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            modifier = Modifier.size(32.dp),
+            colorFilter = ColorFilter.tint(VicuTheme.colors.onSurfaceVariant),
+        )
+        BasicText(
+            text = label,
+            style = VicuTheme.typography.bodySm.copy(color = VicuTheme.colors.onSurface),
+        )
     }
 }
 
@@ -104,10 +186,11 @@ private fun MediaFunctionsPageVideoPreview() {
         MediaFunctionsPage(
             route = MediaFunctionsRoute(
                 uri = "content://media/external/video/2",
-                name = "clip.mp4",
+                name = "abcdefghijk.mp4",
                 kind = MediaKind.VIDEO,
             ),
             onExportAudio = {},
+            onBack = {},
         )
     }
 }
@@ -123,6 +206,7 @@ private fun MediaFunctionsPageComingSoonPreview() {
                 kind = MediaKind.IMAGE,
             ),
             onExportAudio = {},
+            onBack = {},
         )
     }
 }

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Vicu</string>
-    <string name="app_title">导出音频</string>
     <string name="screen_description">从视频中提取音频，支持导出为原声、MP3 或 M4A 格式。</string>
     <string name="selected_file">视频：%1$s</string>
     <string name="source_audio_info">源音频：%1$s</string>
@@ -20,7 +19,11 @@
     <string name="export_failed_retry">导出失败，重试</string>
     <string name="export_complete">已保存到 Music/FFmpegKitNext 文件夹。</string>
     <string name="export_failed">导出失败：%1$s</string>
-    <string name="functions_description">选择要对此视频执行的操作。</string>
+    <string name="back">返回</string>
+    <string name="functions_title_video">视频功能</string>
+    <string name="functions_title_image">图片功能</string>
+    <string name="functions_title_audio">音频功能</string>
+    <string name="functions_description">选择要对视频文件 %1$s 执行的操作。</string>
     <string name="coming_soon">敬请期待</string>
     <string name="media_permission_rationale">需要媒体访问权限，用于展示设备上的图片、视频和音乐。</string>
     <string name="grant_media_permission">授予权限</string>

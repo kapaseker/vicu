@@ -8,8 +8,9 @@ import androidx.compose.ui.unit.dp
 object VicuSpacing {
     val unit = 8.dp
     val gutter = 24.dp
-    val marginX = 40.dp
-    val headerHeight = 72.dp
+
+    /** Android 标准顶栏高度（M3 TopAppBar 规格；用户决策：平台规范优先于 DESIGN.md 72px web token）。 */
+    val headerHeight = 64.dp
 
     /** DESIGN.md Components：卡片内边距下限 32px。 */
     val cardPadding = 32.dp

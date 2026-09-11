@@ -69,6 +69,8 @@ dependencies {
     implementation(libs.compose.activity)
     implementation(libs.compose.foundation)
     implementation(libs.compose.foundation.layout)
+    // 仅 ripple 反馈（Indication），非 Material3 组件，无 Material 主题依赖
+    implementation(libs.compose.material.ripple)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.lifecycle.viewmodel)
     implementation(libs.lifecycle.viewmodel.compose)

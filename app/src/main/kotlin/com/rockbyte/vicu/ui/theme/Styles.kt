@@ -6,6 +6,7 @@ import androidx.compose.foundation.style.contentPadding
 import androidx.compose.foundation.style.contentPaddingHorizontal
 import androidx.compose.foundation.style.disabled
 import androidx.compose.foundation.style.size
+import androidx.compose.foundation.style.then
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.unit.dp
@@ -63,11 +64,23 @@ object VicuStyles {
         background(colors.background)
     }
 
-    /** 72dp 固定顶栏；玻璃效果在 minSdk 29 下降级为实色 surface（Modifier.blur 需 API 31+）。 */
+    /**
+     * 功能按钮 tile：卡片视觉（card then 覆盖内边距）。
+     * DESIGN.md 卡片 32dp 内边距下限针对整幅卡片；grid 内约 100dp 的 tile 装不下，
+     * 降到 16dp。后续功能变多或 tile 尺寸放大时可回到 card 默认。
+     */
+    val functionTile: Style = card then Style {
+        contentPadding(VicuSpacing.unit * 2)
+    }
+
+    /**
+     * 64dp 标准顶栏（M3 TopAppBar 规格，无 Material3 依赖的手工对齐）：
+     * 4dp 行内边距 + 48dp 触控区（24dp 图标居中）= 图标距屏幕 16dp；标题起点 56dp 由 VicuTopAppBar 布局。
+     */
     val header: Style = Style {
         background(colors.surface)
         height(VicuSpacing.headerHeight)
-        contentPaddingHorizontal(VicuSpacing.marginX)
+        contentPaddingHorizontal(4.dp)
         contentColor(colors.onSurface)
     }
 

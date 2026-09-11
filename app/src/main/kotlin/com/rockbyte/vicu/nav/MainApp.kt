@@ -49,6 +49,7 @@ fun MainApp() {
                 MediaFunctionsPage(
                     route = route,
                     onExportAudio = { backStack.add(AudioExportRoute(route.uri, route.name)) },
+                    onBack = { backStack.removeLastOrNull() },
                 )
             }
             entry<AudioExportRoute> { route ->

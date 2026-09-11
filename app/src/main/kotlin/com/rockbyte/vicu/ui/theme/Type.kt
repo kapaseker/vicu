@@ -18,6 +18,7 @@ class VicuTypography(
     val h1: TextStyle,
     val h2: TextStyle,
     val h3: TextStyle,
+    val topAppBarTitle: TextStyle,
     val bodyLg: TextStyle,
     val bodySm: TextStyle,
     val caption: TextStyle,
@@ -46,6 +47,14 @@ val LightTypography = VicuTypography(
         fontSize = 24.sp,
         fontWeight = FontWeight.Medium,
         lineHeight = 31.sp,
+        color = LightAuralisColors.onSurface,
+    ),
+    // M3 small top app bar 使用 Title Large；字体家族仍遵循 Auralis 的 Inter。
+    topAppBarTitle = TextStyle(
+        fontFamily = Inter,
+        fontSize = 22.sp,
+        fontWeight = FontWeight.Normal,
+        lineHeight = 28.sp,
         color = LightAuralisColors.onSurface,
     ),
     bodyLg = TextStyle(

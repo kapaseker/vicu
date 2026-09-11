@@ -44,6 +44,7 @@ import com.rockbyte.vicu.repo.AudioExportFormat
 import com.rockbyte.vicu.repo.AudioExportQuality
 import com.rockbyte.vicu.repo.SourceAudioInfo
 import com.rockbyte.vicu.ui.component.VicuButton
+import com.rockbyte.vicu.ui.component.VicuTopAppBar
 import com.rockbyte.vicu.ui.theme.VicuSpacing
 import com.rockbyte.vicu.ui.theme.VicuTheme
 import org.koin.androidx.compose.koinViewModel
@@ -85,15 +86,7 @@ private fun AudioExportContent(
     ) {
         OrbBackground()
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            val headerState = remember { MutableStyleState(null) }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .styleable(headerState, VicuTheme.styles.header),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                BasicText(stringResource(R.string.app_title), style = VicuTheme.typography.h3)
-            }
+            VicuTopAppBar(title = stringResource(R.string.export_audio))
             Column(
                 modifier = Modifier
                     .padding(horizontal = VicuSpacing.gutter)
@@ -197,15 +190,18 @@ private fun <T> OptionRow(
         horizontalArrangement = Arrangement.spacedBy(VicuSpacing.unit),
     ) {
         options.forEach { option ->
+            val isSelected = option == selected
             VicuButton(
                 modifier = Modifier.weight(1f),
                 onClick = { onSelect(option) },
                 enabled = enabled,
-                style = if (option == selected) {
+                style = if (isSelected) {
                     compactPadding
                 } else {
                     VicuTheme.styles.secondaryButton then compactPadding
                 },
+                // 选中=黑底取 onPrimary（默认）；未选中=浅面板取 onSurface
+                rippleColor = if (isSelected) VicuTheme.colors.onPrimary else VicuTheme.colors.onSurface,
             ) {
                 BasicText(label(option))
             }

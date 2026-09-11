@@ -1,6 +1,6 @@
 [versions]
 agp = "9.4.0"
-kotlin = "2.4.10"
+kotlin = "2.4.20"
 
 smart-exception = "0.2.1"
 androidx-annotation = "1.10.0"
@@ -9,14 +9,14 @@ lifecycle = "2.11.0"
 junit = "4.13.2"
 
 sdk-compile = "37"
-sdk-min = "29"
+sdk-min = "30"
 version-code = "1"
 version-name = "1.0"
 compose-bom = "2026.09.00"
 
 nav3 = "1.1.7"
 koin-bom = "4.2.2"
-kotlinx-serialization-core = "1.9.0"
+kotlinx-serialization-core = "1.11.0"
 
 [libraries]
 smart-exception-java = { group = "com.arthenica", name = "smart-exception-java", version.ref = "smart-exception" }

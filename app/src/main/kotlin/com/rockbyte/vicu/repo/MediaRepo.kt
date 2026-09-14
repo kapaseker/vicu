@@ -1,6 +1,5 @@
 package com.rockbyte.vicu.repo
 
-import android.graphics.Bitmap
 import android.net.Uri
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
@@ -23,20 +22,11 @@ data class SelectedMedia(
     val kind: MediaKind,
 )
 
-data class MediaLibrary(
-    val items: List<MediaItem>,
-    val hasAccess: Boolean,
-    val permissionsToRequest: List<String>,
-)
-
 /** MediaStore 聚合查询（domain-facing 数据操作）。 */
 interface MediaRepo {
-    /** 返回当前可读集合及请求媒体访问所需的权限。 */
-    suspend fun loadLibrary(): MediaLibrary
+    /** 媒体库条目流；repo 构造后即监听 MediaStore 变更并自动重查，每次重查都发射最新列表。 */
+    val library: Flow<List<MediaItem>>
 
-    /** 读取媒体预览；媒体不可读或预览失败时返回 null。 */
-    suspend fun loadThumbnail(uri: Uri, width: Int, height: Int): Bitmap?
-
-    /** 每当 MediaStore 外部内容变更（新增/删除/修改）时发射一次，冷流，收集期注册观察者。 */
-    fun observeExternalChanges(): Flow<Unit>
+    /** 权限状态变化后由外部触发重查（授权回调后调用）。 */
+    fun refresh()
 }

@@ -1,6 +1,7 @@
-package com.rockbyte.vicu.repo
+package com.rockbyte.vicu.page
 
 import android.Manifest
+import com.rockbyte.vicu.repo.MediaKind
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

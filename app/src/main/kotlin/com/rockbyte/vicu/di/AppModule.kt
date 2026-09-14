@@ -25,14 +25,14 @@ import org.koin.dsl.module
 
 val appModule = module {
     single<MediaLibraryStore> { MediaLibraryStorage(androidContext()) }
-    single<MediaRepo> { MediaRepository(get()) }
+    single<MediaRepo> { MediaRepository(androidContext().contentResolver, get()) }
     single<AudioEncoder> { FFmpegAudioEncoder(androidContext()) }
     single<AudioOutputStore> { AudioOutputStorage(androidContext().contentResolver, System::currentTimeMillis) }
     single<AudioExportRepo> { AudioExportRepository(get(), get()) }
     single<VideoConverter> { FFmpegVideoConverter(androidContext()) }
     single<VideoOutputStore> { VideoOutputStorage(androidContext().contentResolver, System::currentTimeMillis) }
     single<VideoConvertRepo> { VideoConvertRepository(get(), get()) }
-    viewModel { HomeViewModel(get()) }
+    viewModel { HomeViewModel(androidContext(), get()) }
     viewModel { AudioExportViewModel(get()) }
     viewModel { VideoConvertViewModel(get()) }
 }

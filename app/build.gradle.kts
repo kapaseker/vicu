@@ -97,6 +97,9 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
     implementation(libs.kotlinx.serialization.core)
+    // Coil 3 缩略图加载；coil-video 提供视频 URI 解码首帧
+    implementation(libs.coil.compose)
+    implementation(libs.coil.video)
     debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.junit)

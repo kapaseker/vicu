@@ -1,6 +1,5 @@
 package com.rockbyte.vicu.page
 
-import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,17 +25,19 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.repo.MediaItem
 import com.rockbyte.vicu.repo.MediaKind
@@ -57,7 +58,6 @@ fun HomePage(onMediaClick: (MediaItem) -> Unit) {
     HomePageContent(
         state = state,
         onRefresh = viewModel::refresh,
-        onLoadThumbnail = viewModel::loadThumbnail,
         onMediaClick = onMediaClick,
     )
 }
@@ -66,7 +66,6 @@ fun HomePage(onMediaClick: (MediaItem) -> Unit) {
 private fun HomePageContent(
     state: MediaLibraryUiState,
     onRefresh: () -> Unit,
-    onLoadThumbnail: suspend (Uri, Int, Int) -> Bitmap?,
     onMediaClick: (MediaItem) -> Unit,
 ) {
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -78,7 +77,6 @@ private fun HomePageContent(
         onRequestPermission = {
             permissionLauncher.launch(state.permissionsToRequest.toTypedArray())
         },
-        onLoadThumbnail = onLoadThumbnail,
         onMediaClick = onMediaClick,
     )
 }
@@ -87,12 +85,11 @@ private fun HomePageContent(
 private fun HomePageBody(
     state: MediaLibraryUiState,
     onRequestPermission: () -> Unit,
-    onLoadThumbnail: suspend (Uri, Int, Int) -> Bitmap?,
     onMediaClick: (MediaItem) -> Unit,
 ) {
     VicuScaffold(title = stringResource(R.string.app_name)) {
         when (state.hasAccess) {
-            true -> MediaGrid(state, onLoadThumbnail, onMediaClick)
+            true -> MediaGrid(state, onMediaClick)
             false -> PermissionPrompt(onRequest = onRequestPermission)
             null -> Unit
         }
@@ -102,7 +99,6 @@ private fun HomePageBody(
 @Composable
 private fun MediaGrid(
     state: MediaLibraryUiState,
-    onLoadThumbnail: suspend (Uri, Int, Int) -> Bitmap?,
     onMediaClick: (MediaItem) -> Unit,
 ) {
     if (!state.loading && state.items.isEmpty()) {
@@ -128,7 +124,7 @@ private fun MediaGrid(
         verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
     ) {
         items(state.items, key = { it.uri }) { item ->
-            MediaTile(item, onLoadThumbnail, onMediaClick)
+            MediaTile(item, onMediaClick)
         }
     }
 }
@@ -136,19 +132,12 @@ private fun MediaGrid(
 @Composable
 private fun MediaTile(
     item: MediaItem,
-    onLoadThumbnail: suspend (Uri, Int, Int) -> Bitmap?,
     onMediaClick: (MediaItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val tileState = remember { MutableStyleState(null) }
     val interactionSource = remember { MutableInteractionSource() }
-    val thumbnail by produceState<Bitmap?>(initialValue = null, item.uri) {
-        value = when (item.kind) {
-            MediaKind.IMAGE, MediaKind.VIDEO ->
-                onLoadThumbnail(item.uri, THUMBNAIL_SIZE_PX, THUMBNAIL_SIZE_PX)
-            MediaKind.AUDIO -> null
-        }
-    }
+    var imageState by remember { mutableStateOf<AsyncImagePainter.State?>(null) }
     Box(
         modifier
             .aspectRatio(1f)
@@ -159,25 +148,27 @@ private fun MediaTile(
                 onClick = { onMediaClick(item) },
             )
     ) {
-        val bitmap = thumbnail
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap.asImageBitmap(),
+        // 图片/视频用 Coil 加载缩略图（视频经 VideoFrameDecoder 解码真实第一帧）
+        if (item.kind != MediaKind.AUDIO) {
+            AsyncImage(
+                model = item.uri,
                 contentDescription = item.name,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
+                onState = { imageState = it },
             )
+        }
+        if (imageState is AsyncImagePainter.State.Success) {
             // badge 只在缩略图加载成功时显示，避免与居中的默认类型图标重复
             TypeBadge(item.kind, Modifier
                 .align(Alignment.TopStart)
                 .padding(VicuTheme.dimensions.spacingUnit))
         } else {
+            // 音频/加载中/加载失败 → 居中默认类型图标
             KindIcon(item)
         }
     }
 }
-
-private const val THUMBNAIL_SIZE_PX = 256
 
 @Composable
 private fun BoxScope.KindIcon(item: MediaItem) {
@@ -244,7 +235,6 @@ private fun HomePageGridPreview() {
                 )
             ),
             onRefresh = {},
-            onLoadThumbnail = { _, _, _ -> null },
             onMediaClick = {},
         )
     }
@@ -257,7 +247,6 @@ private fun HomePageEmptyPreview() {
         HomePageContent(
             state = MediaLibraryUiState(loading = false, hasAccess = true),
             onRefresh = {},
-            onLoadThumbnail = { _, _, _ -> null },
             onMediaClick = {},
         )
     }
@@ -274,7 +263,6 @@ private fun HomePagePermissionPreview() {
                 permissionsToRequest = listOf("android.permission.READ_MEDIA_VIDEO"),
             ),
             onRequestPermission = {},
-            onLoadThumbnail = { _, _, _ -> null },
             onMediaClick = {},
         )
     }

@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Vicu</string>
+    <string name="app_title">导出音频</string>
+    <string name="screen_description">从视频中提取音频，支持导出为原声、MP3 或 M4A 格式。</string>
+    <string name="selected_file">视频：%1$s</string>
+    <string name="source_audio_info">源音频：%1$s</string>
     <string name="export_format_label">格式</string>
     <string name="export_quality_label">质量</string>
     <string name="format_original">原声</string>

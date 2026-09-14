@@ -7,6 +7,7 @@ androidx-annotation = "1.10.0"
 compose-activity = "1.13.0"
 lifecycle = "2.11.0"
 junit = "4.13.2"
+mockito = "5.23.0"
 
 sdk-compile = "37"
 sdk-min = "30"
@@ -19,6 +20,7 @@ koin-bom = "4.2.2"
 kotlinx-serialization-core = "1.11.0"
 
 [libraries]
+mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockito" }
 smart-exception-java = { group = "com.arthenica", name = "smart-exception-java", version.ref = "smart-exception" }
 androidx-annotation = { group = "androidx.annotation", name = "annotation", version.ref = "androidx-annotation" }
 compose-activity = { group = "androidx.activity", name = "activity-compose", version.ref = "compose-activity" }

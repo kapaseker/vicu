@@ -1,113 +1,86 @@
 package com.rockbyte.vicu.repo
 
-import android.content.ContentValues
-import android.content.Context
 import android.net.Uri
-import android.os.Environment
-import android.provider.MediaStore
-import com.arthenica.ffmpegkit.FFmpegKit
-import com.arthenica.ffmpegkit.FFmpegKitConfig
-import com.arthenica.ffmpegkit.FFprobeKit
-import com.arthenica.ffmpegkit.ReturnCode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
-/** [AudioExportRepo] 的 FFmpeg + MediaStore 实现。 */
-class AudioExportRepository(context: Context) : AudioExportRepo {
-
-    private val appContext = context.applicationContext
-    private val resolver = appContext.contentResolver
-
-    override suspend fun probeAudio(uri: Uri): SourceAudioInfo? = withContext(Dispatchers.IO) {
-        runCatching {
-            val inputUrl = FFmpegKitConfig.getSafParameterForRead(appContext, uri)
-            val session = FFprobeKit.executeWithArguments(
-                arrayOf(
-                    "-v", "error",
-                    "-select_streams", "a:0",
-                    "-show_entries", "stream=codec_name,bit_rate",
-                    "-of", "csv=p=0",
-                    inputUrl,
-                )
-            )
-            if (!ReturnCode.isSuccess(session.getReturnCode())) return@runCatching null
-            val columns = session.getOutput().trim().lineSequence().firstOrNull()
-                ?.split(',')
-                ?: return@runCatching null
-            SourceAudioInfo(
-                codec = columns.getOrNull(0)?.takeIf { it.isNotBlank() && it != "N/A" },
-                bitrateKbps = columns.getOrNull(1)?.trim()?.toIntOrNull()
-                    ?.takeIf { it > 0 }?.let { it / 1000 },
-            )
-        }.getOrNull()
-    }
-
-    override suspend fun export(
-        uri: Uri,
-        displayName: String,
-        format: AudioExportFormat,
-        quality: AudioExportQuality,
-    ): Uri = withContext(Dispatchers.IO) {
-        val outputUri = createPendingOutput(displayName, format)
+internal class AudioExportRepository(
+    private val encoder: AudioEncoder,
+    private val outputStore: AudioOutputStore,
+) : AudioExportRepo {
+    override suspend fun export(request: AudioExportRequest): AudioExportResult {
+        var output: Uri? = null
+        var failureType: AudioExportError = AudioExportError.OutputCreationFailed
         try {
-            val source = probeAudio(uri)
-            val target = resolveTarget(format, quality, source)
-            val session = FFmpegKit.executeWithArguments(
-                AudioExportCommand.build(
-                    inputUrl = FFmpegKitConfig.getSafParameterForRead(appContext, uri),
-                    outputUrl = FFmpegKitConfig.getSafParameterForWrite(appContext, outputUri),
-                    format = format,
-                    target = target,
+            return withContext(Dispatchers.IO) {
+                currentCoroutineContext().ensureActive()
+                val destination = outputStore.create(request.displayName, request.format)
+                output = destination
+                failureType = AudioExportError.Unknown
+                currentCoroutineContext().ensureActive()
+                val source = try {
+                    encoder.probe(request.uri)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
+                currentCoroutineContext().ensureActive()
+                val copy = request.format == AudioExportFormat.ORIGINAL &&
+                    request.quality == AudioExportQuality.BEST &&
+                    (source?.codec == null || source.codec == "aac")
+                val bitrate = when (request.quality) {
+                    AudioExportQuality.BEST, AudioExportQuality.HIGH -> 320
+                    AudioExportQuality.MEDIUM -> 192
+                    AudioExportQuality.LOW -> 128
+                }.let { minOf(it, source?.bitrateKbps ?: it) }
+                val encoderArgs = if (copy) arrayOf("-c:a", "copy") else arrayOf(
+                    "-c:a", if (request.format == AudioExportFormat.MP3) "libmp3lame" else "aac",
+                    "-b:a", "${bitrate}k",
                 )
-            )
-            if (!ReturnCode.isSuccess(session.getReturnCode())) {
-                throw AudioExportException(AudioExportError.TranscodeFailed)
+                val arguments = arrayOf(
+                    "-hide_banner", "-i", encoder.inputUrl(request.uri),
+                    "-map", "0:a:0", "-vn", *encoderArgs,
+                    "-f", if (request.format == AudioExportFormat.MP3) "mp3" else "ipod",
+                    encoder.outputUrl(destination),
+                )
+                failureType = AudioExportError.TranscodeFailed
+                check(encoder.execute(arguments)) { "Audio encoding failed" }
+                failureType = AudioExportError.Unknown
+                currentCoroutineContext().ensureActive()
+                outputStore.publish(destination)
+                AudioExportResult.Success(destination)
             }
-            publishOutput(outputUri)
-            outputUri
-        } catch (error: AudioExportException) {
-            deleteOutput(outputUri)
-            throw error
         } catch (error: Exception) {
-            deleteOutput(outputUri)
-            throw AudioExportException(AudioExportError.Unknown, error)
+            output?.let { destination ->
+                withContext(NonCancellable + Dispatchers.IO) {
+                    try {
+                        outputStore.delete(destination)
+                    } catch (cleanupError: Exception) {
+                        if (cleanupError !== error) error.addSuppressed(cleanupError)
+                    }
+                }
+            }
+            if (error is CancellationException) throw error
+            return AudioExportResult.Failure(failureType, error)
         }
     }
+}
+internal data class SourceAudioInfo(val codec: String?, val bitrateKbps: Int?)
 
-    private fun createPendingOutput(inputName: String, format: AudioExportFormat): Uri {
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, outputNameFor(inputName, format))
-            put(MediaStore.MediaColumns.MIME_TYPE, format.mime)
-            put(
-                MediaStore.MediaColumns.RELATIVE_PATH,
-                "${Environment.DIRECTORY_MUSIC}/FFmpegKitNext"
-            )
-            put(MediaStore.MediaColumns.IS_PENDING, 1)
-        }
-        return resolver.insert(
-            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
-            values,
-        ) ?: throw AudioExportException(AudioExportError.OutputCreationFailed)
-    }
-
-    private fun publishOutput(uri: Uri) {
-        resolver.update(
-            uri,
-            ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) },
-            null,
-            null,
-        )
-    }
-
-    private fun deleteOutput(uri: Uri) {
-        resolver.delete(uri, null, null)
-    }
-
-    private fun outputNameFor(inputName: String, format: AudioExportFormat): String {
-        val baseName = inputName.substringBeforeLast('.', inputName)
-            .replace(Regex("[^\\p{L}\\p{N}._-]"), "_")
-            .trim('_')
-            .ifBlank { "audio" }
-        return "${baseName}_${System.currentTimeMillis()}.${format.extension}"
-    }
+/** 同步调用返回后不得继续写入输出。 */
+internal interface AudioEncoder {
+    fun probe(uri: Uri): SourceAudioInfo?
+    fun inputUrl(uri: Uri): String
+    fun outputUrl(uri: Uri): String
+    fun execute(arguments: Array<String>): Boolean
+}
+internal interface AudioOutputStore {
+    fun create(inputName: String, format: AudioExportFormat): Uri
+    fun publish(uri: Uri)
+    fun delete(uri: Uri)
 }

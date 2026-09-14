@@ -84,6 +84,7 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
 
     testImplementation(libs.junit)
+    testImplementation(libs.mockito.core)
     testImplementation(platform(libs.koin.bom))
     testImplementation(libs.koin.test.junit4)
 }

@@ -28,8 +28,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.rockbyte.vicu.R
-import com.rockbyte.vicu.nav.MediaFunctionsRoute
 import com.rockbyte.vicu.repo.MediaKind
+import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.component.iconRes
 import com.rockbyte.vicu.ui.theme.VicuTheme
@@ -41,17 +41,17 @@ import com.rockbyte.vicu.ui.theme.vicuRipple
  */
 @Composable
 fun MediaFunctionsPage(
-    route: MediaFunctionsRoute,
+    media: SelectedMedia,
     onExportAudio: () -> Unit,
     onBack: () -> Unit,
 ) {
     VicuScaffold(
-        title = stringResource(route.kind.functionTitleRes()),
+        title = stringResource(media.kind.functionTitleRes()),
         onBack = onBack,
     ) {
-        when (route.kind) {
-            MediaKind.VIDEO -> VideoFunctionsContent(route.name, onExportAudio)
-            MediaKind.IMAGE, MediaKind.AUDIO -> ComingSoonContent(route.kind)
+        when (media.kind) {
+            MediaKind.VIDEO -> VideoFunctionsContent(media.name, onExportAudio)
+            MediaKind.IMAGE, MediaKind.AUDIO -> ComingSoonContent(media.kind)
         }
     }
 }
@@ -185,7 +185,7 @@ private fun ComingSoonContent(kind: MediaKind) {
 private fun MediaFunctionsPageVideoPreview() {
     VicuTheme {
         MediaFunctionsPage(
-            route = MediaFunctionsRoute(
+            media = SelectedMedia(
                 uri = "content://media/external/video/2",
                 name = "abcdefghijk.mp4",
                 kind = MediaKind.VIDEO,
@@ -201,7 +201,7 @@ private fun MediaFunctionsPageVideoPreview() {
 private fun MediaFunctionsPageComingSoonPreview() {
     VicuTheme {
         MediaFunctionsPage(
-            route = MediaFunctionsRoute(
+            media = SelectedMedia(
                 uri = "content://media/external/images/1",
                 name = "photo.jpg",
                 kind = MediaKind.IMAGE,

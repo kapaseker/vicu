@@ -5,10 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rockbyte.vicu.repo.AudioExportFormat
 import com.rockbyte.vicu.repo.AudioExportError
-import com.rockbyte.vicu.repo.AudioExportException
+import com.rockbyte.vicu.repo.AudioExportRequest
+import com.rockbyte.vicu.repo.AudioExportResult
 import com.rockbyte.vicu.repo.AudioExportQuality
 import com.rockbyte.vicu.repo.AudioExportRepo
-import com.rockbyte.vicu.repo.SourceAudioInfo
+import com.rockbyte.vicu.repo.SelectedMedia
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -18,7 +19,6 @@ data class AudioExportUiState(
     val videoName: String = "",
     val format: AudioExportFormat = AudioExportFormat.ORIGINAL,
     val quality: AudioExportQuality = AudioExportQuality.BEST,
-    val sourceInfo: SourceAudioInfo? = null,
     val phase: ExportPhase = ExportPhase.Idle,
 )
 
@@ -26,27 +26,23 @@ sealed interface ExportPhase {
     data object Idle : ExportPhase
     data object Ready : ExportPhase
     data object Exporting : ExportPhase
-    data class Complete(val outputUri: Uri) : ExportPhase
+    data object Complete : ExportPhase
     data class Failed(val error: AudioExportError) : ExportPhase
 }
 
-/** 导出音频页状态：格式/质量选择 + 源音频探测 + 导出流程。 */
+/** 导出音频页状态：格式/质量选择 + 导出流程。 */
 class AudioExportViewModel(private val audioExportRepo: AudioExportRepo) : ViewModel() {
 
     val uiState: StateFlow<AudioExportUiState>
         field = MutableStateFlow(AudioExportUiState())
 
-    private var videoUri: Uri? = null
+    private var selectedMedia: SelectedMedia? = null
 
-    /** 绑定路由传入的视频（幂等）：换源时重置状态并探测源音频。 */
-    fun bind(uri: Uri, name: String) {
-        if (videoUri == uri) return
-        videoUri = uri
-        uiState.value = AudioExportUiState(videoName = name, phase = ExportPhase.Ready)
-        viewModelScope.launch {
-            val info = audioExportRepo.probeAudio(uri)
-            uiState.update { if (videoUri == uri) it.copy(sourceInfo = info) else it }
-        }
+    /** 绑定路由传入的视频（幂等）：换源时重置状态。 */
+    fun bind(media: SelectedMedia) {
+        if (selectedMedia == media) return
+        selectedMedia = media
+        uiState.value = AudioExportUiState(videoName = media.name, phase = ExportPhase.Ready)
     }
 
     fun selectFormat(format: AudioExportFormat) {
@@ -58,22 +54,22 @@ class AudioExportViewModel(private val audioExportRepo: AudioExportRepo) : ViewM
     }
 
     fun export() {
-        val uri = videoUri ?: return
+        val media = selectedMedia ?: return
         if (uiState.value.phase == ExportPhase.Exporting) return
         val state = uiState.value
         viewModelScope.launch {
             uiState.update { it.copy(phase = ExportPhase.Exporting) }
-            try {
-                val outputUri = audioExportRepo.export(uri, state.videoName, state.format, state.quality)
-                uiState.update { it.copy(phase = ExportPhase.Complete(outputUri)) }
-            } catch (error: Exception) {
-                uiState.update {
-                    it.copy(phase = ExportPhase.Failed(error.toAudioExportError()))
-                }
+            val result = audioExportRepo.export(
+                AudioExportRequest(Uri.parse(media.uri), state.videoName, state.format, state.quality),
+            )
+            uiState.update {
+                it.copy(
+                    phase = when (result) {
+                        is AudioExportResult.Success -> ExportPhase.Complete
+                        is AudioExportResult.Failure -> ExportPhase.Failed(result.error)
+                    },
+                )
             }
         }
     }
 }
-
-internal fun Throwable.toAudioExportError(): AudioExportError =
-    (this as? AudioExportException)?.error ?: AudioExportError.Unknown

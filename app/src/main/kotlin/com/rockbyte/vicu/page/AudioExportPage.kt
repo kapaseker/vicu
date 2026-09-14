@@ -1,6 +1,5 @@
 package com.rockbyte.vicu.page
 
-import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -46,10 +45,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import com.rockbyte.vicu.R
-import com.rockbyte.vicu.nav.AudioExportRoute
 import com.rockbyte.vicu.repo.AudioExportError
 import com.rockbyte.vicu.repo.AudioExportFormat
 import com.rockbyte.vicu.repo.AudioExportQuality
+import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.ui.component.VicuButton
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.theme.VicuTheme
@@ -61,10 +60,9 @@ import org.koin.androidx.compose.koinViewModel
  * 导出过程中锁定全部操作并拦截系统返回。
  */
 @Composable
-fun AudioExportPage(route: AudioExportRoute, onBack: () -> Unit) {
+fun AudioExportPage(media: SelectedMedia, onBack: () -> Unit) {
     val viewModel = koinViewModel<AudioExportViewModel>()
-    val videoUri = remember(route.uri) { Uri.parse(route.uri) }
-    LaunchedEffect(videoUri, route.name) { viewModel.bind(videoUri, route.name) }
+    LaunchedEffect(media) { viewModel.bind(media) }
     val state by viewModel.uiState.collectAsState()
 
     AudioExportContent(

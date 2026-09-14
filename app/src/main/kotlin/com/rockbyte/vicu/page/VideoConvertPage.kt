@@ -1,56 +1,29 @@
 package com.rockbyte.vicu.page
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.style.MutableStyleState
-import androidx.compose.foundation.style.Style
-import androidx.compose.foundation.style.styleable
-import androidx.compose.foundation.style.then
-import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.repo.VideoConvertError
 import com.rockbyte.vicu.repo.VideoConvertFormat
 import com.rockbyte.vicu.repo.VideoConvertQuality
+import com.rockbyte.vicu.ui.component.OutlineButton
+import com.rockbyte.vicu.ui.component.PrimaryIconButton
 import com.rockbyte.vicu.ui.component.ProgressButton
-import com.rockbyte.vicu.ui.component.VicuButton
+import com.rockbyte.vicu.ui.component.RadioOptionGroup
+import com.rockbyte.vicu.ui.component.StatusRow
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.theme.VicuTheme
 import org.koin.androidx.compose.koinViewModel
@@ -130,32 +103,20 @@ private fun VideoConvertContent(
                             modifier = Modifier.weight(1f),
                         )
                     } else {
-                        VicuButton(
+                        PrimaryIconButton(
+                            icon = R.drawable.ic_transfer,
+                            text = convertButtonText(state.phase),
+                            onClick = onConvert,
                             modifier = Modifier.weight(1f),
                             enabled = state.videoName.isNotBlank(),
-                            onClick = onConvert,
-                        ) {
-                            Image(
-                                painter = painterResource(R.drawable.ic_transfer),
-                                contentDescription = null,
-                                modifier = Modifier.size(VicuTheme.dimensions.iconMedium),
-                                colorFilter = ColorFilter.tint(VicuTheme.colors.onPrimary),
-                            )
-                            BasicText(
-                                text = convertButtonText(state.phase),
-                                modifier = Modifier.padding(start = VicuTheme.dimensions.spacingUnit),
-                            )
-                        }
+                        )
                     }
                     if (state.phase is ConvertPhase.Complete) {
-                        VicuButton(
-                            modifier = Modifier.weight(1f),
-                            style = VicuTheme.styles.outlineButton,
-                            rippleColor = VicuTheme.colors.onSurface,
+                        OutlineButton(
+                            text = stringResource(R.string.back_to_home),
                             onClick = onGoHome,
-                        ) {
-                            BasicText(text = stringResource(R.string.back_to_home))
-                        }
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
             }
@@ -187,86 +148,6 @@ private fun VideoConvertContent(
                 else -> Unit
             }
         }
-    }
-}
-
-@Composable
-private fun <T> RadioOptionGroup(
-    label: String,
-    options: List<T>,
-    selected: T,
-    enabled: Boolean,
-    optionLabel: @Composable (T) -> String,
-    onSelect: (T) -> Unit,
-) {
-    val cardState = remember { MutableStyleState(null) }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .styleable(cardState, VicuTheme.styles.card),
-        verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
-    ) {
-        BasicText(label, style = VicuTheme.typography.caption)
-        Column(
-            modifier = Modifier.selectableGroup(),
-            verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit / 2),
-        ) {
-            options.forEach { option ->
-                RadioOption(
-                    label = optionLabel(option),
-                    selected = option == selected,
-                    enabled = enabled,
-                    onClick = { onSelect(option) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RadioOption(
-    label: String,
-    selected: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val indicatorColor = if (selected) VicuTheme.colors.primary else VicuTheme.colors.outline
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(VicuTheme.shapes.base)
-            .selectable(
-                selected = selected,
-                enabled = enabled,
-                role = Role.RadioButton,
-                interactionSource = interactionSource,
-                onClick = onClick,
-            )
-            .padding(
-                horizontal = VicuTheme.dimensions.spacingUnit,
-                vertical = VicuTheme.dimensions.radioItemVerticalPadding,
-            )
-            .alpha(if (enabled) VicuTheme.alpha.full else VicuTheme.alpha.disabled),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(VicuTheme.dimensions.radioOuterSize)
-                .border(VicuTheme.dimensions.radioBorderWidth, indicatorColor, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (selected) {
-                Box(
-                    Modifier
-                        .size(VicuTheme.dimensions.radioInnerSize)
-                        .clip(CircleShape)
-                        .background(VicuTheme.colors.primary)
-                )
-            }
-        }
-        BasicText(label, style = VicuTheme.typography.bodyLg)
     }
 }
 
@@ -303,43 +184,6 @@ private fun convertButtonText(phase: ConvertPhase): String = stringResource(
         else -> R.string.video_convert
     }
 )
-
-@Composable
-private fun StatusRow(
-    dotColor: Color,
-    text: String,
-    pulsing: Boolean = false,
-    textColor: Color = VicuTheme.colors.onBackground,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
-    ) {
-        val dotAlpha = if (pulsing) {
-            val transition = rememberInfiniteTransition(label = "statusPulse")
-            transition.animateFloat(
-                initialValue = VicuTheme.alpha.statusPulseMinimum,
-                targetValue = VicuTheme.alpha.full,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(
-                        durationMillis = VicuTheme.motion.statusPulseDurationMillis,
-                    ),
-                    repeatMode = RepeatMode.Reverse,
-                ),
-                label = "dotAlpha",
-            ).value
-        } else {
-            VicuTheme.alpha.full
-        }
-        val dotState = remember { MutableStyleState(null) }
-        Box(
-            Modifier
-                .alpha(dotAlpha)
-                .styleable(dotState, VicuTheme.styles.statusDot then Style { background(dotColor) })
-        )
-        BasicText(text, style = VicuTheme.typography.bodySm.copy(color = textColor))
-    }
-}
 
 @Preview(showBackground = true)
 @Composable

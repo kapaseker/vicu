@@ -40,7 +40,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.repo.MediaItem
 import com.rockbyte.vicu.repo.MediaKind
-import com.rockbyte.vicu.ui.component.VicuButton
+import com.rockbyte.vicu.ui.component.PrimaryButton
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.component.iconRes
 import com.rockbyte.vicu.ui.theme.VicuTheme
@@ -221,9 +221,10 @@ private fun PermissionPrompt(onRequest: () -> Unit) {
                 text = stringResource(R.string.media_permission_rationale),
                 style = VicuTheme.typography.bodyLg.copy(color = VicuTheme.colors.onSurfaceVariant),
             )
-            VicuButton(onClick = onRequest) {
-                BasicText(stringResource(R.string.grant_media_permission))
-            }
+            PrimaryButton(
+                text = stringResource(R.string.grant_media_permission),
+                onClick = onRequest,
+            )
         }
     }
 }

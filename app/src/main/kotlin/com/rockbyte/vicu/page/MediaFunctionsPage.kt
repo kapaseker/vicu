@@ -33,7 +33,6 @@ import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.component.iconRes
 import com.rockbyte.vicu.ui.theme.VicuTheme
-import com.rockbyte.vicu.ui.theme.vicuRipple
 
 /**
  * 媒体功能列表页：所有多媒体点击后进入。
@@ -133,7 +132,6 @@ private fun FunctionTile(
             .clip(VicuTheme.shapes.xl)
             .clickable(
                 interactionSource = interactionSource,
-                indication = vicuRipple(),
                 onClick = onClick,
             )
             .styleable(styleState, VicuTheme.styles.functionTile),

@@ -52,7 +52,6 @@ import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.ui.component.VicuButton
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.theme.VicuTheme
-import com.rockbyte.vicu.ui.theme.vicuRipple
 import org.koin.androidx.compose.koinViewModel
 
 /**
@@ -60,7 +59,7 @@ import org.koin.androidx.compose.koinViewModel
  * 导出过程中锁定全部操作并拦截系统返回。
  */
 @Composable
-fun AudioExportPage(media: SelectedMedia, onBack: () -> Unit) {
+fun AudioExportPage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Unit) {
     val viewModel = koinViewModel<AudioExportViewModel>()
     LaunchedEffect(media) { viewModel.bind(media) }
     val state by viewModel.uiState.collectAsState()
@@ -71,6 +70,7 @@ fun AudioExportPage(media: SelectedMedia, onBack: () -> Unit) {
         onSelectQuality = viewModel::selectQuality,
         onExport = viewModel::export,
         onBack = onBack,
+        onGoHome = onGoHome,
     )
 }
 
@@ -81,6 +81,7 @@ private fun AudioExportContent(
     onSelectQuality: (AudioExportQuality) -> Unit,
     onExport: () -> Unit,
     onBack: () -> Unit,
+    onGoHome: () -> Unit,
 ) {
     val exporting = state.phase is ExportPhase.Exporting
     BackHandler(enabled = exporting) { /* 导出中锁定，拦截系统返回 */ }
@@ -114,21 +115,33 @@ private fun AudioExportContent(
                 optionLabel = { stringResource(it.labelRes) },
                 onSelect = onSelectQuality,
             )
-            VicuButton(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !exporting && state.videoName.isNotBlank(),
-                onClick = onExport,
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.ic_export),
-                    contentDescription = null,
-                    modifier = Modifier.size(VicuTheme.dimensions.iconMedium),
-                    colorFilter = ColorFilter.tint(VicuTheme.colors.onPrimary),
-                )
-                BasicText(
-                    text = exportButtonText(state.phase),
-                    modifier = Modifier.padding(start = VicuTheme.dimensions.spacingUnit),
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit)) {
+                VicuButton(
+                    modifier = Modifier.weight(1f),
+                    enabled = !exporting && state.videoName.isNotBlank(),
+                    onClick = onExport,
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_export),
+                        contentDescription = null,
+                        modifier = Modifier.size(VicuTheme.dimensions.iconMedium),
+                        colorFilter = ColorFilter.tint(VicuTheme.colors.onPrimary),
+                    )
+                    BasicText(
+                        text = exportButtonText(state.phase),
+                        modifier = Modifier.padding(start = VicuTheme.dimensions.spacingUnit),
+                    )
+                }
+                if (state.phase is ExportPhase.Complete) {
+                    VicuButton(
+                        modifier = Modifier.weight(1f),
+                        style = VicuTheme.styles.outlineButton,
+                        rippleColor = VicuTheme.colors.onSurface,
+                        onClick = onGoHome,
+                    ) {
+                        BasicText(text = stringResource(R.string.back_to_home))
+                    }
+                }
             }
 
             when (val phase = state.phase) {
@@ -206,7 +219,6 @@ private fun RadioOption(
                 enabled = enabled,
                 role = Role.RadioButton,
                 interactionSource = interactionSource,
-                indication = vicuRipple(),
                 onClick = onClick,
             )
             .padding(
@@ -318,6 +330,7 @@ private fun AudioExportPageReadyPreview() {
             onSelectQuality = {},
             onExport = {},
             onBack = {},
+            onGoHome = {},
         )
     }
 }
@@ -335,6 +348,25 @@ private fun AudioExportPageFailedPreview() {
             onSelectQuality = {},
             onExport = {},
             onBack = {},
+            onGoHome = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AudioExportPageCompletePreview() {
+    VicuTheme {
+        AudioExportContent(
+            state = AudioExportUiState(
+                videoName = "sample_video.mp4",
+                phase = ExportPhase.Complete,
+            ),
+            onSelectFormat = {},
+            onSelectQuality = {},
+            onExport = {},
+            onBack = {},
+            onGoHome = {},
         )
     }
 }

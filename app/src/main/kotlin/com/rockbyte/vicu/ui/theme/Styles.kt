@@ -42,6 +42,23 @@ object VicuStyles {
         }
     }
 
+    /**
+     * 描边按钮：黑边框 + 白底 + 黑字（用户决策：DESIGN.md 无此规格，色值取 YAML token）。
+     * 视觉层级介于主按钮与次按钮之间，用于完成态的次级动作（如"回到首页"）。
+     */
+    val outlineButton: Style = Style {
+        background(colors.surfaceContainerLowest)
+        contentColor(colors.onSurface)
+        border(dimensions.cardBorderWidth, colors.primary)
+        shape(shapes.full)
+        textStyle(typography.button)
+        contentPaddingHorizontal(dimensions.buttonHorizontalPadding)
+        minHeight(dimensions.buttonMinHeight)
+        disabled {
+            background(colors.surfaceContainerHighest)
+        }
+    }
+
     /** Level-2 浮起卡片：24dp 圆角、1px 边框、min 32dp 内边距、2% 黑环境光晕。 */
     val card: Style = Style {
         shape(shapes.xl)

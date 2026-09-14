@@ -1,6 +1,7 @@
 package com.rockbyte.vicu.ui.theme
 
 import androidx.compose.foundation.ComposeFoundationFlags
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.style.StyleScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -64,7 +65,12 @@ fun VicuTheme(content: @Composable () -> Unit) {
         dimensions = resourceDimensions(),
         motion = resourceMotion(),
     )
-    CompositionLocalProvider(LocalVicuTheme provides theme) {
+    CompositionLocalProvider(
+        LocalVicuTheme provides theme,
+        // 全局按压反馈默认值：任何 clickable 不显式传 indication 时也能有 ripple。
+        // 深色底组件（如黑色主按钮）仍需显式传 vicuRipple(onPrimary) 覆盖。
+        LocalIndication provides vicuRipple(theme.colors.onSurface),
+    ) {
         content()
     }
 }

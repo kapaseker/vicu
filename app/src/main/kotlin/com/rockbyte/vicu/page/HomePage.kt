@@ -44,7 +44,6 @@ import com.rockbyte.vicu.ui.component.VicuButton
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.component.iconRes
 import com.rockbyte.vicu.ui.theme.VicuTheme
-import com.rockbyte.vicu.ui.theme.vicuRipple
 import org.koin.androidx.compose.koinViewModel
 
 /**
@@ -150,7 +149,6 @@ private fun MediaTile(
             .styleable(tileState, VicuTheme.styles.mediaTile)
             .clickable(
                 interactionSource = interactionSource,
-                indication = vicuRipple(),
                 onClick = { onMediaClick(item) },
             )
     ) {

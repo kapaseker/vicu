@@ -19,6 +19,7 @@
     <string name="export_success">导出成功</string>
     <string name="export_failed_retry">导出失败，重试</string>
     <string name="export_complete">已保存到 Music/FFmpegKitNext 文件夹。</string>
+    <string name="back_to_home">回到首页</string>
     <string name="export_failed">导出失败：%1$s</string>
     <string name="export_error_transcode">音频转码失败</string>
     <string name="export_error_output_creation">无法创建导出文件</string>

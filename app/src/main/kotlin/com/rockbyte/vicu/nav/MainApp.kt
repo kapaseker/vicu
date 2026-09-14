@@ -55,6 +55,10 @@ fun MainApp() {
                 AudioExportPage(
                     media = route.media,
                     onBack = { backStack.removeLastOrNull() },
+                    onGoHome = {
+                        backStack.clear()
+                        backStack.add(HomeRoute)
+                    },
                 )
             }
         },

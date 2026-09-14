@@ -27,7 +27,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.ui.theme.VicuTheme
-import com.rockbyte.vicu.ui.theme.vicuRipple
 
 /**
  * 通用页面骨架：Level-0 底色（styles.screen）+ 64dp 标准顶栏（styles.header）+ 内容区。
@@ -98,7 +97,6 @@ private fun BackButton(onClick: () -> Unit, enabled: Boolean) {
             .clip(CircleShape)
             .clickable(
                 interactionSource = interactionSource,
-                indication = vicuRipple(),
                 enabled = enabled,
                 onClick = onClick,
             ),

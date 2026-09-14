@@ -20,6 +20,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
+import com.rockbyte.vicu.R
 import com.rockbyte.vicu.ui.theme.VicuTheme
 import com.rockbyte.vicu.ui.theme.vicuRipple
 
@@ -116,5 +118,62 @@ fun PrimaryIconButton(
             )
             BasicText(text)
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PrimaryButtonPreview() {
+    VicuTheme {
+        PrimaryButton(text = "Primary Button", onClick = {})
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PrimaryButtonDisabledPreview() {
+    VicuTheme {
+        PrimaryButton(text = "Primary Button", onClick = {}, enabled = false)
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun OutlineButtonPreview() {
+    VicuTheme {
+        OutlineButton(text = "Outline Button", onClick = {})
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun OutlineButtonDisabledPreview() {
+    VicuTheme {
+        OutlineButton(text = "Outline Button", onClick = {}, enabled = false)
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PrimaryIconButtonPreview() {
+    VicuTheme {
+        PrimaryIconButton(
+            icon = R.drawable.ic_export,
+            text = "Export Audio",
+            onClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PrimaryIconButtonDisabledPreview() {
+    VicuTheme {
+        PrimaryIconButton(
+            icon = R.drawable.ic_export,
+            text = "Export Audio",
+            onClick = {},
+            enabled = false,
+        )
     }
 }

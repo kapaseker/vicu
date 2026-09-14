@@ -142,6 +142,13 @@ private fun MediaTile(
 ) {
     val tileState = remember { MutableStyleState(null) }
     val interactionSource = remember { MutableInteractionSource() }
+    val thumbnail by produceState<Bitmap?>(initialValue = null, item.uri) {
+        value = when (item.kind) {
+            MediaKind.IMAGE, MediaKind.VIDEO ->
+                onLoadThumbnail(item.uri, THUMBNAIL_SIZE_PX, THUMBNAIL_SIZE_PX)
+            MediaKind.AUDIO -> null
+        }
+    }
     Box(
         modifier
             .aspectRatio(1f)
@@ -152,34 +159,21 @@ private fun MediaTile(
                 onClick = { onMediaClick(item) },
             )
     ) {
-        when (item.kind) {
-            MediaKind.IMAGE, MediaKind.VIDEO -> MediaThumbnail(item, onLoadThumbnail)
-            MediaKind.AUDIO -> KindIcon(item)
+        val bitmap = thumbnail
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = item.name,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            // badge 只在缩略图加载成功时显示，避免与居中的默认类型图标重复
+            TypeBadge(item.kind, Modifier
+                .align(Alignment.TopStart)
+                .padding(VicuTheme.dimensions.spacingUnit))
+        } else {
+            KindIcon(item)
         }
-        TypeBadge(item.kind, Modifier
-            .align(Alignment.TopStart)
-            .padding(VicuTheme.dimensions.spacingUnit))
-    }
-}
-
-@Composable
-private fun BoxScope.MediaThumbnail(
-    item: MediaItem,
-    onLoadThumbnail: suspend (Uri, Int, Int) -> Bitmap?,
-) {
-    val thumbnail by produceState<Bitmap?>(initialValue = null, item.uri) {
-        value = onLoadThumbnail(item.uri, THUMBNAIL_SIZE_PX, THUMBNAIL_SIZE_PX)
-    }
-    val bitmap = thumbnail
-    if (bitmap != null) {
-        Image(
-            bitmap = bitmap.asImageBitmap(),
-            contentDescription = item.name,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-        )
-    } else {
-        KindIcon(item)
     }
 }
 
@@ -208,7 +202,7 @@ private fun TypeBadge(kind: MediaKind, modifier: Modifier = Modifier) {
             painter = painterResource(kind.iconRes),
             contentDescription = null,
             modifier = Modifier.size(VicuTheme.dimensions.iconSmall),
-            colorFilter = ColorFilter.tint(VicuTheme.colors.onSurfaceVariant),
+            colorFilter = ColorFilter.tint(VicuTheme.colors.onSurface),
         )
     }
 }

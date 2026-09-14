@@ -33,4 +33,23 @@
     <string name="media_permission_rationale">需要媒体访问权限，用于展示设备上的图片、视频和音乐。</string>
     <string name="grant_media_permission">授予权限</string>
     <string name="media_empty">未找到媒体文件</string>
+    <string name="video_convert">视频转换</string>
+    <string name="converting">转换中…</string>
+    <string name="progress_percent_format">%1$.1f%%</string>
+    <string name="convert_success">转换成功</string>
+    <string name="convert_failed_retry">转换失败，重试</string>
+    <string name="convert_complete">已保存到 Movies/FFmpegKitNext 文件夹。</string>
+    <string name="convert_failed">转换失败：%1$s</string>
+    <string name="convert_error_transcode">视频转码失败</string>
+    <string name="convert_error_output_creation">无法创建转换文件</string>
+    <string name="convert_error_unknown">未知错误</string>
+    <string name="format_mp4">MP4</string>
+    <string name="format_mkv">MKV</string>
+    <string name="format_webm">WebM</string>
+    <string name="format_avi">AVI</string>
+    <string name="format_mov">MOV</string>
+    <string name="quality_smallest">体积最小</string>
+    <string name="quality_finest">质量最好</string>
+    <string name="quality_balanced">平衡</string>
+    <string name="quality_suitable">最合适</string>
 </resources>

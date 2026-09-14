@@ -25,7 +25,8 @@ data class AudioExportUiState(
 sealed interface ExportPhase {
     data object Idle : ExportPhase
     data object Ready : ExportPhase
-    data object Exporting : ExportPhase
+    /** progress 为 null 表示源时长未知，无法计算百分比。 */
+    data class Exporting(val progress: Float?) : ExportPhase
     data object Complete : ExportPhase
     data class Failed(val error: AudioExportError) : ExportPhase
 }
@@ -55,13 +56,16 @@ class AudioExportViewModel(private val audioExportRepo: AudioExportRepo) : ViewM
 
     fun export() {
         val media = selectedMedia ?: return
-        if (uiState.value.phase == ExportPhase.Exporting) return
+        if (uiState.value.phase is ExportPhase.Exporting) return
         val state = uiState.value
         viewModelScope.launch {
-            uiState.update { it.copy(phase = ExportPhase.Exporting) }
+            uiState.update { it.copy(phase = ExportPhase.Exporting(progress = null)) }
             val result = audioExportRepo.export(
                 AudioExportRequest(Uri.parse(media.uri), state.videoName, state.format, state.quality),
-            )
+            ) { progress ->
+                // 回调来自 FFmpeg 线程；StateFlow.update 原子且线程安全
+                uiState.update { it.copy(phase = ExportPhase.Exporting(progress)) }
+            }
             uiState.update {
                 it.copy(
                     phase = when (result) {

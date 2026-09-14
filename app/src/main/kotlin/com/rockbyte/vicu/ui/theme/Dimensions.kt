@@ -43,6 +43,7 @@ data class VicuAlpha(
     val disabled: Float = 0.38f,
     val ambientShadow: Float = 0.02f,
     val statusPulseMinimum: Float = 0.3f,
+    val glassOverlay: Float = 0.7f,
 )
 
 /** 动效 token。 */

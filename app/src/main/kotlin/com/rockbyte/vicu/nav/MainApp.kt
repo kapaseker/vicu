@@ -8,6 +8,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.rockbyte.vicu.page.AudioExportPage
 import com.rockbyte.vicu.page.HomePage
 import com.rockbyte.vicu.page.MediaFunctionsPage
+import com.rockbyte.vicu.page.VideoConvertPage
 import com.rockbyte.vicu.repo.SelectedMedia
 import kotlinx.serialization.Serializable
 
@@ -23,6 +24,12 @@ data class MediaFunctionsRoute(
 /** 导出音频目的地；携带所选视频。 */
 @Serializable
 data class AudioExportRoute(
+    val media: SelectedMedia,
+) : NavKey
+
+/** 视频转换目的地；携带所选视频。 */
+@Serializable
+data class VideoConvertRoute(
     val media: SelectedMedia,
 ) : NavKey
 
@@ -48,11 +55,22 @@ fun MainApp() {
                 MediaFunctionsPage(
                     media = route.media,
                     onExportAudio = { backStack.add(AudioExportRoute(route.media)) },
+                    onConvertVideo = { backStack.add(VideoConvertRoute(route.media)) },
                     onBack = { backStack.removeLastOrNull() },
                 )
             }
             entry<AudioExportRoute> { route ->
                 AudioExportPage(
+                    media = route.media,
+                    onBack = { backStack.removeLastOrNull() },
+                    onGoHome = {
+                        backStack.clear()
+                        backStack.add(HomeRoute)
+                    },
+                )
+            }
+            entry<VideoConvertRoute> { route ->
+                VideoConvertPage(
                     media = route.media,
                     onBack = { backStack.removeLastOrNull() },
                     onGoHome = {

@@ -36,12 +36,13 @@ import com.rockbyte.vicu.ui.theme.VicuTheme
 
 /**
  * 媒体功能列表页：所有多媒体点击后进入。
- * 标题与功能集随媒体类型变化；视频提供「导出音频」入口，其余类型展示敬请期待占位。
+ * 标题与功能集随媒体类型变化；视频提供「导出音频」「视频转换」入口，其余类型展示敬请期待占位。
  */
 @Composable
 fun MediaFunctionsPage(
     media: SelectedMedia,
     onExportAudio: () -> Unit,
+    onConvertVideo: () -> Unit,
     onBack: () -> Unit,
 ) {
     VicuScaffold(
@@ -49,7 +50,7 @@ fun MediaFunctionsPage(
         onBack = onBack,
     ) {
         when (media.kind) {
-            MediaKind.VIDEO -> VideoFunctionsContent(media.name, onExportAudio)
+            MediaKind.VIDEO -> VideoFunctionsContent(media.name, onExportAudio, onConvertVideo)
             MediaKind.IMAGE, MediaKind.AUDIO -> ComingSoonContent(media.kind)
         }
     }
@@ -72,7 +73,11 @@ private fun MediaKind.functionTitleRes(): Int = when (this) {
 }
 
 @Composable
-private fun VideoFunctionsContent(name: String, onExportAudio: () -> Unit) {
+private fun VideoFunctionsContent(
+    name: String,
+    onExportAudio: () -> Unit,
+    onConvertVideo: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -83,15 +88,16 @@ private fun VideoFunctionsContent(name: String, onExportAudio: () -> Unit) {
             text = stringResource(R.string.functions_description, abbreviateMediaFileName(name)),
             style = VicuTheme.typography.bodyLg.copy(color = VicuTheme.colors.onSurfaceVariant),
         )
-        FunctionGrid(onExportAudio)
+        FunctionGrid(onExportAudio, onConvertVideo)
     }
 }
 
 /** 功能按钮 grid：自适应列（tile 最小 96dp，宽屏自动多列），为后续功能扩展预留。 */
 @Composable
-private fun FunctionGrid(onExportAudio: () -> Unit) {
+private fun FunctionGrid(onExportAudio: () -> Unit, onConvertVideo: () -> Unit) {
     val functions = listOf(
         FunctionEntry(R.drawable.ic_audio, R.string.export_audio, onExportAudio),
+        FunctionEntry(R.drawable.ic_transfer, R.string.video_convert, onConvertVideo),
     )
     LazyVerticalGrid(
         columns = GridCells.Adaptive(VicuTheme.dimensions.mediaFunctionsGridMinSize),
@@ -189,6 +195,7 @@ private fun MediaFunctionsPageVideoPreview() {
                 kind = MediaKind.VIDEO,
             ),
             onExportAudio = {},
+            onConvertVideo = {},
             onBack = {},
         )
     }
@@ -205,6 +212,7 @@ private fun MediaFunctionsPageComingSoonPreview() {
                 kind = MediaKind.IMAGE,
             ),
             onExportAudio = {},
+            onConvertVideo = {},
             onBack = {},
         )
     }

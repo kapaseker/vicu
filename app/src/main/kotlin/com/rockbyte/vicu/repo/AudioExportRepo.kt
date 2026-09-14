@@ -29,6 +29,6 @@ sealed interface AudioExportResult {
 }
 
 interface AudioExportRepo {
-    /** 导出首个音频流并发布到媒体库；取消时回滚并传播取消信号。 */
-    suspend fun export(request: AudioExportRequest): AudioExportResult
+    /** 导出首个音频流并发布到媒体库；取消时回滚并传播取消信号。[onProgress] 在导出期间以 0..1 进度回调（FFmpeg 线程）。 */
+    suspend fun export(request: AudioExportRequest, onProgress: (Float) -> Unit = {}): AudioExportResult
 }

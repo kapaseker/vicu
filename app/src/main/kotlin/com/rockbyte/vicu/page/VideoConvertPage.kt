@@ -45,10 +45,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import com.rockbyte.vicu.R
-import com.rockbyte.vicu.repo.AudioExportError
-import com.rockbyte.vicu.repo.AudioExportFormat
-import com.rockbyte.vicu.repo.AudioExportQuality
 import com.rockbyte.vicu.repo.SelectedMedia
+import com.rockbyte.vicu.repo.VideoConvertError
+import com.rockbyte.vicu.repo.VideoConvertFormat
+import com.rockbyte.vicu.repo.VideoConvertQuality
 import com.rockbyte.vicu.ui.component.ProgressButton
 import com.rockbyte.vicu.ui.component.VicuButton
 import com.rockbyte.vicu.ui.component.VicuScaffold
@@ -56,41 +56,41 @@ import com.rockbyte.vicu.ui.theme.VicuTheme
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * 导出音频页：从功能列表带入视频，选择格式（原声/MP3/M4A）与质量（最佳/高/中/低）后导出；
- * 导出过程中锁定全部操作并拦截系统返回。
+ * 视频转换页：从功能列表带入视频，选择格式（MP4/MKV/WebM/AVI/MOV）与质量（最佳/高/中/低）后转码；
+ * 转换过程中锁定全部操作并拦截系统返回。
  */
 @Composable
-fun AudioExportPage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Unit) {
-    val viewModel = koinViewModel<AudioExportViewModel>()
+fun VideoConvertPage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Unit) {
+    val viewModel = koinViewModel<VideoConvertViewModel>()
     LaunchedEffect(media) { viewModel.bind(media) }
     val state by viewModel.uiState.collectAsState()
 
-    AudioExportContent(
+    VideoConvertContent(
         state = state,
         onSelectFormat = viewModel::selectFormat,
         onSelectQuality = viewModel::selectQuality,
-        onExport = viewModel::export,
+        onConvert = viewModel::convert,
         onBack = onBack,
         onGoHome = onGoHome,
     )
 }
 
 @Composable
-private fun AudioExportContent(
-    state: AudioExportUiState,
-    onSelectFormat: (AudioExportFormat) -> Unit,
-    onSelectQuality: (AudioExportQuality) -> Unit,
-    onExport: () -> Unit,
+private fun VideoConvertContent(
+    state: VideoConvertUiState,
+    onSelectFormat: (VideoConvertFormat) -> Unit,
+    onSelectQuality: (VideoConvertQuality) -> Unit,
+    onConvert: () -> Unit,
     onBack: () -> Unit,
     onGoHome: () -> Unit,
 ) {
-    val exporting = state.phase is ExportPhase.Exporting
-    BackHandler(enabled = exporting) { /* 导出中锁定，拦截系统返回 */ }
+    val converting = state.phase is ConvertPhase.Converting
+    BackHandler(enabled = converting) { /* 转换中锁定，拦截系统返回 */ }
 
     VicuScaffold(
-        title = stringResource(R.string.export_audio),
+        title = stringResource(R.string.video_convert),
         onBack = onBack,
-        backEnabled = !exporting,
+        backEnabled = !converting,
     ) {
         LazyColumn(
             modifier = Modifier
@@ -102,9 +102,9 @@ private fun AudioExportContent(
             item {
                 RadioOptionGroup(
                     label = stringResource(R.string.export_format_label),
-                    options = AudioExportFormat.entries,
+                    options = VideoConvertFormat.entries,
                     selected = state.format,
-                    enabled = !exporting,
+                    enabled = !converting,
                     optionLabel = { stringResource(it.labelRes) },
                     onSelect = onSelectFormat,
                 )
@@ -112,9 +112,9 @@ private fun AudioExportContent(
             item {
                 RadioOptionGroup(
                     label = stringResource(R.string.export_quality_label),
-                    options = AudioExportQuality.entries,
+                    options = VideoConvertQuality.entries,
                     selected = state.quality,
-                    enabled = !exporting,
+                    enabled = !converting,
                     optionLabel = { stringResource(it.labelRes) },
                     onSelect = onSelectQuality,
                 )
@@ -122,32 +122,32 @@ private fun AudioExportContent(
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit)) {
                     val phase = state.phase
-                    if (phase is ExportPhase.Exporting) {
+                    if (phase is ConvertPhase.Converting) {
                         ProgressButton(
                             progress = phase.progress,
                             label = phase.progress?.let { stringResource(R.string.progress_percent_format, it * 100) }
-                                ?: stringResource(R.string.exporting),
+                                ?: stringResource(R.string.converting),
                             modifier = Modifier.weight(1f),
                         )
                     } else {
                         VicuButton(
                             modifier = Modifier.weight(1f),
                             enabled = state.videoName.isNotBlank(),
-                            onClick = onExport,
+                            onClick = onConvert,
                         ) {
                             Image(
-                                painter = painterResource(R.drawable.ic_export),
+                                painter = painterResource(R.drawable.ic_transfer),
                                 contentDescription = null,
                                 modifier = Modifier.size(VicuTheme.dimensions.iconMedium),
                                 colorFilter = ColorFilter.tint(VicuTheme.colors.onPrimary),
                             )
                             BasicText(
-                                text = exportButtonText(phase),
+                                text = convertButtonText(state.phase),
                                 modifier = Modifier.padding(start = VicuTheme.dimensions.spacingUnit),
                             )
                         }
                     }
-                    if (state.phase is ExportPhase.Complete) {
+                    if (state.phase is ConvertPhase.Complete) {
                         VicuButton(
                             modifier = Modifier.weight(1f),
                             style = VicuTheme.styles.outlineButton,
@@ -161,24 +161,24 @@ private fun AudioExportContent(
             }
 
             when (val phase = state.phase) {
-                is ExportPhase.Exporting -> item {
+                is ConvertPhase.Converting -> item {
                     StatusRow(
                         dotColor = VicuTheme.colors.secondary,
-                        text = stringResource(R.string.exporting),
+                        text = stringResource(R.string.converting),
                         pulsing = true,
                     )
                 }
-                is ExportPhase.Complete -> item {
+                ConvertPhase.Complete -> item {
                     StatusRow(
                         dotColor = VicuTheme.colors.onSurfaceVariant,
-                        text = stringResource(R.string.export_complete),
+                        text = stringResource(R.string.convert_complete),
                     )
                 }
-                is ExportPhase.Failed -> item {
+                is ConvertPhase.Failed -> item {
                     StatusRow(
                         dotColor = VicuTheme.colors.error,
                         text = stringResource(
-                            R.string.export_failed,
+                            R.string.convert_failed,
                             stringResource(phase.error.messageRes),
                         ),
                         textColor = VicuTheme.colors.error,
@@ -270,35 +270,37 @@ private fun RadioOption(
     }
 }
 
-private val AudioExportFormat.labelRes: Int
+private val VideoConvertFormat.labelRes: Int
     get() = when (this) {
-        AudioExportFormat.ORIGINAL -> R.string.format_original
-        AudioExportFormat.MP3 -> R.string.format_mp3
-        AudioExportFormat.M4A -> R.string.format_m4a
+        VideoConvertFormat.MP4 -> R.string.format_mp4
+        VideoConvertFormat.MKV -> R.string.format_mkv
+        VideoConvertFormat.WEBM -> R.string.format_webm
+        VideoConvertFormat.AVI -> R.string.format_avi
+        VideoConvertFormat.MOV -> R.string.format_mov
     }
 
-private val AudioExportQuality.labelRes: Int
+private val VideoConvertQuality.labelRes: Int
     get() = when (this) {
-        AudioExportQuality.BEST -> R.string.quality_best
-        AudioExportQuality.HIGH -> R.string.quality_high
-        AudioExportQuality.MEDIUM -> R.string.quality_medium
-        AudioExportQuality.LOW -> R.string.quality_low
+        VideoConvertQuality.BEST_QUALITY -> R.string.quality_finest
+        VideoConvertQuality.BALANCED -> R.string.quality_balanced
+        VideoConvertQuality.SMALLEST -> R.string.quality_smallest
+        VideoConvertQuality.SUITABLE -> R.string.quality_suitable
     }
 
-internal val AudioExportError.messageRes: Int
+internal val VideoConvertError.messageRes: Int
     get() = when (this) {
-        AudioExportError.TranscodeFailed -> R.string.export_error_transcode
-        AudioExportError.OutputCreationFailed -> R.string.export_error_output_creation
-        AudioExportError.Unknown -> R.string.export_error_unknown
+        VideoConvertError.TranscodeFailed -> R.string.convert_error_transcode
+        VideoConvertError.OutputCreationFailed -> R.string.convert_error_output_creation
+        VideoConvertError.Unknown -> R.string.convert_error_unknown
     }
 
 @Composable
-private fun exportButtonText(phase: ExportPhase): String = stringResource(
+private fun convertButtonText(phase: ConvertPhase): String = stringResource(
     when (phase) {
-        is ExportPhase.Complete -> R.string.export_success
-        is ExportPhase.Failed -> R.string.export_failed_retry
-        is ExportPhase.Exporting -> R.string.exporting
-        else -> R.string.export_audio
+        is ConvertPhase.Complete -> R.string.convert_success
+        is ConvertPhase.Failed -> R.string.convert_failed_retry
+        is ConvertPhase.Converting -> R.string.converting
+        else -> R.string.video_convert
     }
 )
 
@@ -341,16 +343,16 @@ private fun StatusRow(
 
 @Preview(showBackground = true)
 @Composable
-private fun AudioExportPageReadyPreview() {
+private fun VideoConvertPageReadyPreview() {
     VicuTheme {
-        AudioExportContent(
-            state = AudioExportUiState(
+        VideoConvertContent(
+            state = VideoConvertUiState(
                 videoName = "sample_video.mp4",
-                phase = ExportPhase.Ready,
+                phase = ConvertPhase.Ready,
             ),
             onSelectFormat = {},
             onSelectQuality = {},
-            onExport = {},
+            onConvert = {},
             onBack = {},
             onGoHome = {},
         )
@@ -359,16 +361,16 @@ private fun AudioExportPageReadyPreview() {
 
 @Preview(showBackground = true)
 @Composable
-private fun AudioExportPageExportingPreview() {
+private fun VideoConvertPageFailedPreview() {
     VicuTheme {
-        AudioExportContent(
-            state = AudioExportUiState(
+        VideoConvertContent(
+            state = VideoConvertUiState(
                 videoName = "sample_video.mp4",
-                phase = ExportPhase.Exporting(progress = 0.42f),
+                phase = ConvertPhase.Failed(VideoConvertError.TranscodeFailed),
             ),
             onSelectFormat = {},
             onSelectQuality = {},
-            onExport = {},
+            onConvert = {},
             onBack = {},
             onGoHome = {},
         )
@@ -377,16 +379,16 @@ private fun AudioExportPageExportingPreview() {
 
 @Preview(showBackground = true)
 @Composable
-private fun AudioExportPageFailedPreview() {
+private fun VideoConvertPageConvertingPreview() {
     VicuTheme {
-        AudioExportContent(
-            state = AudioExportUiState(
+        VideoConvertContent(
+            state = VideoConvertUiState(
                 videoName = "sample_video.mp4",
-                phase = ExportPhase.Failed(AudioExportError.TranscodeFailed),
+                phase = ConvertPhase.Converting(progress = 0.50f),
             ),
             onSelectFormat = {},
             onSelectQuality = {},
-            onExport = {},
+            onConvert = {},
             onBack = {},
             onGoHome = {},
         )
@@ -395,16 +397,16 @@ private fun AudioExportPageFailedPreview() {
 
 @Preview(showBackground = true)
 @Composable
-private fun AudioExportPageCompletePreview() {
+private fun VideoConvertPageCompletePreview() {
     VicuTheme {
-        AudioExportContent(
-            state = AudioExportUiState(
+        VideoConvertContent(
+            state = VideoConvertUiState(
                 videoName = "sample_video.mp4",
-                phase = ExportPhase.Complete,
+                phase = ConvertPhase.Complete,
             ),
             onSelectFormat = {},
             onSelectQuality = {},
-            onExport = {},
+            onConvert = {},
             onBack = {},
             onGoHome = {},
         )

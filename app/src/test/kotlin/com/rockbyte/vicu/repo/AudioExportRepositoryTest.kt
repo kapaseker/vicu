@@ -21,6 +21,7 @@ class AudioExportRepositoryTest {
         var deleteError: Exception? = null
         var executeError: Exception? = null
         var executeSuccess = true
+        var timeReportsMs: List<Long> = emptyList()
         var duringExecute: () -> Unit = {}
         lateinit var arguments: List<String>
         val repo: AudioExportRepo = AudioExportRepository(
@@ -33,9 +34,10 @@ class AudioExportRepositoryTest {
                 }
                 override fun inputUrl(uri: Uri): String = "input"
                 override fun outputUrl(uri: Uri): String = "output"
-                override fun execute(arguments: Array<String>): Boolean {
+                override fun execute(arguments: Array<String>, onTimeMs: (Long) -> Unit): Boolean {
                     events += "execute"
                     this@Fixture.arguments = arguments.toList()
+                    timeReportsMs.forEach(onTimeMs)
                     duringExecute()
                     executeError?.let { throw it }
                     return executeSuccess
@@ -63,7 +65,8 @@ class AudioExportRepositoryTest {
         suspend fun export(
             format: AudioExportFormat = AudioExportFormat.ORIGINAL,
             quality: AudioExportQuality = AudioExportQuality.BEST,
-        ) = repo.export(AudioExportRequest(input, "video.mp4", format, quality))
+            onProgress: (Float) -> Unit = {},
+        ) = repo.export(AudioExportRequest(input, "video.mp4", format, quality), onProgress)
     }
 
     @Test fun successfulExportProbesOnceAndPublishesOutput() = runBlocking {
@@ -159,6 +162,24 @@ class AudioExportRepositoryTest {
         } catch (_: CancellationException) {
             assertEquals(listOf("create", "probe", "delete"), f.events)
         }
+    }
+
+    @Test fun progressIsDedupedAndClampedToUnitRange() = runBlocking {
+        val f = Fixture()
+        f.source = SourceAudioInfo("aac", 256, durationMs = 10_000)
+        f.timeReportsMs = listOf(1_000, 1_004, 5_500, 11_000) // 1_004 与 1_000 同属 0.1% 档，应去重；11s 超出封顶为 1
+        val progress = mutableListOf<Float>()
+        assertTrue(f.export(onProgress = progress::add) is AudioExportResult.Success)
+        assertEquals(listOf(0.1f, 0.55f, 1f), progress)
+    }
+
+    @Test fun unknownDurationReportsNoProgress() = runBlocking {
+        val f = Fixture()
+        f.source = SourceAudioInfo("aac", 256, durationMs = null)
+        f.timeReportsMs = listOf(1_000, 5_000)
+        val progress = mutableListOf<Float>()
+        assertTrue(f.export(onProgress = progress::add) is AudioExportResult.Success)
+        assertTrue(progress.isEmpty())
     }
 
     @Test fun cancellationWhileEncodingWaitsForWriterThenRollsBack() = runBlocking {

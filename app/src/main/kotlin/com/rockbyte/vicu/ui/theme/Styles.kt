@@ -112,11 +112,10 @@ object VicuStyles {
         background(colors.surfaceContainerLow)
     }
 
-    /** 媒体类型角标：24dp 白底 base 圆角块 + 1px 边框，承载 16dp tint 图标。 */
+    /** 媒体类型角标：24dp 半透明白玻璃底 base 圆角块（无边框），承载 16dp tint 图标。 */
     val typeBadge: Style = Style {
         size(dimensions.typeBadgeSize)
         shape(shapes.base)
-        background(colors.surfaceContainerLowest)
-        border(dimensions.cardBorderWidth, colors.outlineVariant)
+        background(colors.surfaceContainerLowest.copy(alpha = alpha.glassOverlay))
     }
 }

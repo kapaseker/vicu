@@ -3,6 +3,7 @@ package com.rockbyte.vicu.repo
 import android.graphics.Bitmap
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 
 /**
@@ -30,6 +31,8 @@ internal class MediaRepository(private val mediaStore: MediaLibraryStore) : Medi
         withContext(Dispatchers.IO) {
             runCatching { mediaStore.loadThumbnail(uri, width, height) }.getOrNull()
         }
+
+    override fun observeExternalChanges(): Flow<Unit> = mediaStore.observeExternalChanges()
 }
 
 internal interface MediaLibraryStore {
@@ -37,4 +40,5 @@ internal interface MediaLibraryStore {
     fun canRead(kind: MediaKind): Boolean
     fun query(kind: MediaKind): List<MediaItem>
     fun loadThumbnail(uri: Uri, width: Int, height: Int): Bitmap
+    fun observeExternalChanges(): Flow<Unit>
 }

@@ -4,11 +4,15 @@ import android.Manifest
 import android.content.ContentUris
 import android.content.Context
 import android.content.pm.PackageManager
+import android.database.ContentObserver
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.util.Size
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 
 internal class MediaLibraryStorage(context: Context) : MediaLibraryStore {
     private val appContext = context.applicationContext
@@ -46,6 +50,19 @@ internal class MediaLibraryStorage(context: Context) : MediaLibraryStore {
 
     override fun loadThumbnail(uri: Uri, width: Int, height: Int): Bitmap =
         resolver.loadThumbnail(uri, Size(width, height), null)
+
+    override fun observeExternalChanges(): Flow<Unit> = callbackFlow {
+        // trySend 线程安全；不传 Handler 则回调可能来自 binder 线程，无需切线程
+        val observer = object : ContentObserver(null) {
+            override fun onChange(selfChange: Boolean, uri: Uri?) {
+                trySend(Unit)
+            }
+        }
+        for (kind in MediaKind.entries) {
+            resolver.registerContentObserver(kind.collection, true, observer)
+        }
+        awaitClose { resolver.unregisterContentObserver(observer) }
+    }
 }
 
 internal fun mediaPermissionsForSdk(sdkInt: Int): List<String> =

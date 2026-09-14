@@ -8,6 +8,7 @@ import com.rockbyte.vicu.repo.MediaItem
 import com.rockbyte.vicu.repo.MediaRepo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 data class MediaLibraryUiState(
@@ -25,19 +26,26 @@ class HomeViewModel(private val mediaRepo: MediaRepo) : ViewModel() {
 
     init {
         refresh()
+        // MediaStore 变更时刷新列表；collectLatest 会取消进行中的 load，
+        // 短时间内的连续变更只保留最后一次查询，天然防抖
+        viewModelScope.launch {
+            mediaRepo.observeExternalChanges().collectLatest { load() }
+        }
     }
 
     fun refresh() {
-        viewModelScope.launch {
-            uiState.value = uiState.value.copy(loading = true)
-            val library = mediaRepo.loadLibrary()
-            uiState.value = MediaLibraryUiState(
-                loading = false,
-                items = library.items,
-                hasAccess = library.hasAccess,
-                permissionsToRequest = library.permissionsToRequest,
-            )
-        }
+        viewModelScope.launch { load() }
+    }
+
+    private suspend fun load() {
+        uiState.value = uiState.value.copy(loading = true)
+        val library = mediaRepo.loadLibrary()
+        uiState.value = MediaLibraryUiState(
+            loading = false,
+            items = library.items,
+            hasAccess = library.hasAccess,
+            permissionsToRequest = library.permissionsToRequest,
+        )
     }
 
     suspend fun loadThumbnail(uri: Uri, width: Int, height: Int): Bitmap? =

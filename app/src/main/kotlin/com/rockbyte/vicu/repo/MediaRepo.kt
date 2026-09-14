@@ -2,6 +2,7 @@ package com.rockbyte.vicu.repo
 
 import android.graphics.Bitmap
 import android.net.Uri
+import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
 
 /** 首页媒体库条目。 */
@@ -35,4 +36,7 @@ interface MediaRepo {
 
     /** 读取媒体预览；媒体不可读或预览失败时返回 null。 */
     suspend fun loadThumbnail(uri: Uri, width: Int, height: Int): Bitmap?
+
+    /** 每当 MediaStore 外部内容变更（新增/删除/修改）时发射一次，冷流，收集期注册观察者。 */
+    fun observeExternalChanges(): Flow<Unit>
 }

@@ -43,13 +43,27 @@ android {
     buildFeatures {
         compose = true
     }
+
+    // 按 ABI 拆分打包：4 个单 ABI 包 + 1 个 universal 包
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
+            isUniversalApk = true
+        }
+    }
 }
 
-// APK 产物命名：应用名前缀 + 变体 + 版本号，如 vicu-release-1.0.apk（与 defaultConfig 同读 version catalog，保持单一来源）
+// APK 产物命名：应用名前缀 + 变体 + ABI 标识（拆分包）或 universal + 版本号（与 defaultConfig 同读 version catalog，保持单一来源）
 androidComponents {
     onVariants { variant ->
         variant.outputs.forEach { output ->
-            output.outputFileName.set("vicu-${variant.name}-${libs.versions.version.name.get()}.apk")
+            val abi = output.filters
+                .firstOrNull { it.filterType == com.android.build.api.variant.FilterConfiguration.FilterType.ABI }
+                ?.identifier
+            val flavor = abi ?: "universal"
+            output.outputFileName.set("vicu-${libs.versions.version.name.get()}-${variant.name}-${flavor}.apk")
         }
     }
 }

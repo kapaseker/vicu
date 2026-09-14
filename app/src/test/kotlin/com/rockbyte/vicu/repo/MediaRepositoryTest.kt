@@ -2,6 +2,8 @@ package com.rockbyte.vicu.repo
 
 import android.graphics.Bitmap
 import android.net.Uri
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -33,6 +35,8 @@ class MediaRepositoryTest {
             thumbnailFailure?.let { throw it }
             return thumbnail
         }
+
+        override fun observeExternalChanges(): Flow<Unit> = emptyFlow()
     }
 
     @Test

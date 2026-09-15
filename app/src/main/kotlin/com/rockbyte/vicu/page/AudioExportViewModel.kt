@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 data class AudioExportUiState(
     val videoName: String = "",
     val format: AudioExportFormat = AudioExportFormat.ORIGINAL,
-    val quality: AudioExportQuality = AudioExportQuality.BEST,
+    val quality: AudioExportQuality = AudioExportQuality.SUITABLE,
     val phase: ExportPhase = ExportPhase.Idle,
 )
 

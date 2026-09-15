@@ -5,6 +5,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
+import com.rockbyte.vicu.page.AudioConvertPage
 import com.rockbyte.vicu.page.AudioExportPage
 import com.rockbyte.vicu.page.HomePage
 import com.rockbyte.vicu.page.MediaFunctionsPage
@@ -33,6 +34,12 @@ data class VideoConvertRoute(
     val media: SelectedMedia,
 ) : NavKey
 
+/** 音频转换目的地；携带所选音频。 */
+@Serializable
+data class AudioConvertRoute(
+    val media: SelectedMedia,
+) : NavKey
+
 /** Navigation 3 路由与目的地集中注册（AGENTS.md）。 */
 @Composable
 fun MainApp() {
@@ -56,6 +63,7 @@ fun MainApp() {
                     media = route.media,
                     onExportAudio = { backStack.add(AudioExportRoute(route.media)) },
                     onConvertVideo = { backStack.add(VideoConvertRoute(route.media)) },
+                    onConvertAudio = { backStack.add(AudioConvertRoute(route.media)) },
                     onBack = { backStack.removeLastOrNull() },
                 )
             }
@@ -71,6 +79,16 @@ fun MainApp() {
             }
             entry<VideoConvertRoute> { route ->
                 VideoConvertPage(
+                    media = route.media,
+                    onBack = { backStack.removeLastOrNull() },
+                    onGoHome = {
+                        backStack.clear()
+                        backStack.add(HomeRoute)
+                    },
+                )
+            }
+            entry<AudioConvertRoute> { route ->
+                AudioConvertPage(
                     media = route.media,
                     onBack = { backStack.removeLastOrNull() },
                     onGoHome = {

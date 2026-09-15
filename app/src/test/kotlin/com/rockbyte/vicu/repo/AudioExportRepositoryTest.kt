@@ -64,7 +64,7 @@ class AudioExportRepositoryTest {
         )
         suspend fun export(
             format: AudioExportFormat = AudioExportFormat.ORIGINAL,
-            quality: AudioExportQuality = AudioExportQuality.BEST,
+            quality: AudioExportQuality = AudioExportQuality.BEST_QUALITY,
             onProgress: (Float) -> Unit = {},
         ) = repo.export(AudioExportRequest(input, "video.mp4", format, quality), onProgress)
     }
@@ -77,21 +77,23 @@ class AudioExportRepositoryTest {
             "-c:a", "copy", "-f", "ipod", "output"), f.arguments)
     }
 
-    @Test fun allFormatsAndQualityLevelsRespectSourceBitrateAndContainer() = runBlocking {
+    @Test fun allFormatsAndQualityLevelsProduceExpectedBitrate() = runBlocking {
         for (format in AudioExportFormat.entries) {
             for (quality in AudioExportQuality.entries) {
                 for (sourceBitrate in listOf<Int?>(96, 256, 4608, null)) {
                     val f = Fixture()
                     f.source = SourceAudioInfo("ac3", sourceBitrate)
                     assertTrue(f.export(format, quality) is AudioExportResult.Success)
-                    val requested = when (quality) {
-                        AudioExportQuality.BEST, AudioExportQuality.HIGH -> 320
-                        AudioExportQuality.MEDIUM -> 192
-                        AudioExportQuality.LOW -> 128
+                    val expected = when (quality) {
+                        AudioExportQuality.BEST_QUALITY -> 320
+                        AudioExportQuality.BALANCED -> 192
+                        AudioExportQuality.SMALLEST -> 128
+                        // 仅「最合适」按源码率封顶，探测失败回退平衡档 192k；固定档不封顶
+                        AudioExportQuality.SUITABLE -> minOf(192, sourceBitrate ?: 192)
                     }
                     assertEquals(listOf("-hide_banner", "-i", "input", "-map", "0:a:0", "-vn",
                         "-c:a", if (format == AudioExportFormat.MP3) "libmp3lame" else "aac",
-                        "-b:a", "${minOf(requested, sourceBitrate ?: requested)}k",
+                        "-b:a", "${expected}k",
                         "-f", if (format == AudioExportFormat.MP3) "mp3" else "ipod", "output"),
                         f.arguments)
                 }

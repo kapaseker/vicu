@@ -36,13 +36,14 @@ import com.rockbyte.vicu.ui.theme.VicuTheme
 
 /**
  * 媒体功能列表页：所有多媒体点击后进入。
- * 标题与功能集随媒体类型变化；视频提供「导出音频」「视频转换」入口，其余类型展示敬请期待占位。
+ * 标题与功能集随媒体类型变化；视频提供「导出音频」「视频转换」入口，音频提供「音频转换」入口，图片展示敬请期待占位。
  */
 @Composable
 fun MediaFunctionsPage(
     media: SelectedMedia,
     onExportAudio: () -> Unit,
     onConvertVideo: () -> Unit,
+    onConvertAudio: () -> Unit,
     onBack: () -> Unit,
 ) {
     VicuScaffold(
@@ -51,7 +52,8 @@ fun MediaFunctionsPage(
     ) {
         when (media.kind) {
             MediaKind.VIDEO -> VideoFunctionsContent(media.name, onExportAudio, onConvertVideo)
-            MediaKind.IMAGE, MediaKind.AUDIO -> ComingSoonContent(media.kind)
+            MediaKind.AUDIO -> AudioFunctionsContent(media.name, onConvertAudio)
+            MediaKind.IMAGE -> ComingSoonContent(media.kind)
         }
     }
 }
@@ -78,6 +80,30 @@ private fun VideoFunctionsContent(
     onExportAudio: () -> Unit,
     onConvertVideo: () -> Unit,
 ) {
+    BasicDescriptionContent(name, R.string.functions_description) {
+        FunctionGrid(
+            listOf(
+                FunctionEntry(R.drawable.ic_audio, R.string.export_audio, onExportAudio),
+                FunctionEntry(R.drawable.ic_transfer, R.string.video_convert, onConvertVideo),
+            ),
+        )
+    }
+}
+
+@Composable
+private fun AudioFunctionsContent(
+    name: String,
+    onConvertAudio: () -> Unit,
+) {
+    BasicDescriptionContent(name, R.string.functions_description_audio) {
+        FunctionGrid(
+            listOf(FunctionEntry(R.drawable.ic_transfer, R.string.audio_convert, onConvertAudio)),
+        )
+    }
+}
+
+@Composable
+private fun BasicDescriptionContent(name: String, descriptionRes: Int, content: @Composable () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -85,20 +111,16 @@ private fun VideoFunctionsContent(
             .padding(VicuTheme.dimensions.screenGutter),
     ) {
         BasicText(
-            text = stringResource(R.string.functions_description, abbreviateMediaFileName(name)),
+            text = stringResource(descriptionRes, abbreviateMediaFileName(name)),
             style = VicuTheme.typography.bodyLg.copy(color = VicuTheme.colors.onSurfaceVariant),
         )
-        FunctionGrid(onExportAudio, onConvertVideo)
+        content()
     }
 }
 
 /** 功能按钮 grid：自适应列（tile 最小 96dp，宽屏自动多列），为后续功能扩展预留。 */
 @Composable
-private fun FunctionGrid(onExportAudio: () -> Unit, onConvertVideo: () -> Unit) {
-    val functions = listOf(
-        FunctionEntry(R.drawable.ic_audio, R.string.export_audio, onExportAudio),
-        FunctionEntry(R.drawable.ic_transfer, R.string.video_convert, onConvertVideo),
-    )
+private fun FunctionGrid(functions: List<FunctionEntry>) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(VicuTheme.dimensions.mediaFunctionsGridMinSize),
         modifier = Modifier.fillMaxSize(),
@@ -196,6 +218,25 @@ private fun MediaFunctionsPageVideoPreview() {
             ),
             onExportAudio = {},
             onConvertVideo = {},
+            onConvertAudio = {},
+            onBack = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun MediaFunctionsPageAudioPreview() {
+    VicuTheme {
+        MediaFunctionsPage(
+            media = SelectedMedia(
+                uri = "content://media/external/audio/3",
+                name = "abcdefghijk.mp3",
+                kind = MediaKind.AUDIO,
+            ),
+            onExportAudio = {},
+            onConvertVideo = {},
+            onConvertAudio = {},
             onBack = {},
         )
     }
@@ -213,6 +254,7 @@ private fun MediaFunctionsPageComingSoonPreview() {
             ),
             onExportAudio = {},
             onConvertVideo = {},
+            onConvertAudio = {},
             onBack = {},
         )
     }

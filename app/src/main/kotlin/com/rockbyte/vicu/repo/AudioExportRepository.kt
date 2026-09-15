@@ -34,13 +34,15 @@ internal class AudioExportRepository(
                 }
                 currentCoroutineContext().ensureActive()
                 val copy = request.format == AudioExportFormat.ORIGINAL &&
-                    request.quality == AudioExportQuality.BEST &&
+                    request.quality == AudioExportQuality.BEST_QUALITY &&
                     (source?.codec == null || source.codec == "aac")
                 val bitrate = when (request.quality) {
-                    AudioExportQuality.BEST, AudioExportQuality.HIGH -> 320
-                    AudioExportQuality.MEDIUM -> 192
-                    AudioExportQuality.LOW -> 128
-                }.let { minOf(it, source?.bitrateKbps ?: it) }
+                    AudioExportQuality.BEST_QUALITY -> 320
+                    AudioExportQuality.BALANCED -> 192
+                    AudioExportQuality.SMALLEST -> 128
+                    AudioExportQuality.SUITABLE -> source?.bitrateKbps
+                        ?.takeIf { it > 0 }?.coerceAtMost(192) ?: 192
+                }
                 val encoderArgs = if (copy) arrayOf("-c:a", "copy") else arrayOf(
                     "-c:a", if (request.format == AudioExportFormat.MP3) "libmp3lame" else "aac",
                     "-b:a", "${bitrate}k",

@@ -1,8 +1,13 @@
 package com.rockbyte.vicu.di
 
+import com.rockbyte.vicu.page.AudioConvertViewModel
 import com.rockbyte.vicu.page.AudioExportViewModel
 import com.rockbyte.vicu.page.HomeViewModel
 import com.rockbyte.vicu.page.VideoConvertViewModel
+import com.rockbyte.vicu.repo.AudioConvertRepo
+import com.rockbyte.vicu.repo.AudioConvertRepository
+import com.rockbyte.vicu.repo.AudioConvertStore
+import com.rockbyte.vicu.repo.AudioConvertStorage
 import com.rockbyte.vicu.repo.AudioExportRepo
 import com.rockbyte.vicu.repo.AudioExportRepository
 import com.rockbyte.vicu.repo.AudioEncoder
@@ -29,10 +34,13 @@ val appModule = module {
     single<AudioEncoder> { FFmpegAudioEncoder(androidContext()) }
     single<AudioOutputStore> { AudioOutputStorage(androidContext().contentResolver, System::currentTimeMillis) }
     single<AudioExportRepo> { AudioExportRepository(get(), get()) }
+    single<AudioConvertStore> { AudioConvertStorage(androidContext().contentResolver, System::currentTimeMillis) }
+    single<AudioConvertRepo> { AudioConvertRepository(get(), get()) }
     single<VideoConverter> { FFmpegVideoConverter(androidContext()) }
     single<VideoOutputStore> { VideoOutputStorage(androidContext().contentResolver, System::currentTimeMillis) }
     single<VideoConvertRepo> { VideoConvertRepository(get(), get()) }
     viewModel { HomeViewModel(androidContext(), get()) }
     viewModel { AudioExportViewModel(get()) }
     viewModel { VideoConvertViewModel(get()) }
+    viewModel { AudioConvertViewModel(get()) }
 }

@@ -8,7 +8,8 @@ enum class AudioExportFormat(val mime: String, val extension: String) {
     M4A("audio/mp4", "m4a"),
 }
 
-enum class AudioExportQuality { BEST, HIGH, MEDIUM, LOW }
+/** 质量最好/平衡/体积最小为固定码率档（320/192/128 kbps）；最合适按源码率封顶（探测失败回退平衡档 192k）。声明序即 UI 展示序。 */
+enum class AudioExportQuality { SUITABLE, BEST_QUALITY, BALANCED, SMALLEST }
 
 sealed interface AudioExportError {
     data object TranscodeFailed : AudioExportError

@@ -29,6 +29,10 @@
     <string name="media_permission_rationale">需要媒体访问权限，用于展示设备上的图片、视频和音乐。</string>
     <string name="grant_media_permission">授予权限</string>
     <string name="media_empty">未找到媒体文件</string>
+    <string name="media_date_today">今天</string>
+    <string name="media_date_yesterday">昨天</string>
+    <string name="media_date_month_day">%1$d月%2$d日</string>
+    <string name="media_date_year_month_day">%1$d年%2$d月%3$d日</string>
     <string name="video_convert">视频转换</string>
     <string name="converting">转换中…</string>
     <string name="progress_percent_format">%1$.1f%%</string>

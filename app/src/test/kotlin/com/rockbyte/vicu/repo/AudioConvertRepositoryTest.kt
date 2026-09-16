@@ -149,6 +149,22 @@ class AudioConvertRepositoryTest {
     }
 
     @Test
+    fun wavBitDepthFollowsSourceSampleFmt() = runBlocking {
+        for (sampleFmt in listOf("s32", "s32p", "flt", "fltp", "dbl", "dblp", null)) {
+            val f = Fixture()
+            f.source = SourceAudioInfo(codec = "flac", bitrateKbps = 900, sampleFmt = sampleFmt)
+            assertTrue(f.convert(AudioConvertFormat.WAV) is AudioConvertResult.Success)
+            val expected = when (sampleFmt) {
+                "s32", "s32p" -> "pcm_s32le"
+                "flt", "fltp" -> "pcm_f32le"
+                "dbl", "dblp" -> "pcm_f64le"
+                else -> "pcm_s16le" // 探测失败回退 16 位
+            }
+            assertEquals(expected, f.arguments[f.arguments.indexOf("-c:a") + 1])
+        }
+    }
+
+    @Test
     fun progressIsDedupedAndClampedToUnitRange() = runBlocking {
         val f = Fixture()
         f.source = SourceAudioInfo(codec = "mp3", bitrateKbps = 320, durationMs = 10_000)

@@ -88,11 +88,12 @@ internal class AudioExportRepository(
         }
     }
 }
-/** 源音频探测结果：codec 仅用于原声直拷判断，码率用于质量档封顶，时长仅用于导出进度换算。 */
+/** 源音频探测结果：codec 仅用于原声直拷判断，码率用于质量档封顶，采样格式用于 WAV 位深匹配，时长仅用于进度换算。 */
 internal data class SourceAudioInfo(
     val codec: String?,
     val bitrateKbps: Int?,
     val durationMs: Long? = null,
+    val sampleFmt: String? = null,
 )
 
 /** 同步调用返回后不得继续写入输出。[execute] 的 onTimeMs 在 FFmpeg 线程回调（已处理毫秒数）。 */

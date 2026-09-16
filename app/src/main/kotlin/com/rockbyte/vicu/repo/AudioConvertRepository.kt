@@ -75,7 +75,7 @@ internal class AudioConvertRepository(
 /**
  * 有损格式（MP3/M4A/OGG）固定档：质量最好 320k / 平衡 192k / 体积最小 128k；「最合适」按源码率封顶
  * （不比源更糊，也不为模糊的源浪费体积），探测失败回退纯平衡档 192k。
- * 无损格式（WAV/FLAC）码率档不适用：WAV 用 pcm_s16le，FLAC 用默认压缩级别。
+ * 无损格式（WAV/FLAC）码率档不适用：WAV 位深跟随源采样格式（探测失败回退 16 位），FLAC 用默认压缩级别。
  */
 internal fun audioConvertArguments(
     request: AudioConvertRequest,
@@ -89,7 +89,7 @@ internal fun audioConvertArguments(
         )
         AudioConvertFormat.M4A -> arrayOf("-c:a", "aac", "-b:a", "${bitrateKbps(request.quality, source)}k")
         AudioConvertFormat.OGG -> arrayOf("-c:a", "libopus", "-b:a", "${bitrateKbps(request.quality, source)}k")
-        AudioConvertFormat.WAV -> arrayOf("-c:a", "pcm_s16le")
+        AudioConvertFormat.WAV -> arrayOf("-c:a", wavPcmCodec(source?.sampleFmt))
         AudioConvertFormat.FLAC -> arrayOf("-c:a", "flac")
     }
     return arrayOf(
@@ -97,6 +97,18 @@ internal fun audioConvertArguments(
         "-map", "0:a:0", "-vn", *codecArgs,
         "-f", request.format.extension, output,
     )
+}
+
+/**
+ * WAV 位深跟随源采样格式：24 位源在 FFmpeg 解码为 s32，用 pcm_s32le 只多占空间不损失精度；
+ * 浮点源用对应浮点 PCM。探测失败或未识别格式回退 16 位
+ * （ponytail: 极罕见的 s64 等格式会降位深，升级路径是扩充映射表）。
+ */
+internal fun wavPcmCodec(sampleFmt: String?): String = when (sampleFmt) {
+    "s32", "s32p" -> "pcm_s32le"
+    "flt", "fltp" -> "pcm_f32le"
+    "dbl", "dblp" -> "pcm_f64le"
+    else -> "pcm_s16le"
 }
 
 private fun bitrateKbps(quality: AudioConvertQuality, source: SourceAudioInfo?): Int = when (quality) {

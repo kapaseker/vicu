@@ -35,18 +35,19 @@ internal class FFmpegAudioEncoder(context: Context) : AudioEncoder {
 /** 探测音频流与容器，key=value 输出与 ffprobe 版本无关（按列解析会踩内部字段序陷阱）。 */
 internal fun probeAudioArguments(input: String): Array<String> = arrayOf(
     "-v", "error", "-select_streams", "a:0",
-    "-show_entries", "stream=codec_name,bit_rate:format=duration",
+    "-show_entries", "stream=codec_name,bit_rate,sample_fmt:format=duration",
     "-of", "default=nokey=0:noprint_wrappers=1", input,
 )
 
 /**
- * 解析 key=value 输出：音频流的 codec_name/bit_rate，容器的 duration（秒 → 毫秒，用于导出进度换算）。
- * bit_rate 为 N/A 或缺失时为 null。
+ * 解析 key=value 输出：音频流的 codec_name/bit_rate/sample_fmt，容器的 duration（秒 → 毫秒，用于导出进度换算）。
+ * bit_rate/sample_fmt 为 N/A 或缺失时为 null。
  */
 internal fun parseAudioProbeOutput(output: String): SourceAudioInfo? {
     var codec: String? = null
     var bitrateKbps: Int? = null
     var durationMs: Long? = null
+    var sampleFmt: String? = null
     for (line in output.trim().lines()) {
         val parts = line.trim().split('=', limit = 2)
         if (parts.size < 2) continue
@@ -57,10 +58,11 @@ internal fun parseAudioProbeOutput(output: String): SourceAudioInfo? {
                 bitrateKbps = value.takeIf { it.isNotBlank() && it != "N/A" }
                     ?.toIntOrNull()?.takeIf { it > 0 }?.let { it / 1000 }
             }
+            "sample_fmt" -> sampleFmt = value.takeIf { it.isNotBlank() && it != "N/A" }
             "duration" -> durationMs = value.toDoubleOrNull()
                 ?.takeIf { it > 0 }?.let { (it * 1000).toLong() }
         }
     }
-    if (codec == null && bitrateKbps == null && durationMs == null) return null
-    return SourceAudioInfo(codec, bitrateKbps, durationMs)
+    if (codec == null && bitrateKbps == null && durationMs == null && sampleFmt == null) return null
+    return SourceAudioInfo(codec, bitrateKbps, durationMs, sampleFmt)
 }

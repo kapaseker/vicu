@@ -11,8 +11,8 @@ mockito = "5.23.0"
 
 sdk-compile = "37"
 sdk-min = "30"
-version-code = "2"
-version-name = "1.1"
+version-code = "3"
+version-name = "1.2"
 compose-bom = "2026.09.00"
 
 nav3 = "1.1.7"

@@ -26,7 +26,7 @@ internal class MediaLibraryStorage(context: Context) : MediaLibraryStore {
                     uri = ContentUris.withAppendedId(collection, cursor.getLong(idIndex)),
                     name = cursor.getString(nameIndex).orEmpty(),
                     kind = kind,
-                    dateAdded = cursor.getLong(dateIndex),
+                    dateAdded = cursor.getLong(dateIndex).normalizeDateAdded(),
                 )
             }
         }
@@ -40,3 +40,11 @@ private val MediaKind.collection: Uri
         MediaKind.VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         MediaKind.AUDIO -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
     }
+
+// ponytail: 固定阈值 1e10 秒（约公元 2286 年）；部分厂商 App 会向 DATE_ADDED 写毫秒值（~1e12），
+// 超过该上限按毫秒归一化为秒。若未来出现新的非法量纲再扩展。
+internal const val DATE_ADDED_SECONDS_CEILING: Long = 10_000_000_000L
+
+/** MediaStore 是信任边界：把误写为毫秒的 DATE_ADDED 归一化为秒。 */
+internal fun Long.normalizeDateAdded(): Long =
+    if (this > DATE_ADDED_SECONDS_CEILING) this / 1000 else this

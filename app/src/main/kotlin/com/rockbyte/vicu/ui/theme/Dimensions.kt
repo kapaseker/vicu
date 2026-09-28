@@ -34,6 +34,9 @@ data class VicuDimensions(
     val radioOuterSize: Dp,
     val radioBorderWidth: Dp,
     val radioInnerSize: Dp,
+    val playerProgressTrackHeight: Dp,
+    val playerProgressThumbSize: Dp,
+    val playerProgressTouchHeight: Dp,
 )
 
 /** 无量纲的透明度 token。 */
@@ -78,6 +81,9 @@ internal fun resourceDimensions() = VicuDimensions(
     radioOuterSize = dimensionResource(R.dimen.vicu_radio_outer_size),
     radioBorderWidth = dimensionResource(R.dimen.vicu_radio_border_width),
     radioInnerSize = dimensionResource(R.dimen.vicu_radio_inner_size),
+    playerProgressTrackHeight = dimensionResource(R.dimen.vicu_player_progress_track_height),
+    playerProgressThumbSize = dimensionResource(R.dimen.vicu_player_progress_thumb_size),
+    playerProgressTouchHeight = dimensionResource(R.dimen.vicu_player_progress_touch_height),
 )
 
 @Composable

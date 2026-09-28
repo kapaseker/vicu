@@ -7,12 +7,21 @@ plugins {
 android {
     namespace = "com.rockbyte.vicu"
     compileSdk = libs.versions.sdk.compile.get().toInt()
+    // 固定到本机已安装 NDK（AGP 默认偏好版本未下载）
+    ndkVersion = "27.3.13750724"
 
     defaultConfig {
         applicationId = "com.rockbyte.vicu"
         minSdk = libs.versions.sdk.min.get().toInt()
         versionCode = libs.versions.version.code.get().toInt()
         versionName = libs.versions.version.name.get()
+        externalNativeBuild {
+            cmake {
+                // 与 splits.abi 对齐；引擎以 C 为主，静态 STL 避免与 ffmpeg-kit 的 libc++_shared 冲突
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
+                arguments += "-DANDROID_STL=c++_static"
+            }
+        }
     }
 
     signingConfigs {
@@ -42,6 +51,12 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+        }
     }
 
     // 按 ABI 拆分打包：4 个单 ABI 包 + 1 个 universal 包
@@ -104,6 +119,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.mockito.core)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(platform(libs.koin.bom))
     testImplementation(libs.koin.test.junit4)
 }

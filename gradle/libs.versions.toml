@@ -18,6 +18,7 @@ compose-bom = "2026.09.00"
 nav3 = "1.1.7"
 koin-bom = "4.2.2"
 kotlinx-serialization-core = "1.11.0"
+kotlinx-coroutines-test = "1.10.2"
 coil = "3.6.2"
 
 [libraries]
@@ -46,6 +47,7 @@ koin-androidx-compose = { group = "io.insert-koin", name = "koin-androidx-compos
 koin-test-junit4 = { group = "io.insert-koin", name = "koin-test-junit4" }
 
 kotlinx-serialization-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-core", version.ref = "kotlinx-serialization-core" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinx-coroutines-test" }
 
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-video = { group = "io.coil-kt.coil3", name = "coil-video", version.ref = "coil" }

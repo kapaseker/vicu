@@ -4,6 +4,7 @@ import com.rockbyte.vicu.page.AudioConvertViewModel
 import com.rockbyte.vicu.page.AudioExportViewModel
 import com.rockbyte.vicu.page.HomeViewModel
 import com.rockbyte.vicu.page.VideoConvertViewModel
+import com.rockbyte.vicu.page.player.PlayerViewModel
 import com.rockbyte.vicu.repo.AudioConvertRepo
 import com.rockbyte.vicu.repo.AudioConvertRepository
 import com.rockbyte.vicu.repo.AudioConvertStore
@@ -19,6 +20,8 @@ import com.rockbyte.vicu.repo.MediaRepo
 import com.rockbyte.vicu.repo.MediaRepository
 import com.rockbyte.vicu.repo.MediaLibraryStore
 import com.rockbyte.vicu.repo.MediaLibraryStorage
+import com.rockbyte.vicu.repo.PlayerRepo
+import com.rockbyte.vicu.repo.PlayerRepository
 import com.rockbyte.vicu.repo.VideoConverter
 import com.rockbyte.vicu.repo.VideoConvertRepo
 import com.rockbyte.vicu.repo.VideoConvertRepository
@@ -39,8 +42,10 @@ val appModule = module {
     single<VideoConverter> { FFmpegVideoConverter(androidContext()) }
     single<VideoOutputStore> { VideoOutputStorage(androidContext().contentResolver, System::currentTimeMillis) }
     single<VideoConvertRepo> { VideoConvertRepository(get(), get()) }
+    single<PlayerRepo> { PlayerRepository(androidContext()) }
     viewModel { HomeViewModel(androidContext(), get()) }
     viewModel { AudioExportViewModel(get()) }
     viewModel { VideoConvertViewModel(get()) }
     viewModel { AudioConvertViewModel(get()) }
+    viewModel { PlayerViewModel(get()) }
 }

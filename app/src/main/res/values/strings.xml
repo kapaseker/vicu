@@ -61,4 +61,16 @@
     <string name="audio_convert_error_transcode">音频转码失败</string>
     <string name="audio_convert_error_output_creation">无法创建转换文件</string>
     <string name="audio_convert_error_unknown">未知错误</string>
+    <string name="video_play">播放</string>
+    <string name="player_play">播放</string>
+    <string name="player_pause">暂停</string>
+    <string name="player_replay">重播</string>
+    <string name="player_preparing">准备中…</string>
+    <string name="player_failed">播放失败：%1$s</string>
+    <string name="player_error_open">无法打开视频</string>
+    <string name="player_error_playback">播放出错</string>
+    <string name="player_effect_edit">编辑效果</string>
+    <string name="player_effect_done">完成</string>
+    <string name="player_crop_reset">重置裁剪</string>
+    <string name="player_trim_reset">重置区间</string>
 </resources>

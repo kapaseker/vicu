@@ -1,10 +1,10 @@
 package com.rockbyte.vicu.page.player
 
 import android.view.Surface
-import com.rockbyte.vicu.repo.EffectSpec
+import com.rockbyte.vicu.player.PlayerEffect
 import com.rockbyte.vicu.repo.MediaKind
-import com.rockbyte.vicu.repo.PlayerEvent
-import com.rockbyte.vicu.repo.PlayerRepo
+import com.rockbyte.vicu.player.PlayerEvent
+import com.rockbyte.vicu.player.PlayerRepo
 import com.rockbyte.vicu.repo.SelectedMedia
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -38,11 +38,11 @@ class PlayerViewModelTest {
     @Test
     fun setCropNormalizesAndAppliesEffects() {
         val viewModel = PlayerViewModel(repo)
-        viewModel.setCrop(EffectSpec.Crop(left = 11, top = 21, width = 101, height = 51))
+        viewModel.setCrop(PlayerEffect.Crop(left = 11, top = 21, width = 101, height = 51))
 
-        assertEquals(EffectSpec.Crop(10, 20, 100, 50), viewModel.uiState.value.crop)
+        assertEquals(PlayerEffect.Crop(10, 20, 100, 50), viewModel.uiState.value.crop)
         assertEquals(
-            listOf(listOf(EffectSpec.Crop(10, 20, 100, 50))),
+            listOf(listOf(PlayerEffect.Crop(10, 20, 100, 50))),
             repo.appliedEffects,
         )
     }
@@ -51,18 +51,18 @@ class PlayerViewModelTest {
     fun setCropNullClearsCropButKeepsTrim() {
         val viewModel = PlayerViewModel(repo)
         viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 10000))
-        viewModel.setTrim(EffectSpec.Trim(1000, 2000))
+        viewModel.setTrim(PlayerEffect.Trim(1000, 2000))
         repo.appliedEffects.clear()
 
-        viewModel.setCrop(EffectSpec.Crop(0, 0, 640, 480))
+        viewModel.setCrop(PlayerEffect.Crop(0, 0, 640, 480))
         viewModel.setCrop(null)
 
         assertEquals(null, viewModel.uiState.value.crop)
         assertEquals(
             listOf(
                 // effects 固定 crop 在前（滤镜链顺序稳定）
-                listOf(EffectSpec.Crop(0, 0, 640, 480), EffectSpec.Trim(1000, 2000)),
-                listOf(EffectSpec.Trim(1000, 2000)),
+                listOf(PlayerEffect.Crop(0, 0, 640, 480), PlayerEffect.Trim(1000, 2000)),
+                listOf(PlayerEffect.Trim(1000, 2000)),
             ),
             repo.appliedEffects,
         )
@@ -73,11 +73,11 @@ class PlayerViewModelTest {
         val viewModel = PlayerViewModel(repo)
         viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 10000))
 
-        viewModel.setTrim(EffectSpec.Trim(-500, 20000))
+        viewModel.setTrim(PlayerEffect.Trim(-500, 20000))
 
-        assertEquals(EffectSpec.Trim(0, 10000), viewModel.uiState.value.trim)
+        assertEquals(PlayerEffect.Trim(0, 10000), viewModel.uiState.value.trim)
         assertEquals(
-            listOf(EffectSpec.Trim(0, 10000)),
+            listOf(PlayerEffect.Trim(0, 10000)),
             repo.appliedEffects.last(),
         )
     }
@@ -86,7 +86,7 @@ class PlayerViewModelTest {
     fun seekToClampsToTrimRange() {
         val viewModel = PlayerViewModel(repo)
         viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 10000))
-        viewModel.setTrim(EffectSpec.Trim(2000, 8000))
+        viewModel.setTrim(PlayerEffect.Trim(2000, 8000))
 
         viewModel.seekTo(1000)
         viewModel.seekTo(9000)
@@ -99,14 +99,14 @@ class PlayerViewModelTest {
     @Test
     fun preparedEventReappliesCurrentEffects() {
         val viewModel = PlayerViewModel(repo)
-        viewModel.setCrop(EffectSpec.Crop(10, 20, 100, 50))
+        viewModel.setCrop(PlayerEffect.Crop(10, 20, 100, 50))
         repo.appliedEffects.clear()
 
         // replay/open 后的新会话：Prepared 到达时重放效果
         viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 10000))
 
         assertEquals(
-            listOf(listOf(EffectSpec.Crop(10, 20, 100, 50))),
+            listOf(listOf(PlayerEffect.Crop(10, 20, 100, 50))),
             repo.appliedEffects,
         )
     }
@@ -120,14 +120,14 @@ class PlayerViewModelTest {
         private val _events = MutableSharedFlow<PlayerEvent>(extraBufferCapacity = 64)
         override val events: Flow<PlayerEvent> = _events
 
-        val appliedEffects = mutableListOf<List<EffectSpec>>()
+        val appliedEffects = mutableListOf<List<PlayerEffect>>()
         val seekCalls = mutableListOf<Long>()
 
         fun emit(event: PlayerEvent) {
             check(_events.tryEmit(event))
         }
 
-        override suspend fun open(media: SelectedMedia) = Unit
+        override suspend fun open(uri: android.net.Uri) = Unit
         override fun setSurface(surface: Surface?) = Unit
         override fun play() = Unit
         override fun pause() = Unit
@@ -135,7 +135,7 @@ class PlayerViewModelTest {
             seekCalls += positionMs
         }
 
-        override fun applyEffects(effects: List<EffectSpec>) {
+        override fun applyEffects(effects: List<PlayerEffect>) {
             appliedEffects += effects
         }
 

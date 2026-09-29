@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "vicu"
 include(":app")
+include(":player")

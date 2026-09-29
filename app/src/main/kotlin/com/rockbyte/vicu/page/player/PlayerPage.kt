@@ -51,10 +51,10 @@ import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 import com.rockbyte.vicu.R
-import com.rockbyte.vicu.repo.EffectSpec
-import com.rockbyte.vicu.repo.PlayerError
+import com.rockbyte.vicu.player.PlayerEffect
+import com.rockbyte.vicu.player.PlayerError
 import com.rockbyte.vicu.repo.SelectedMedia
-import com.rockbyte.vicu.repo.normalized
+import com.rockbyte.vicu.player.normalized
 import com.rockbyte.vicu.ui.component.PrimaryIconButton
 import com.rockbyte.vicu.ui.component.VicuButton
 import com.rockbyte.vicu.ui.component.StatusRow
@@ -92,8 +92,8 @@ private fun PlayerContent(
     state: PlayerUiState,
     onTogglePlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
-    onCropChange: (EffectSpec.Crop?) -> Unit,
-    onTrimChange: (EffectSpec.Trim?) -> Unit,
+    onCropChange: (PlayerEffect.Crop?) -> Unit,
+    onTrimChange: (PlayerEffect.Trim?) -> Unit,
     onSurfaceAvailable: (android.view.Surface?) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -185,8 +185,8 @@ private fun PlayerControls(
     onToggleEditMode: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
-    onCropChange: (EffectSpec.Crop?) -> Unit,
-    onTrimChange: (EffectSpec.Trim?) -> Unit,
+    onCropChange: (PlayerEffect.Crop?) -> Unit,
+    onTrimChange: (PlayerEffect.Trim?) -> Unit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
@@ -252,8 +252,8 @@ private fun PlayerControls(
 @Composable
 private fun EffectPanel(
     state: PlayerUiState,
-    onCropChange: (EffectSpec.Crop?) -> Unit,
-    onTrimChange: (EffectSpec.Trim?) -> Unit,
+    onCropChange: (PlayerEffect.Crop?) -> Unit,
+    onTrimChange: (PlayerEffect.Trim?) -> Unit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
@@ -293,7 +293,7 @@ private fun EffectPanel(
 }
 
 /** trim 区间文本（未设置时显示全片范围）。 */
-private fun trimRangeText(trim: EffectSpec.Trim?, durationMs: Long): String {
+private fun trimRangeText(trim: PlayerEffect.Trim?, durationMs: Long): String {
     val start = (trim?.startMs ?: 0L) / 1000
     val end = (trim?.endMs ?: durationMs) / 1000
     return "${formatClock(start)} – ${formatClock(end)}"
@@ -384,8 +384,8 @@ private data class CropRectF(val left: Float, val top: Float, val right: Float, 
 private fun CropOverlay(
     videoWidth: Int,
     videoHeight: Int,
-    crop: EffectSpec.Crop?,
-    onCropChange: (EffectSpec.Crop?) -> Unit,
+    crop: PlayerEffect.Crop?,
+    onCropChange: (PlayerEffect.Crop?) -> Unit,
 ) {
     var rect by remember(crop) {
         mutableStateOf(
@@ -464,7 +464,7 @@ private fun CropOverlay(
                     onDragEnd = {
                         if (dragCorner >= 0) {
                             onCropChange(
-                                EffectSpec.Crop(
+                                PlayerEffect.Crop(
                                     left = (rect.left * videoWidth).toInt(),
                                     top = (rect.top * videoHeight).toInt(),
                                     width = ((rect.right - rect.left) * videoWidth).toInt(),
@@ -525,8 +525,8 @@ private fun CropOverlay(
 @Composable
 private fun TrimRangeSlider(
     durationMs: Long,
-    trim: EffectSpec.Trim?,
-    onTrimChange: (EffectSpec.Trim?) -> Unit,
+    trim: PlayerEffect.Trim?,
+    onTrimChange: (PlayerEffect.Trim?) -> Unit,
 ) {
     var startFraction by remember(trim) {
         mutableFloatStateOf(trim?.let { it.startMs.toFloat() / durationMs } ?: 0f)
@@ -567,7 +567,7 @@ private fun TrimRangeSlider(
                     onDragEnd = {
                         if (dragging != 0) {
                             onTrimChange(
-                                EffectSpec.Trim(
+                                PlayerEffect.Trim(
                                     startMs = (startFraction * durationMs).toLong(),
                                     endMs = (endFraction * durationMs).toLong(),
                                 )
@@ -686,8 +686,8 @@ private fun PlayerPageEffectsPreview() {
                 videoHeight = 1080,
                 durationMs = 65000,
                 positionMs = 30000,
-                crop = EffectSpec.Crop(left = 160, top = 90, width = 1600, height = 900),
-                trim = EffectSpec.Trim(startMs = 10000, endMs = 50000),
+                crop = PlayerEffect.Crop(left = 160, top = 90, width = 1600, height = 900),
+                trim = PlayerEffect.Trim(startMs = 10000, endMs = 50000),
             ),
             onTogglePlayPause = {},
             onSeek = {},

@@ -20,8 +20,8 @@ import com.rockbyte.vicu.repo.MediaRepo
 import com.rockbyte.vicu.repo.MediaRepository
 import com.rockbyte.vicu.repo.MediaLibraryStore
 import com.rockbyte.vicu.repo.MediaLibraryStorage
-import com.rockbyte.vicu.repo.PlayerRepo
-import com.rockbyte.vicu.repo.PlayerRepository
+import com.rockbyte.vicu.player.PlayerRepo
+import com.rockbyte.vicu.player.PlayerRepository
 import com.rockbyte.vicu.repo.VideoConverter
 import com.rockbyte.vicu.repo.VideoConvertRepo
 import com.rockbyte.vicu.repo.VideoConvertRepository

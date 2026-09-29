@@ -1,5 +1,6 @@
-package com.rockbyte.vicu.repo
+package com.rockbyte.vicu.player
 
+import android.net.Uri
 import android.view.Surface
 import kotlinx.coroutines.flow.Flow
 
@@ -23,7 +24,7 @@ sealed interface PlayerEvent {
 /** 原生播放器仓库：管理会话生命周期与事件流。 */
 interface PlayerRepo {
     /** 打开媒体并自动起播；结果经 [events] 通知（Prepared / Failed）。 */
-    suspend fun open(media: SelectedMedia)
+    suspend fun open(uri: Uri)
 
     fun setSurface(surface: Surface?)
     fun play()
@@ -36,7 +37,7 @@ interface PlayerRepo {
      * 应用效果（WYSIWYG 预览）：crop → native 滤镜链；trim → 播放区间
      * （seek clamp + 到终点停播；当前位置在区间前则跳到区间起点）。
      */
-    fun applyEffects(effects: List<EffectSpec>)
+    fun applyEffects(effects: List<PlayerEffect>)
 
     /** 播放结束后从头重播当前媒体。 */
     suspend fun replay()

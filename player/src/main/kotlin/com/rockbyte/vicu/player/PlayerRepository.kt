@@ -1,4 +1,4 @@
-package com.rockbyte.vicu.repo
+package com.rockbyte.vicu.player
 
 import android.content.Context
 import android.media.AudioAttributes
@@ -7,7 +7,6 @@ import android.media.AudioManager
 import android.media.AudioTrack
 import android.net.Uri
 import android.view.Surface
-import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
@@ -18,11 +17,17 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
-internal class PlayerRepository(
+class PlayerRepository internal constructor(
     private val context: Context,
     private val playerFactory: () -> NativePlayer = { NativePlayer.create() },
     private val audioTrackFactory: () -> AudioTrack = { createAudioTrack() },
 ) : PlayerRepo {
+
+    constructor(context: Context) : this(
+        context = context.applicationContext,
+        playerFactory = { NativePlayer.create() },
+        audioTrackFactory = { createAudioTrack() },
+    )
 
     private val _events = MutableSharedFlow<PlayerEvent>(
         extraBufferCapacity = 64,
@@ -32,7 +37,7 @@ internal class PlayerRepository(
 
     // player 与 current 只在 open/replay（串行调用）中变更
     private var player: NativePlayer? = null
-    private var current: SelectedMedia? = null
+    private var current: Uri? = null
     private var surface: Surface? = null
     private var playing = false // 引擎播放态：seek 后是否恢复音频输出
     private var lastPositionMs = 0L // 最近进度（applyEffects 判断是否需跳到区间起点）
@@ -80,16 +85,15 @@ internal class PlayerRepository(
         }
     }
 
-    override suspend fun open(media: SelectedMedia) {
-        if (current == media) return
+    override suspend fun open(uri: Uri) {
+        if (current == uri) return
         release()
         playbackFailed.set(false)
         seekTargetUs.set(0)
         audioEpoch.set(0)
-        val uri = media.uri.toUri()
         withContext(Dispatchers.IO) {
             val opened = try {
-                openSession(media, uri)
+                openSession(uri)
             } catch (e: Exception) {
                 null
             }
@@ -136,15 +140,15 @@ internal class PlayerRepository(
     }
 
     override suspend fun replay() {
-        val media = current ?: return
+        val uri = current ?: return
         release()
-        open(media)
+        open(uri)
     }
 
-    override fun applyEffects(effects: List<EffectSpec>) {
+    override fun applyEffects(effects: List<PlayerEffect>) {
         val p = player ?: return // 会话未就绪；Prepared 后由上层重新应用
         p.setFilterGraph(effects.toPreviewFilterChain())
-        val trim = effects.filterIsInstance<EffectSpec.Trim>().firstOrNull()
+        val trim = effects.filterIsInstance<PlayerEffect.Trim>().firstOrNull()
         if (trim != null) {
             p.setPlayRange(trim.startMs, trim.endMs)
             // 当前位置不在新区间内 → 跳到区间起点
@@ -166,7 +170,7 @@ internal class PlayerRepository(
     }
 
     /** 打开 fd、prepare 并起播；失败返回 null（引擎已清理）。 */
-    private fun openSession(media: SelectedMedia, uri: Uri): NativePlayer? {
+    private fun openSession(uri: Uri): NativePlayer? {
         val fd = openFd(uri)
         val newPlayer = playerFactory()
         newPlayer.setListener(listener)
@@ -183,7 +187,7 @@ internal class PlayerRepository(
         newPlayer.setSurface(surface)
         newPlayer.start()
         player = newPlayer
-        current = media
+        current = uri
         playing = true
         return newPlayer
     }

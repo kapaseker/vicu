@@ -19,6 +19,7 @@ nav3 = "1.1.7"
 koin-bom = "4.2.2"
 kotlinx-serialization-core = "1.11.0"
 kotlinx-coroutines-test = "1.10.2"
+kotlinx-coroutines = "1.10.2"
 coil = "3.6.2"
 
 [libraries]
@@ -48,6 +49,7 @@ koin-test-junit4 = { group = "io.insert-koin", name = "koin-test-junit4" }
 
 kotlinx-serialization-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-core", version.ref = "kotlinx-serialization-core" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinx-coroutines-test" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
 
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-video = { group = "io.coil-kt.coil3", name = "coil-video", version.ref = "coil" }
@@ -56,5 +58,6 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 com-android-application = { id = "com.android.application", version.ref = "agp" }
+com-android-library = { id = "com.android.library", version.ref = "agp" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 jetbrains-kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

@@ -136,7 +136,7 @@ static PlayerContext *get_ctx(JNIEnv *env, jobject thiz) {
 }
 
 JNIEXPORT jint JNICALL
-Java_com_rockbyte_vicu_repo_NativePlayerImpl_nativePrepare(JNIEnv *env, jobject thiz, jint fd) {
+Java_com_rockbyte_vicu_player_NativePlayerImpl_nativePrepare(JNIEnv *env, jobject thiz, jint fd) {
     if (!cache_method_ids(env, thiz)) return -1;
 
     // 已有会话先释放（重复 prepare）
@@ -176,7 +176,7 @@ Java_com_rockbyte_vicu_repo_NativePlayerImpl_nativePrepare(JNIEnv *env, jobject 
 }
 
 JNIEXPORT void JNICALL
-Java_com_rockbyte_vicu_repo_NativePlayerImpl_nativeSetSurface(JNIEnv *env, jobject thiz, jobject surface) {
+Java_com_rockbyte_vicu_player_NativePlayerImpl_nativeSetSurface(JNIEnv *env, jobject thiz, jobject surface) {
     PlayerContext *ctx = get_ctx(env, thiz);
     if (!ctx) return;
     ANativeWindow *window = NULL;
@@ -187,25 +187,25 @@ Java_com_rockbyte_vicu_repo_NativePlayerImpl_nativeSetSurface(JNIEnv *env, jobje
 }
 
 JNIEXPORT void JNICALL
-Java_com_rockbyte_vicu_repo_NativePlayerImpl_nativeStart(JNIEnv *env, jobject thiz) {
+Java_com_rockbyte_vicu_player_NativePlayerImpl_nativeStart(JNIEnv *env, jobject thiz) {
     PlayerContext *ctx = get_ctx(env, thiz);
     if (ctx) player_start(ctx);
 }
 
 JNIEXPORT void JNICALL
-Java_com_rockbyte_vicu_repo_NativePlayerImpl_nativePause(JNIEnv *env, jobject thiz) {
+Java_com_rockbyte_vicu_player_NativePlayerImpl_nativePause(JNIEnv *env, jobject thiz) {
     PlayerContext *ctx = get_ctx(env, thiz);
     if (ctx) player_pause(ctx);
 }
 
 JNIEXPORT void JNICALL
-Java_com_rockbyte_vicu_repo_NativePlayerImpl_nativeSeek(JNIEnv *env, jobject thiz, jlong positionMs) {
+Java_com_rockbyte_vicu_player_NativePlayerImpl_nativeSeek(JNIEnv *env, jobject thiz, jlong positionMs) {
     PlayerContext *ctx = get_ctx(env, thiz);
     if (ctx) player_seek(ctx, (int64_t) positionMs);
 }
 
 JNIEXPORT void JNICALL
-Java_com_rockbyte_vicu_repo_NativePlayerImpl_nativeSetFilterGraph(JNIEnv *env, jobject thiz, jstring chain) {
+Java_com_rockbyte_vicu_player_NativePlayerImpl_nativeSetFilterGraph(JNIEnv *env, jobject thiz, jstring chain) {
     PlayerContext *ctx = get_ctx(env, thiz);
     if (!ctx) return;
     const char *utf = chain ? (*env)->GetStringUTFChars(env, chain, NULL) : NULL;
@@ -214,14 +214,14 @@ Java_com_rockbyte_vicu_repo_NativePlayerImpl_nativeSetFilterGraph(JNIEnv *env, j
 }
 
 JNIEXPORT void JNICALL
-Java_com_rockbyte_vicu_repo_NativePlayerImpl_nativeSetPlayRange(
+Java_com_rockbyte_vicu_player_NativePlayerImpl_nativeSetPlayRange(
         JNIEnv *env, jobject thiz, jlong startMs, jlong endMs) {
     PlayerContext *ctx = get_ctx(env, thiz);
     if (ctx) player_set_play_range(ctx, (int64_t) startMs, (int64_t) endMs);
 }
 
 JNIEXPORT void JNICALL
-Java_com_rockbyte_vicu_repo_NativePlayerImpl_nativeRelease(JNIEnv *env, jobject thiz) {
+Java_com_rockbyte_vicu_player_NativePlayerImpl_nativeRelease(JNIEnv *env, jobject thiz) {
     PlayerContext *ctx = get_ctx(env, thiz);
     if (!ctx) return;
     (*env)->SetLongField(env, thiz, g_handle_fid, 0);

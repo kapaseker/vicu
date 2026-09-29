@@ -1,4 +1,4 @@
-package com.rockbyte.vicu.repo
+package com.rockbyte.vicu.player
 
 import android.content.ContentResolver
 import android.content.Context
@@ -11,13 +11,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.runBlocking
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.mockito.ArgumentMatchers.any
-import org.mockito.MockedStatic
 import org.mockito.Mockito
 
 /** applyEffects 的调用编排（crop → 滤镜链；trim → 播放区间 + 起点跳转）。 */
@@ -26,16 +24,12 @@ class PlayerRepositoryTest {
     private val player = FakeNativePlayer()
     private val context = Mockito.mock(Context::class.java)
 
-    // mockable android.jar 的 Uri.parse 抛 "not mocked"：静态拦截返回 mock（仅当前线程生效）
     private val uri = Mockito.mock(Uri::class.java)
-    private val uriStatic: MockedStatic<Uri> = Mockito.mockStatic(Uri::class.java)
 
     private val repository = PlayerRepository(
         context = context,
         playerFactory = { player },
     )
-
-    private val media = SelectedMedia("content://media/video/1", "sample.mp4", MediaKind.VIDEO)
 
     @Before
     fun setUp() {
@@ -48,26 +42,20 @@ class PlayerRepositoryTest {
             .thenReturn(pfd)
         Mockito.`when`(pfd.dup()).thenReturn(dup)
         Mockito.`when`(dup.detachFd()).thenReturn(42)
-        uriStatic.`when`<Uri> { Uri.parse(any()) }.thenReturn(uri)
-    }
-
-    @After
-    fun tearDown() {
-        uriStatic.close()
     }
 
     @Test
     fun applyEffectsWithoutSessionIsNoOp() {
-        repository.applyEffects(listOf(EffectSpec.Crop(0, 0, 100, 100)))
+        repository.applyEffects(listOf(PlayerEffect.Crop(0, 0, 100, 100)))
         assertNull(player.filterChain)
         assertNull(player.playRange)
     }
 
     @Test
     fun applyCropSetsFilterGraphOnly() = runBlocking {
-        repository.open(media)
+        repository.open(uri)
 
-        repository.applyEffects(listOf(EffectSpec.Crop(10, 20, 100, 50)))
+        repository.applyEffects(listOf(PlayerEffect.Crop(10, 20, 100, 50)))
 
         assertEquals("crop=w=100:h=50:x=10:y=20", player.filterChain)
         // 无 trim 时重置播放区间（清理历史 trim 的区间限制）
@@ -76,9 +64,9 @@ class PlayerRepositoryTest {
 
     @Test
     fun applyTrimSetsPlayRange() = runBlocking {
-        repository.open(media)
+        repository.open(uri)
 
-        repository.applyEffects(listOf(EffectSpec.Trim(1500, 3200)))
+        repository.applyEffects(listOf(PlayerEffect.Trim(1500, 3200)))
 
         assertEquals("", player.filterChain)
         assertEquals(1500L to 3200L, player.playRange)
@@ -86,28 +74,28 @@ class PlayerRepositoryTest {
 
     @Test
     fun applyTrimSeeksToStartWhenPositionBeforeRange() = runBlocking {
-        repository.open(media)
+        repository.open(uri)
         player.listener?.onEvent(NativePlayerEvent.Position(1000))
 
-        repository.applyEffects(listOf(EffectSpec.Trim(1500, 3200)))
+        repository.applyEffects(listOf(PlayerEffect.Trim(1500, 3200)))
 
         assertEquals(listOf(1500L), player.seeks)
     }
 
     @Test
     fun applyTrimKeepsPositionWhenInsideRange() = runBlocking {
-        repository.open(media)
+        repository.open(uri)
         player.listener?.onEvent(NativePlayerEvent.Position(2000))
 
-        repository.applyEffects(listOf(EffectSpec.Trim(1500, 3200)))
+        repository.applyEffects(listOf(PlayerEffect.Trim(1500, 3200)))
 
         assertEquals(emptyList<Long>(), player.seeks)
     }
 
     @Test
     fun clearingTrimResetsPlayRange() = runBlocking {
-        repository.open(media)
-        repository.applyEffects(listOf(EffectSpec.Trim(1500, 3200)))
+        repository.open(uri)
+        repository.applyEffects(listOf(PlayerEffect.Trim(1500, 3200)))
 
         repository.applyEffects(emptyList())
 
@@ -116,20 +104,20 @@ class PlayerRepositoryTest {
 
     @Test
     fun positionEventsUpdateForTrimStartJudgement() = runBlocking {
-        repository.open(media)
+        repository.open(uri)
         // 先推进进度再应用更晚的区间起点 → 触发跳转
         player.listener?.onEvent(NativePlayerEvent.Position(3000))
-        repository.applyEffects(listOf(EffectSpec.Trim(4000, 9000)))
+        repository.applyEffects(listOf(PlayerEffect.Trim(4000, 9000)))
 
         assertEquals(listOf(4000L), player.seeks)
     }
 
     @Test
     fun applyTrimSeeksToStartWhenPositionIsAtOrAfterEnd() = runBlocking {
-        repository.open(media)
+        repository.open(uri)
         player.listener?.onEvent(NativePlayerEvent.Position(9000))
 
-        repository.applyEffects(listOf(EffectSpec.Trim(2000, 8000)))
+        repository.applyEffects(listOf(PlayerEffect.Trim(2000, 8000)))
 
         assertEquals(listOf(2000L), player.seeks)
     }
@@ -138,7 +126,7 @@ class PlayerRepositoryTest {
     fun openRegistersAudioClockBeforePrepareCanCallback() = runBlocking {
         player.preparedEvent = NativePlayerEvent.Prepared(1920, 1080, 10000, hasAudio = false)
 
-        repository.open(media)
+        repository.open(uri)
 
         assertEquals(true, player.hadAudioClockWhenPrepared)
     }
@@ -148,7 +136,7 @@ class PlayerRepositoryTest {
         val surface = Mockito.mock(Surface::class.java)
 
         repository.setSurface(surface)
-        repository.open(media)
+        repository.open(uri)
 
         assertEquals(surface, player.boundSurface)
     }
@@ -165,7 +153,7 @@ class PlayerRepositoryTest {
             failingRepository.events.first()
         }
 
-        failingRepository.open(media)
+        failingRepository.open(uri)
 
         assertEquals(PlayerEvent.Failed(PlayerError.PlaybackFailed), failure.await())
     }
@@ -185,7 +173,7 @@ class PlayerRepositoryTest {
             failingRepository.events.filterIsInstance<PlayerEvent.Failed>().first()
         }
 
-        failingRepository.open(media)
+        failingRepository.open(uri)
         player.listener?.onEvent(NativePlayerEvent.AudioData(byteArrayOf(0, 0), 0, 0))
 
         assertEquals(PlayerEvent.Failed(PlayerError.PlaybackFailed), failure.await())
@@ -201,7 +189,7 @@ class PlayerRepositoryTest {
             audioTrackFactory = { audioTrack },
         )
         player.preparedEvent = NativePlayerEvent.Prepared(1920, 1080, 10000, hasAudio = true)
-        audioRepository.open(media)
+        audioRepository.open(uri)
 
         // 播放中位于 60s，用户向后拖拽到 5s
         audioRepository.seekTo(5000)
@@ -222,7 +210,7 @@ class PlayerRepositoryTest {
             audioTrackFactory = { audioTrack },
         )
         player.preparedEvent = NativePlayerEvent.Prepared(1920, 1080, 10000, hasAudio = true)
-        audioRepository.open(media)
+        audioRepository.open(uri)
 
         audioRepository.seekTo(5000)
         player.listener?.onEvent(NativePlayerEvent.AudioData(byteArrayOf(0, 0), 4000000, 0))

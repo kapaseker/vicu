@@ -1,14 +1,15 @@
 package com.rockbyte.vicu.page.player
 
+import android.net.Uri
 import android.view.Surface
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rockbyte.vicu.repo.EffectSpec
-import com.rockbyte.vicu.repo.PlayerError
-import com.rockbyte.vicu.repo.PlayerEvent
-import com.rockbyte.vicu.repo.PlayerRepo
+import com.rockbyte.vicu.player.PlayerEffect
+import com.rockbyte.vicu.player.PlayerError
+import com.rockbyte.vicu.player.PlayerEvent
+import com.rockbyte.vicu.player.PlayerRepo
 import com.rockbyte.vicu.repo.SelectedMedia
-import com.rockbyte.vicu.repo.normalized
+import com.rockbyte.vicu.player.normalized
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -22,11 +23,11 @@ data class PlayerUiState(
     val videoHeight: Int = 0,
     val durationMs: Long = 0L,
     val positionMs: Long = 0L,
-    val crop: EffectSpec.Crop? = null,
-    val trim: EffectSpec.Trim? = null,
+    val crop: PlayerEffect.Crop? = null,
+    val trim: PlayerEffect.Trim? = null,
 ) {
     /** 当前效果列表（crop 在前，滤镜链顺序稳定）。 */
-    val effects: List<EffectSpec>
+    val effects: List<PlayerEffect>
         get() = listOfNotNull(crop, trim)
 }
 
@@ -64,7 +65,7 @@ class PlayerViewModel(private val playerRepo: PlayerRepo) : ViewModel() {
         if (selectedMedia == media) return
         selectedMedia = media
         uiState.value = PlayerUiState(videoName = media.name, phase = PlayerPhase.Preparing)
-        viewModelScope.launch { playerRepo.open(media) }
+        viewModelScope.launch { playerRepo.open(Uri.parse(media.uri)) }
     }
 
     fun setSurface(surface: Surface?) {
@@ -113,18 +114,18 @@ class PlayerViewModel(private val playerRepo: PlayerRepo) : ViewModel() {
     }
 
     /** 设置画面裁剪（null 清除）；立即生效于预览滤镜链。 */
-    fun setCrop(crop: EffectSpec.Crop?) {
+    fun setCrop(crop: PlayerEffect.Crop?) {
         uiState.update { it.copy(crop = crop?.normalized()) }
         applyEffects()
     }
 
     /** 设置时间裁剪（null 清除）；立即生效于播放区间。 */
-    fun setTrim(trim: EffectSpec.Trim?) {
+    fun setTrim(trim: PlayerEffect.Trim?) {
         val duration = uiState.value.durationMs
         uiState.update { state ->
             state.copy(
                 trim = trim?.let { t ->
-                    EffectSpec.Trim(
+                    PlayerEffect.Trim(
                         startMs = t.startMs.coerceIn(0L, duration),
                         endMs = t.endMs.coerceIn(0L, duration),
                     )

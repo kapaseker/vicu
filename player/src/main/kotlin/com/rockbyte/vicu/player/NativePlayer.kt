@@ -1,4 +1,4 @@
-package com.rockbyte.vicu.repo
+package com.rockbyte.vicu.player
 
 import android.view.Surface
 

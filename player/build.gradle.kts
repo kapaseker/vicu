@@ -14,6 +14,8 @@ android {
             cmake {
                 abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
                 arguments += "-DANDROID_STL=c++_static"
+                // NDK r27 默认按 4KB 页对齐，显式开启 16KB 弹性页大小以通过 Google Play 兼容性检查
+                arguments += "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
             }
         }
     }

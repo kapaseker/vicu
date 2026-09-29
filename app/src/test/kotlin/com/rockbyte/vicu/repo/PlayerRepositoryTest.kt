@@ -2,9 +2,14 @@ package com.rockbyte.vicu.repo
 
 import android.content.ContentResolver
 import android.content.Context
+import android.media.AudioTrack
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.view.Surface
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -119,6 +124,73 @@ class PlayerRepositoryTest {
         assertEquals(listOf(4000L), player.seeks)
     }
 
+    @Test
+    fun applyTrimSeeksToStartWhenPositionIsAtOrAfterEnd() = runBlocking {
+        repository.open(media)
+        player.listener?.onEvent(NativePlayerEvent.Position(9000))
+
+        repository.applyEffects(listOf(EffectSpec.Trim(2000, 8000)))
+
+        assertEquals(listOf(2000L), player.seeks)
+    }
+
+    @Test
+    fun openRegistersAudioClockBeforePrepareCanCallback() = runBlocking {
+        player.preparedEvent = NativePlayerEvent.Prepared(1920, 1080, 10000, hasAudio = false)
+
+        repository.open(media)
+
+        assertEquals(true, player.hadAudioClockWhenPrepared)
+    }
+
+    @Test
+    fun surfaceAvailableBeforeOpenIsBoundToNewPlayer() = runBlocking {
+        val surface = Mockito.mock(Surface::class.java)
+
+        repository.setSurface(surface)
+        repository.open(media)
+
+        assertEquals(surface, player.boundSurface)
+    }
+
+    @Test
+    fun audioTrackCreationFailureReportsPlaybackFailed() = runBlocking {
+        val failingRepository = PlayerRepository(
+            context = context,
+            playerFactory = { player },
+            audioTrackFactory = { error("AudioTrack unavailable") },
+        )
+        player.preparedEvent = NativePlayerEvent.Prepared(1920, 1080, 10000, hasAudio = true)
+        val failure = async(start = CoroutineStart.UNDISPATCHED) {
+            failingRepository.events.first()
+        }
+
+        failingRepository.open(media)
+
+        assertEquals(PlayerEvent.Failed(PlayerError.PlaybackFailed), failure.await())
+    }
+
+    @Test
+    fun audioTrackWriteFailureReportsPlaybackFailed() = runBlocking {
+        val audioTrack = Mockito.mock(AudioTrack::class.java)
+        val failingRepository = PlayerRepository(
+            context = context,
+            playerFactory = { player },
+            audioTrackFactory = { audioTrack },
+        )
+        player.preparedEvent = NativePlayerEvent.Prepared(1920, 1080, 10000, hasAudio = true)
+        Mockito.`when`(audioTrack.write(any(ByteArray::class.java), Mockito.anyInt(), Mockito.anyInt()))
+            .thenReturn(AudioTrack.ERROR_DEAD_OBJECT)
+        val failure = async(start = CoroutineStart.UNDISPATCHED) {
+            failingRepository.events.filterIsInstance<PlayerEvent.Failed>().first()
+        }
+
+        failingRepository.open(media)
+        player.listener?.onEvent(NativePlayerEvent.AudioData(byteArrayOf(0, 0), 0))
+
+        assertEquals(PlayerEvent.Failed(PlayerError.PlaybackFailed), failure.await())
+    }
+
     private class FakeNativePlayer : NativePlayer {
         var listener: NativePlayer.Listener? = null
             private set
@@ -126,20 +198,34 @@ class PlayerRepositoryTest {
         var filterChain: String? = null
         var playRange: Pair<Long, Long>? = null
         val seeks = mutableListOf<Long>()
+        var preparedEvent: NativePlayerEvent.Prepared? = null
+        var hadAudioClockWhenPrepared = false
+        var boundSurface: Surface? = null
+        private var audioClockProvider: NativePlayer.AudioClockProvider? = null
 
         override fun setListener(listener: NativePlayer.Listener?) {
             this.listener = listener
         }
 
-        override fun prepare(fd: Int): Int = 0
-        override fun setSurface(surface: Surface?) = Unit
+        override fun prepare(fd: Int): Int {
+            preparedEvent?.let {
+                hadAudioClockWhenPrepared = audioClockProvider != null
+                listener?.onEvent(it)
+            }
+            return 0
+        }
+        override fun setSurface(surface: Surface?) {
+            boundSurface = surface
+        }
         override fun start() = Unit
         override fun pause() = Unit
         override fun seek(positionMs: Long) {
             seeks += positionMs
         }
 
-        override fun setAudioClockProvider(provider: NativePlayer.AudioClockProvider?) = Unit
+        override fun setAudioClockProvider(provider: NativePlayer.AudioClockProvider?) {
+            audioClockProvider = provider
+        }
         override fun setFilterGraph(chain: String) {
             filterChain = chain
         }

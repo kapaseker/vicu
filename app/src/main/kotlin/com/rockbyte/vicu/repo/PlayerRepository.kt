@@ -14,10 +14,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal class PlayerRepository(
     private val context: Context,
     private val playerFactory: () -> NativePlayer = { NativePlayer.create() },
+    private val audioTrackFactory: () -> AudioTrack = { createAudioTrack() },
 ) : PlayerRepo {
 
     private val _events = MutableSharedFlow<PlayerEvent>(
@@ -29,8 +31,10 @@ internal class PlayerRepository(
     // player 与 current 只在 open/replay（串行调用）中变更
     private var player: NativePlayer? = null
     private var current: SelectedMedia? = null
+    private var surface: Surface? = null
     private var playing = false // 引擎播放态：seek 后是否恢复音频输出
     private var lastPositionMs = 0L // 最近进度（applyEffects 判断是否需跳到区间起点）
+    private val playbackFailed = AtomicBoolean(false)
 
     // 音频输出（S16 双声道 48kHz，与 native 重采样输出一致）
     private val audioLock = Any()
@@ -52,7 +56,10 @@ internal class PlayerRepository(
         when (event) {
             is NativePlayerEvent.AudioData -> writeAudio(event.data, event.ptsUs)
             is NativePlayerEvent.Prepared -> {
-                if (event.hasAudio) ensureAudioTrack()
+                if (event.hasAudio && !ensureAudioTrack()) {
+                    failPlayback()
+                    return@Listener
+                }
                 _events.tryEmit(
                     PlayerEvent.Prepared(event.width, event.height, event.durationMs),
                 )
@@ -65,13 +72,14 @@ internal class PlayerRepository(
                 stopAudioPlayback() // 播完即停，截掉缓冲尾音
                 _events.tryEmit(PlayerEvent.Ended)
             }
-            NativePlayerEvent.Failed -> _events.tryEmit(PlayerEvent.Failed(PlayerError.PlaybackFailed))
+            NativePlayerEvent.Failed -> failPlayback()
         }
     }
 
     override suspend fun open(media: SelectedMedia) {
         if (current == media) return
         release()
+        playbackFailed.set(false)
         val uri = media.uri.toUri()
         withContext(Dispatchers.IO) {
             val opened = try {
@@ -79,13 +87,14 @@ internal class PlayerRepository(
             } catch (e: Exception) {
                 null
             }
-            if (opened == null) {
+            if (opened == null && !playbackFailed.get()) {
                 _events.tryEmit(PlayerEvent.Failed(PlayerError.OpenFailed))
             }
         }
     }
 
     override fun setSurface(surface: Surface?) {
+        this.surface = surface
         player?.setSurface(surface)
     }
 
@@ -128,8 +137,10 @@ internal class PlayerRepository(
         val trim = effects.filterIsInstance<EffectSpec.Trim>().firstOrNull()
         if (trim != null) {
             p.setPlayRange(trim.startMs, trim.endMs)
-            // 当前位置在区间前（含新会话从头播）→ 跳到区间起点
-            if (lastPositionMs < trim.startMs) seekTo(trim.startMs)
+            // 当前位置不在新区间内 → 跳到区间起点
+            if (lastPositionMs < trim.startMs || lastPositionMs >= trim.endMs) {
+                seekTo(trim.startMs)
+            }
         } else {
             p.setPlayRange(0L, -1L)
         }
@@ -149,15 +160,17 @@ internal class PlayerRepository(
         val fd = openFd(uri)
         val newPlayer = playerFactory()
         newPlayer.setListener(listener)
+        newPlayer.setAudioClockProvider(audioClock)
         val rc = try {
             newPlayer.prepare(fd)
         } catch (e: Throwable) {
             -1
         }
-        if (rc != 0) {
+        if (rc != 0 || playbackFailed.get()) {
             newPlayer.release()
             return null
         }
+        newPlayer.setSurface(surface)
         newPlayer.start()
         player = newPlayer
         current = media
@@ -173,31 +186,16 @@ internal class PlayerRepository(
         }
     }
 
-    private fun ensureAudioTrack() {
-        synchronized(audioLock) {
-            if (track != null) return
-            val minBuffer = AudioTrack.getMinBufferSize(
-                AUDIO_SAMPLE_RATE, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT,
-            )
-            val audioTrack = AudioTrack(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
-                    .build(),
-                AudioFormat.Builder()
-                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setSampleRate(AUDIO_SAMPLE_RATE)
-                    .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
-                    .build(),
-                minBuffer * 4,
-                AudioTrack.MODE_STREAM,
-                AudioManager.AUDIO_SESSION_ID_GENERATE,
-            )
-            audioTrack.play()
-            track = audioTrack
-            awaitingAudioStart = true
+    private fun ensureAudioTrack(): Boolean = synchronized(audioLock) {
+        if (track != null) return true
+        val audioTrack = runCatching(audioTrackFactory).getOrNull() ?: return false
+        if (runCatching { audioTrack.play() }.isFailure) {
+            audioTrack.release()
+            return false
         }
-        player?.setAudioClockProvider(audioClock)
+        track = audioTrack
+        awaitingAudioStart = true
+        true
     }
 
     /** 音频帧直写 AudioTrack（native 音频线程回调；写满阻塞即自然背压）。 */
@@ -210,7 +208,13 @@ internal class PlayerRepository(
             }
             t
         }
-        audioTrack.write(data, 0, data.size)
+        if (audioTrack.write(data, 0, data.size) < 0) failPlayback()
+    }
+
+    private fun failPlayback() {
+        if (!playbackFailed.compareAndSet(false, true)) return
+        stopAudio()
+        _events.tryEmit(PlayerEvent.Failed(PlayerError.PlaybackFailed))
     }
 
     /** 停止播放但保留输出（Ended 截尾音）；恢复需 play()。 */
@@ -230,8 +234,32 @@ internal class PlayerRepository(
         }
         player?.setAudioClockProvider(null)
     }
+}
 
-    private companion object {
-        const val AUDIO_SAMPLE_RATE = 48000
+private const val AUDIO_SAMPLE_RATE = 48000
+
+private fun createAudioTrack(): AudioTrack {
+    val minBuffer = AudioTrack.getMinBufferSize(
+        AUDIO_SAMPLE_RATE, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT,
+    )
+    require(minBuffer > 0) { "Unsupported player audio format" }
+    val audioTrack = AudioTrack(
+        AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
+            .build(),
+        AudioFormat.Builder()
+            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+            .setSampleRate(AUDIO_SAMPLE_RATE)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
+            .build(),
+        minBuffer * 4,
+        AudioTrack.MODE_STREAM,
+        AudioManager.AUDIO_SESSION_ID_GENERATE,
+    )
+    if (audioTrack.state != AudioTrack.STATE_INITIALIZED) {
+        audioTrack.release()
+        error("AudioTrack initialization failed")
     }
+    return audioTrack
 }

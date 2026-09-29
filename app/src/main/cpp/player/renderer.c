@@ -303,7 +303,8 @@ void *render_thread_func(void *arg) {
                 atomic_store(&ctx->state, PLAYER_ENDED);
                 if (ctx->callbacks.on_ended) ctx->callbacks.on_ended(ctx->user);
             }
-            if (!queue_wait_reset(&ctx->frame_queue, &ctx->abort_request)) break;
+            // 该队列此时尚未 EOF，等 seek/flush 改变代际，避免反复检查同一帧忙循环
+            if (!queue_wait_stamp_change(&ctx->frame_queue, stamp, &ctx->abort_request)) break;
             continue;
         }
         clock_sync_base(&ctx->clock, pts_us);
@@ -320,9 +321,9 @@ void *render_thread_func(void *arg) {
         void *owned = queue_pop_stamped(&ctx->frame_queue, stamp, &ctx->abort_request);
         if (owned) {
             AVFrame *drawn = owned;
-            if (!renderer_draw(&rs, drawn) && !egl_failed_reported && ctx->callbacks.on_error) {
-                ctx->callbacks.on_error(ctx->user, -2, "EGL swap buffers failed");
-                egl_failed_reported = true;
+            if (!renderer_draw(&rs, drawn)) {
+                // Surface 销毁/替换可以让 swap 短暂失败；释放 EGL 并在下轮重绑，不上报永久播放错误
+                renderer_destroy(&rs);
             }
             av_frame_free(&drawn);
             // 进度回报节流（200ms）

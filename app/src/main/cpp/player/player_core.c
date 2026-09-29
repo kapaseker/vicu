@@ -4,6 +4,7 @@
 #include <libswscale/swscale.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 // ---------------- 队列 ----------------
 
@@ -11,8 +12,15 @@ bool queue_init(BlockQueue *q, int capacity) {
     memset(q, 0, sizeof(*q));
     q->capacity = capacity;
     if (pthread_mutex_init(&q->mu, NULL) != 0) return false;
-    if (pthread_cond_init(&q->not_full, NULL) != 0) return false;
-    if (pthread_cond_init(&q->not_empty, NULL) != 0) return false;
+    if (pthread_cond_init(&q->not_full, NULL) != 0) {
+        pthread_mutex_destroy(&q->mu);
+        return false;
+    }
+    if (pthread_cond_init(&q->not_empty, NULL) != 0) {
+        pthread_cond_destroy(&q->not_full);
+        pthread_mutex_destroy(&q->mu);
+        return false;
+    }
     return true;
 }
 
@@ -122,6 +130,16 @@ bool queue_wait_reset(BlockQueue *q, const atomic_bool *abort) {
     bool reset = !q->eof;
     pthread_mutex_unlock(&q->mu);
     return reset;
+}
+
+bool queue_wait_stamp_change(BlockQueue *q, unsigned stamp, const atomic_bool *abort) {
+    pthread_mutex_lock(&q->mu);
+    while (q->stamp == stamp && !atomic_load_explicit(abort, memory_order_relaxed)) {
+        pthread_cond_wait(&q->not_empty, &q->mu); // flush/abort 均会广播 not_empty
+    }
+    bool changed = q->stamp != stamp;
+    pthread_mutex_unlock(&q->mu);
+    return changed;
 }
 
 unsigned queue_stamp(BlockQueue *q) {
@@ -238,12 +256,22 @@ PlayerContext *player_create(const PlayerCallbacks *callbacks, void *user) {
     pthread_cond_init(&ctx->surface_cond, NULL);
     clock_init(&ctx->clock);
     // 包队列放宽（packet 体积小），帧队列收紧（YUV 帧内存大）
-    if (!queue_init(&ctx->packet_queue, 256) || !queue_init(&ctx->frame_queue, 4) ||
-        !queue_init(&ctx->audio_packet_queue, 64)) {
-        player_destroy(ctx);
-        return NULL;
-    }
+    if (!queue_init(&ctx->packet_queue, 256)) goto fail_packet_queue;
+    if (!queue_init(&ctx->frame_queue, 4)) goto fail_frame_queue;
+    if (!queue_init(&ctx->audio_packet_queue, 64)) goto fail_audio_queue;
     return ctx;
+
+fail_audio_queue:
+    queue_destroy(&ctx->frame_queue, frame_free);
+fail_frame_queue:
+    queue_destroy(&ctx->packet_queue, packet_free);
+fail_packet_queue:
+    clock_destroy(&ctx->clock);
+    pthread_cond_destroy(&ctx->surface_cond);
+    pthread_mutex_destroy(&ctx->surface_mu);
+    pthread_mutex_destroy(&ctx->filter_mu);
+    free(ctx);
+    return NULL;
 }
 
 /** 打开指定类型流并创建解码器上下文；失败返回负值错误码。 */
@@ -268,10 +296,12 @@ static int open_stream_decoder(AVFormatContext *fmt, int stream_index, AVCodecCo
 }
 
 int player_prepare(PlayerContext *ctx, int fd) {
-    char url[32];
-    snprintf(url, sizeof(url), "fd:%d", fd);
-
-    int rc = avformat_open_input(&ctx->fmt, url, NULL, NULL);
+    // fd 协议禁止在 URL 中传数字，必须通过 AVOption 设置；协议内部会 dup。
+    AVDictionary *options = NULL;
+    int rc = av_dict_set_int(&options, "fd", fd, 0);
+    if (rc >= 0) rc = avformat_open_input(&ctx->fmt, "fd:", NULL, &options);
+    av_dict_free(&options);
+    close(fd);
     if (rc < 0) return rc;
     rc = avformat_find_stream_info(ctx->fmt, NULL);
     if (rc < 0) return rc;
@@ -300,19 +330,30 @@ int player_prepare(PlayerContext *ctx, int fd) {
     }
 
     atomic_store(&ctx->state, PLAYER_READY);
-    if (pthread_create(&ctx->demux_thread, NULL, demux_thread_func, ctx) == 0) ctx->demux_started = true;
-    if (pthread_create(&ctx->decode_thread, NULL, decode_thread_func, ctx) == 0) ctx->decode_started = true;
-    if (ctx->has_audio &&
-        pthread_create(&ctx->audio_thread, NULL, audio_thread_func, ctx) == 0) {
+    int thread_rc = pthread_create(&ctx->demux_thread, NULL, demux_thread_func, ctx);
+    if (thread_rc != 0) goto thread_failed;
+    ctx->demux_started = true;
+    thread_rc = pthread_create(&ctx->decode_thread, NULL, decode_thread_func, ctx);
+    if (thread_rc != 0) goto thread_failed;
+    ctx->decode_started = true;
+    if (ctx->has_audio) {
+        thread_rc = pthread_create(&ctx->audio_thread, NULL, audio_thread_func, ctx);
+        if (thread_rc != 0) goto thread_failed;
         ctx->audio_started = true;
     }
-    if (pthread_create(&ctx->render_thread, NULL, render_thread_func, ctx) == 0) ctx->render_started = true;
+    thread_rc = pthread_create(&ctx->render_thread, NULL, render_thread_func, ctx);
+    if (thread_rc != 0) goto thread_failed;
+    ctx->render_started = true;
 
     if (ctx->callbacks.on_prepared) {
         ctx->callbacks.on_prepared(ctx->user, ctx->vcodec->width, ctx->vcodec->height,
                                    ctx->duration_us / 1000, ctx->has_audio);
     }
     return 0;
+
+thread_failed:
+    atomic_store(&ctx->state, PLAYER_ERROR);
+    return AVERROR(thread_rc);
 }
 
 void player_set_window(PlayerContext *ctx, ANativeWindow *window) {

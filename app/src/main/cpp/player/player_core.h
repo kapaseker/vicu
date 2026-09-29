@@ -66,6 +66,8 @@ bool queue_peek_wait(BlockQueue *q, void **out, unsigned *stamp, const atomic_bo
 void queue_flush(BlockQueue *q, void (*free_item)(void *));
 /** 等待 eof 被 flush 复位或 abort；返回 true 表示可继续消费。 */
 bool queue_wait_reset(BlockQueue *q, const atomic_bool *abort);
+/** 等待 flush 改变队列代际（trim 终点后等待 seek）。 */
+bool queue_wait_stamp_change(BlockQueue *q, unsigned stamp, const atomic_bool *abort);
 /** 当前代际。 */
 unsigned queue_stamp(BlockQueue *q);
 /** 仅当代际未变化时弹出（peek 后跨等待防 flush 竞态）。 */

@@ -12,7 +12,7 @@ static void frame_free(void *p) {
 
 /** demux 线程内执行 seek：清队列、复位解码器与时钟后跳转。 */
 static void perform_seek(PlayerContext *ctx) {
-    int64_t target_us = ctx->seek_target_us;
+    int64_t target_us = atomic_load_explicit(&ctx->seek_target_us, memory_order_relaxed);
     queue_flush(&ctx->packet_queue, packet_free);
     queue_flush(&ctx->audio_packet_queue, packet_free);
     queue_flush(&ctx->frame_queue, frame_free);

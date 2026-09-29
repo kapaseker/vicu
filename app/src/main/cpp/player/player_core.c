@@ -132,6 +132,33 @@ bool queue_wait_reset(BlockQueue *q, const atomic_bool *abort) {
     return reset;
 }
 
+bool queue_push_stamped(BlockQueue *q, void *data, unsigned stamp, const atomic_bool *abort) {
+    pthread_mutex_lock(&q->mu);
+    while (q->stamp == stamp && q->size >= q->capacity && !q->eof &&
+           !atomic_load_explicit(abort, memory_order_relaxed)) {
+        pthread_cond_wait(&q->not_full, &q->mu);
+    }
+    if (q->stamp != stamp || q->size >= q->capacity || q->eof ||
+        atomic_load_explicit(abort, memory_order_relaxed)) {
+        pthread_mutex_unlock(&q->mu);
+        return false;
+    }
+    QueueNode *node = malloc(sizeof(QueueNode));
+    if (!node) {
+        pthread_mutex_unlock(&q->mu);
+        return false;
+    }
+    node->data = data;
+    node->next = NULL;
+    if (q->tail) q->tail->next = node;
+    else q->head = node;
+    q->tail = node;
+    q->size++;
+    pthread_cond_signal(&q->not_empty);
+    pthread_mutex_unlock(&q->mu);
+    return true;
+}
+
 bool queue_wait_stamp_change(BlockQueue *q, unsigned stamp, const atomic_bool *abort) {
     pthread_mutex_lock(&q->mu);
     while (q->stamp == stamp && !atomic_load_explicit(abort, memory_order_relaxed)) {
@@ -244,6 +271,7 @@ PlayerContext *player_create(const PlayerCallbacks *callbacks, void *user) {
     atomic_init(&ctx->audio_flush_request, false);
     atomic_init(&ctx->audio_eof, false);
     atomic_init(&ctx->seek_request, false);
+    atomic_init(&ctx->seek_target_us, 0);
     atomic_init(&ctx->play_start_us, 0);
     atomic_init(&ctx->play_end_us, INT64_MAX);
     ctx->callbacks = *callbacks;
@@ -383,11 +411,12 @@ void player_seek(PlayerContext *ctx, int64_t position_ms) {
     int64_t end_us = atomic_load_explicit(&ctx->play_end_us, memory_order_relaxed);
     if (target_us < start_us) target_us = start_us;
     if (target_us > end_us) target_us = end_us;
-    ctx->seek_target_us = target_us;
+    atomic_store_explicit(&ctx->seek_target_us, target_us, memory_order_relaxed);
     atomic_store_explicit(&ctx->seek_request, true, memory_order_release);
-    // 唤醒可能阻塞在队列写满上的 demux，使其尽快处理 seek
-    queue_abort_broadcast(&ctx->packet_queue);
-    queue_abort_broadcast(&ctx->audio_packet_queue);
+    // 清空背压队列，使阻塞的 demux 立即回到循环处理 seek；perform_seek 会再次冲刷竞态写入。
+    queue_flush(&ctx->packet_queue, packet_free);
+    queue_flush(&ctx->audio_packet_queue, packet_free);
+    queue_flush(&ctx->frame_queue, frame_free);
 }
 
 void player_set_filter_graph(PlayerContext *ctx, const char *chain) {

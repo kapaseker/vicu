@@ -191,6 +191,25 @@ class PlayerRepositoryTest {
         assertEquals(PlayerEvent.Failed(PlayerError.PlaybackFailed), failure.await())
     }
 
+    @Test
+    fun seekDropsAudioFramesBeforeTarget() = runBlocking {
+        val audioTrack = Mockito.mock(AudioTrack::class.java)
+        val audioRepository = PlayerRepository(
+            context = context,
+            playerFactory = { player },
+            audioTrackFactory = { audioTrack },
+        )
+        player.preparedEvent = NativePlayerEvent.Prepared(1920, 1080, 10000, hasAudio = true)
+        audioRepository.open(media)
+
+        audioRepository.seekTo(5000)
+        player.listener?.onEvent(NativePlayerEvent.AudioData(byteArrayOf(0, 0), 4000000))
+
+        Mockito.verify(audioTrack, Mockito.never())
+            .write(any(ByteArray::class.java), Mockito.anyInt(), Mockito.anyInt())
+        Unit
+    }
+
     private class FakeNativePlayer : NativePlayer {
         var listener: NativePlayer.Listener? = null
             private set

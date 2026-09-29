@@ -58,6 +58,8 @@ bool queue_init(BlockQueue *q, int capacity);
 void queue_destroy(BlockQueue *q, void (*free_item)(void *));
 /** 成功则队列接管 data 所有权；abort 或队列已结束时返回 false（调用方自行释放）。 */
 bool queue_push(BlockQueue *q, void *data, const atomic_bool *abort);
+/** 仅在队列代际未变化时入队；seek 跨过生产过程时拒绝旧数据。 */
+bool queue_push_stamped(BlockQueue *q, void *data, unsigned stamp, const atomic_bool *abort);
 /** 空且（eof 或 abort）时返回 NULL。 */
 void *queue_pop(BlockQueue *q, const atomic_bool *abort);
 /** 阻塞等待直到有元素或（空且 eof/abort）；有元素时经 *out 返回（不接管所有权），*stamp 为对应代际。 */
@@ -130,7 +132,7 @@ typedef struct PlayerContext {
     atomic_bool audio_eof;
 
     atomic_bool seek_request; // demux 线程消费
-    int64_t seek_target_us;   // 仅在 seek_request 置位后读写
+    atomic_llong seek_target_us; // seek 后丢弃目标点前的关键帧预滚
 
     // 视频滤镜链（Kotlin setFilterGraph 请求 → 解码线程消费重建）
     FilterState filter;      // 仅解码线程访问

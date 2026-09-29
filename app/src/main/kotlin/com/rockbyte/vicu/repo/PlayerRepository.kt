@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 internal class PlayerRepository(
     private val context: Context,
@@ -35,6 +36,7 @@ internal class PlayerRepository(
     private var playing = false // 引擎播放态：seek 后是否恢复音频输出
     private var lastPositionMs = 0L // 最近进度（applyEffects 判断是否需跳到区间起点）
     private val playbackFailed = AtomicBoolean(false)
+    private val seekTargetUs = AtomicLong(0)
 
     // 音频输出（S16 双声道 48kHz，与 native 重采样输出一致）
     private val audioLock = Any()
@@ -80,6 +82,7 @@ internal class PlayerRepository(
         if (current == media) return
         release()
         playbackFailed.set(false)
+        seekTargetUs.set(0)
         val uri = media.uri.toUri()
         withContext(Dispatchers.IO) {
             val opened = try {
@@ -112,6 +115,7 @@ internal class PlayerRepository(
 
     override fun seekTo(positionMs: Long) {
         if (positionMs < 0) return
+        seekTargetUs.set(positionMs * 1000)
         // 先冲音频输出再让引擎跳转：新音频到达即重建时钟基准；
         // 暂停态 seek 只冲不播，与视频暂停态保持一致
         synchronized(audioLock) {
@@ -200,6 +204,7 @@ internal class PlayerRepository(
 
     /** 音频帧直写 AudioTrack（native 音频线程回调；写满阻塞即自然背压）。 */
     private fun writeAudio(data: ByteArray, ptsUs: Long) {
+        if (ptsUs < seekTargetUs.get()) return
         val audioTrack = synchronized(audioLock) {
             val t = track ?: return
             if (awaitingAudioStart) {

@@ -70,6 +70,9 @@ static void process_filter_update(PlayerContext *ctx) {
 
 /** 单个解码帧 →（滤镜）→ YUV420P → 帧队列；pts 存微秒。 */
 static void push_frame(PlayerContext *ctx, AVFrame *frame, int64_t pts_us) {
+    unsigned stamp = queue_stamp(&ctx->frame_queue);
+    int64_t target_us = atomic_load_explicit(&ctx->seek_target_us, memory_order_relaxed);
+    if (pts_us < target_us) return;
     AVFrame *out = NULL;
     if (ctx->filter.graph) {
         // buffersrc time_base 固定 1/1000000：送入帧 pts 即微秒
@@ -87,7 +90,7 @@ static void push_frame(PlayerContext *ctx, AVFrame *frame, int64_t pts_us) {
     } else {
         out = convert_to_yuv420p(ctx, frame, pts_us);
     }
-    if (out && !queue_push(&ctx->frame_queue, out, &ctx->abort_request)) {
+    if (out && !queue_push_stamped(&ctx->frame_queue, out, stamp, &ctx->abort_request)) {
         av_frame_free(&out);
     }
 }

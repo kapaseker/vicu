@@ -63,6 +63,8 @@ static void emit_audio_frame(PlayerContext *ctx, AVFrame *frame, AudioState *st)
     if (pts_us >= atomic_load_explicit(&ctx->play_end_us, memory_order_relaxed)) {
         return;
     }
+    int64_t target_us = atomic_load_explicit(&ctx->seek_target_us, memory_order_relaxed);
+    if (pts_us < target_us) return;
 
     int max_out = swr_get_out_samples(st->swr, frame->nb_samples);
     if (max_out <= 0) return;
@@ -99,6 +101,7 @@ void *audio_thread_func(void *arg) {
         if (atomic_load_explicit(&ctx->audio_flush_request, memory_order_relaxed)) {
             atomic_store_explicit(&ctx->audio_flush_request, false, memory_order_relaxed);
             avcodec_flush_buffers(ctx->acodec);
+            swr_free(&st.swr);
         }
         AVPacket *pkt = queue_pop(&ctx->audio_packet_queue, &ctx->abort_request);
         if (!pkt) {

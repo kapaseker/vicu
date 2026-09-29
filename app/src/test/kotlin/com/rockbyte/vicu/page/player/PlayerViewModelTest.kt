@@ -11,9 +11,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -29,7 +27,7 @@ class PlayerViewModelTest {
 
     @Before
     fun setUp() {
-        // viewModelScope 依赖 Dispatchers.Main；可控虚拟时间用于验证 seek 合并。
+        // viewModelScope 依赖 Dispatchers.Main；可控调度器用于驱动事件流收集。
         Dispatchers.setMain(dispatcher)
     }
 
@@ -94,27 +92,44 @@ class PlayerViewModelTest {
         viewModel.seekTo(1000)
         viewModel.seekTo(9000)
 
-        dispatcher.scheduler.advanceTimeBy(200)
-        assertEquals(listOf(8000L), repo.seekCalls)
+        // 立即下发（无防抖）：native 侧以单个请求 + 最新目标合并重复 seek
+        assertEquals(listOf(2000L, 8000L), repo.seekCalls)
         // UI 进度立即反映 clamp 后的值
         assertEquals(8000L, viewModel.uiState.value.positionMs)
     }
 
     @Test
-    fun rapidSeeksOnlyDispatchLatestTarget() = runTest(dispatcher.scheduler) {
+    fun stalePositionsIgnoredUntilSeekSettles() {
+        val viewModel = PlayerViewModel(repo)
+        viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 60000))
+        viewModel.onEventForTest(PlayerEvent.Position(10000))
+
+        viewModel.seekTo(50000)
+        assertEquals(listOf(50000L), repo.seekCalls)
+        assertEquals(50000L, viewModel.uiState.value.positionMs)
+
+        // 跳转生效前，旧进度回报不得回写（否则 seekbar 先回退再跳）
+        viewModel.onEventForTest(PlayerEvent.Position(10200))
+        assertEquals(50000L, viewModel.uiState.value.positionMs)
+
+        // 到达目标附近后恢复跟随
+        viewModel.onEventForTest(PlayerEvent.Position(50400))
+        assertEquals(50400L, viewModel.uiState.value.positionMs)
+        viewModel.onEventForTest(PlayerEvent.Position(50800))
+        assertEquals(50800L, viewModel.uiState.value.positionMs)
+    }
+
+    @Test
+    fun endedClearsPendingSeekGate() {
         val viewModel = PlayerViewModel(repo)
         viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 60000))
 
-        viewModel.seekTo(10000)
-        advanceTimeBy(100)
-        viewModel.seekTo(50000)
+        viewModel.seekTo(60000)
+        viewModel.onEventForTest(PlayerEvent.Ended)
 
-        assertEquals(50000L, viewModel.uiState.value.positionMs)
-        advanceTimeBy(149)
-        assertEquals(emptyList<Long>(), repo.seekCalls)
-        advanceTimeBy(1)
-        runCurrent()
-        assertEquals(listOf(50000L), repo.seekCalls)
+        // 目标未回报即结束：门控随 Ended 清除，后续进度正常反映
+        viewModel.onEventForTest(PlayerEvent.Position(59900))
+        assertEquals(59900L, viewModel.uiState.value.positionMs)
     }
 
     @Test
@@ -132,6 +147,96 @@ class PlayerViewModelTest {
         )
     }
 
+    @Test
+    fun scrubStartPausesEngineButKeepsPlayingFlag() {
+        val viewModel = PlayerViewModel(repo)
+        viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 60000))
+
+        viewModel.scrubStart()
+
+        // 引擎暂停（音频静音 + 画面定格），但 UI 播放态不变，避免按钮闪烁
+        assertEquals(1, repo.pauseCalls)
+        assertEquals(true, viewModel.uiState.value.playing)
+        assertEquals(PlayerPhase.Playing, viewModel.uiState.value.phase)
+    }
+
+    @Test
+    fun scrubToThrottlesSearchesAndTracksFinger() {
+        val viewModel = PlayerViewModel(repo)
+        viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 60000))
+        viewModel.scrubStart()
+
+        viewModel.scrubTo(1000)
+        // 步长内的小幅移动只更新进度，不重发 seek（避免高频 seek）
+        viewModel.scrubTo(1050)
+        viewModel.scrubTo(1200)
+
+        assertEquals(listOf(1000L, 1200L), repo.seekCalls)
+        assertEquals(1200L, viewModel.uiState.value.positionMs)
+    }
+
+    @Test
+    fun scrubEndSeeksAndResumesWhenWasPlaying() {
+        val viewModel = PlayerViewModel(repo)
+        viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 60000))
+        viewModel.scrubStart()
+        viewModel.scrubTo(1000)
+
+        viewModel.scrubEnd(2000)
+
+        assertEquals(2000L, repo.seekCalls.last())
+        assertEquals(1, repo.playCalls)
+        assertEquals(true, viewModel.uiState.value.playing)
+        assertEquals(PlayerPhase.Playing, viewModel.uiState.value.phase)
+    }
+
+    @Test
+    fun scrubEndStaysPausedWhenWasPaused() {
+        val viewModel = PlayerViewModel(repo)
+        viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 60000))
+        viewModel.togglePlayPause()
+        repo.pauseCalls = 0
+
+        viewModel.scrubStart()
+        viewModel.scrubTo(1000)
+        viewModel.scrubEnd(2000)
+
+        assertEquals(0, repo.pauseCalls)
+        assertEquals(0, repo.playCalls)
+        assertEquals(false, viewModel.uiState.value.playing)
+        assertEquals(PlayerPhase.Paused, viewModel.uiState.value.phase)
+    }
+
+    @Test
+    fun scrubClampsToTrimRange() {
+        val viewModel = PlayerViewModel(repo)
+        viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 60000))
+        viewModel.setTrim(PlayerEffect.Trim(10000, 20000))
+        viewModel.scrubStart()
+
+        viewModel.scrubTo(1000)
+        assertEquals(10000L, viewModel.uiState.value.positionMs)
+
+        viewModel.scrubTo(30000)
+        assertEquals(20000L, viewModel.uiState.value.positionMs)
+
+        assertEquals(listOf(10000L, 20000L), repo.seekCalls)
+    }
+
+    @Test
+    fun scrubEndFromEndedResumesPlayback() {
+        val viewModel = PlayerViewModel(repo)
+        viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 60000))
+        viewModel.onEventForTest(PlayerEvent.Ended)
+
+        viewModel.scrubStart()
+        viewModel.scrubEnd(0)
+
+        // native 在 Ended 态 seek 即转回播放，UI 需同步
+        assertEquals(1, repo.playCalls)
+        assertEquals(PlayerPhase.Playing, viewModel.uiState.value.phase)
+    }
+
     /** 经 fake 事件流注入事件（模拟 native 回调链路）。 */
     private fun PlayerViewModel.onEventForTest(event: PlayerEvent) {
         dispatcher.scheduler.runCurrent()
@@ -145,6 +250,8 @@ class PlayerViewModelTest {
 
         val appliedEffects = mutableListOf<List<PlayerEffect>>()
         val seekCalls = mutableListOf<Long>()
+        var playCalls = 0
+        var pauseCalls = 0
 
         fun emit(event: PlayerEvent) {
             check(_events.tryEmit(event))
@@ -152,8 +259,14 @@ class PlayerViewModelTest {
 
         override suspend fun open(uri: android.net.Uri) = Unit
         override fun setSurface(surface: Surface?) = Unit
-        override fun play() = Unit
-        override fun pause() = Unit
+        override fun play() {
+            playCalls++
+        }
+
+        override fun pause() {
+            pauseCalls++
+        }
+
         override fun seekTo(positionMs: Long) {
             seekCalls += positionMs
         }

@@ -210,7 +210,10 @@ void clock_sync_base(Clock *c, int64_t pts_us) {
     pthread_mutex_lock(&c->mu);
     if (c->base_pts_us == AV_NOPTS_VALUE) {
         c->base_pts_us = pts_us;
-        c->base_wall_us = av_gettime();
+        // 暂停态 seek 后队列里只剩一帧：以暂停墙钟为基准，master 恰等于该帧 pts，
+        // 画出一帧后继续冻结。若用 av_gettime()，master 会比 pts 小 (现在-暂停时刻)，
+        // 而暂停期间墙钟不前进，等待循环永不满足，新帧画不出来。
+        c->base_wall_us = c->pause_wall_us > 0 ? c->pause_wall_us : av_gettime();
     }
     pthread_mutex_unlock(&c->mu);
 }

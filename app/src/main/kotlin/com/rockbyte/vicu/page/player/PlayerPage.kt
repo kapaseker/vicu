@@ -80,6 +80,9 @@ fun PlayerPage(media: SelectedMedia, onBack: () -> Unit) {
         state = state,
         onTogglePlayPause = viewModel::togglePlayPause,
         onSeek = viewModel::seekTo,
+        onScrubStart = viewModel::scrubStart,
+        onScrub = viewModel::scrubTo,
+        onScrubEnd = viewModel::scrubEnd,
         onCropChange = viewModel::setCrop,
         onTrimChange = viewModel::setTrim,
         onSurfaceAvailable = viewModel::setSurface,
@@ -92,6 +95,9 @@ private fun PlayerContent(
     state: PlayerUiState,
     onTogglePlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
+    onScrubStart: () -> Unit,
+    onScrub: (Long) -> Unit,
+    onScrubEnd: (Long) -> Unit,
     onCropChange: (PlayerEffect.Crop?) -> Unit,
     onTrimChange: (PlayerEffect.Trim?) -> Unit,
     onSurfaceAvailable: (android.view.Surface?) -> Unit,
@@ -133,6 +139,9 @@ private fun PlayerContent(
                 onToggleEditMode = { editMode = !editMode },
                 onTogglePlayPause = onTogglePlayPause,
                 onSeek = onSeek,
+                onScrubStart = onScrubStart,
+                onScrub = onScrub,
+                onScrubEnd = onScrubEnd,
                 onCropChange = onCropChange,
                 onTrimChange = onTrimChange,
             )
@@ -185,6 +194,9 @@ private fun PlayerControls(
     onToggleEditMode: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
+    onScrubStart: () -> Unit,
+    onScrub: (Long) -> Unit,
+    onScrubEnd: (Long) -> Unit,
     onCropChange: (PlayerEffect.Crop?) -> Unit,
     onTrimChange: (PlayerEffect.Trim?) -> Unit,
 ) {
@@ -196,6 +208,9 @@ private fun PlayerControls(
             durationMs = state.durationMs,
             enabled = state.durationMs > 0 && state.phase in seekablePhases,
             onSeek = onSeek,
+            onScrubStart = onScrubStart,
+            onScrub = onScrub,
+            onScrubEnd = onScrubEnd,
         )
         Row(
             horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
@@ -303,7 +318,8 @@ private val seekablePhases = setOf(PlayerPhase.Playing, PlayerPhase.Paused, Play
 
 /**
  * 自定义进度条（无 Material3）：pill 轨道 + 黑色填充与圆形 thumb。
- * 拖拽期间显示本地预览位置，松手才触发 [onSeek]；点按直接跳转。
+ * 拖拽期间显示本地预览位置并逐帧刷新画面（音频静音），松手才跳转并恢复播放；
+ * 点按直接跳转。
  */
 @Composable
 private fun PlayerSeekBar(
@@ -311,6 +327,9 @@ private fun PlayerSeekBar(
     durationMs: Long,
     enabled: Boolean,
     onSeek: (Long) -> Unit,
+    onScrubStart: () -> Unit,
+    onScrub: (Long) -> Unit,
+    onScrubEnd: (Long) -> Unit,
 ) {
     var dragFraction by remember { mutableStateOf<Float?>(null) }
     var trackWidthPx by remember { mutableFloatStateOf(0f) }
@@ -332,15 +351,27 @@ private fun PlayerSeekBar(
             }
             .pointerInput(enabled, durationMs) {
                 if (!enabled || durationMs <= 0) return@pointerInput
+                fun fractionAt(x: Float) = (x / trackWidthPx).coerceIn(0f, 1f)
                 detectHorizontalDragGestures(
+                    onDragStart = { offset ->
+                        val f = fractionAt(offset.x)
+                        dragFraction = f
+                        onScrubStart()
+                        onScrub((f * durationMs).toLong())
+                    },
                     onHorizontalDrag = { change, _ ->
-                        dragFraction = (change.position.x / trackWidthPx).coerceIn(0f, 1f)
+                        val f = fractionAt(change.position.x)
+                        dragFraction = f
+                        onScrub((f * durationMs).toLong())
                     },
                     onDragEnd = {
-                        dragFraction?.let { f -> onSeek((f * durationMs).toLong()) }
+                        dragFraction?.let { f -> onScrubEnd((f * durationMs).toLong()) }
                         dragFraction = null
                     },
-                    onDragCancel = { dragFraction = null },
+                    onDragCancel = {
+                        dragFraction?.let { f -> onScrubEnd((f * durationMs).toLong()) }
+                        dragFraction = null
+                    },
                 )
             },
         contentAlignment = Alignment.Center,
@@ -665,6 +696,9 @@ private fun PlayerPagePlayingPreview() {
             ),
             onTogglePlayPause = {},
             onSeek = {},
+            onScrubStart = {},
+            onScrub = {},
+            onScrubEnd = {},
             onCropChange = {},
             onTrimChange = {},
             onSurfaceAvailable = {},
@@ -691,6 +725,9 @@ private fun PlayerPageEffectsPreview() {
             ),
             onTogglePlayPause = {},
             onSeek = {},
+            onScrubStart = {},
+            onScrub = {},
+            onScrubEnd = {},
             onCropChange = {},
             onTrimChange = {},
             onSurfaceAvailable = {},
@@ -710,6 +747,9 @@ private fun PlayerPageFailedPreview() {
             ),
             onTogglePlayPause = {},
             onSeek = {},
+            onScrubStart = {},
+            onScrub = {},
+            onScrubEnd = {},
             onCropChange = {},
             onTrimChange = {},
             onSurfaceAvailable = {},

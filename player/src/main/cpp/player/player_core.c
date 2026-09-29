@@ -74,11 +74,12 @@ bool queue_push(BlockQueue *q, void *data, const atomic_bool *abort) {
     return true;
 }
 
-void *queue_pop(BlockQueue *q, const atomic_bool *abort) {
+void *queue_pop(BlockQueue *q, unsigned *stamp, const atomic_bool *abort) {
     pthread_mutex_lock(&q->mu);
     while (q->head == NULL && !q->eof && !atomic_load_explicit(abort, memory_order_relaxed)) {
         pthread_cond_wait(&q->not_empty, &q->mu);
     }
+    *stamp = q->stamp;
     if (q->head == NULL) {
         pthread_mutex_unlock(&q->mu);
         return NULL;
@@ -94,16 +95,14 @@ void *queue_pop(BlockQueue *q, const atomic_bool *abort) {
     return data;
 }
 
-bool queue_peek_wait(BlockQueue *q, void **out, unsigned *stamp, const atomic_bool *abort) {
+bool queue_peek_wait(BlockQueue *q, int64_t *pts_us, unsigned *stamp, const atomic_bool *abort) {
     pthread_mutex_lock(&q->mu);
     while (q->head == NULL && !q->eof && !atomic_load_explicit(abort, memory_order_relaxed)) {
         pthread_cond_wait(&q->not_empty, &q->mu);
     }
     bool has = q->head != NULL;
-    if (has) {
-        *out = q->head->data;
-        *stamp = q->stamp;
-    }
+    *stamp = q->stamp;
+    if (has) *pts_us = ((AVFrame *) q->head->data)->pts;
     pthread_mutex_unlock(&q->mu);
     return has;
 }
@@ -115,9 +114,9 @@ void queue_abort_broadcast(BlockQueue *q) {
     pthread_mutex_unlock(&q->mu);
 }
 
-void queue_signal_eof(BlockQueue *q) {
+void queue_signal_eof(BlockQueue *q, unsigned stamp) {
     pthread_mutex_lock(&q->mu);
-    q->eof = true;
+    if (q->stamp == stamp) q->eof = true;
     pthread_cond_broadcast(&q->not_empty);
     pthread_mutex_unlock(&q->mu);
 }
@@ -267,10 +266,8 @@ PlayerContext *player_create(const PlayerCallbacks *callbacks, void *user) {
     if (!ctx) return NULL;
     atomic_init(&ctx->state, PLAYER_IDLE);
     atomic_init(&ctx->abort_request, false);
-    atomic_init(&ctx->video_flush_request, false);
-    atomic_init(&ctx->audio_flush_request, false);
-    atomic_init(&ctx->audio_eof, false);
-    atomic_init(&ctx->seek_request, false);
+    atomic_init(&ctx->audio_eof_epoch, (unsigned)-1);
+    pthread_mutex_init(&ctx->seek_mu, NULL);
     atomic_init(&ctx->seek_target_us, 0);
     atomic_init(&ctx->media_epoch, 0);
     atomic_init(&ctx->play_start_us, 0);
@@ -295,6 +292,7 @@ fail_audio_queue:
 fail_frame_queue:
     queue_destroy(&ctx->packet_queue, packet_free);
 fail_packet_queue:
+    pthread_mutex_destroy(&ctx->seek_mu);
     clock_destroy(&ctx->clock);
     pthread_cond_destroy(&ctx->surface_cond);
     pthread_mutex_destroy(&ctx->surface_mu);
@@ -412,12 +410,18 @@ void player_seek(PlayerContext *ctx, int64_t position_ms) {
     int64_t end_us = atomic_load_explicit(&ctx->play_end_us, memory_order_relaxed);
     if (target_us < start_us) target_us = start_us;
     if (target_us > end_us) target_us = end_us;
+    pthread_mutex_lock(&ctx->seek_mu);
     atomic_store_explicit(&ctx->seek_target_us, target_us, memory_order_relaxed);
-    atomic_store_explicit(&ctx->seek_request, true, memory_order_release);
-    // 清空背压队列，使阻塞的 demux 立即回到循环处理 seek；perform_seek 会再次冲刷竞态写入。
+    atomic_fetch_add_explicit(&ctx->media_epoch, 1, memory_order_release);
+    // 每个请求只 flush 一次。demux 持有读包时的 stamp，跨 seek 的旧包不能重新入队。
     queue_flush(&ctx->packet_queue, packet_free);
     queue_flush(&ctx->audio_packet_queue, packet_free);
     queue_flush(&ctx->frame_queue, frame_free);
+    clock_reset(&ctx->clock);
+    if (atomic_load(&ctx->state) == PLAYER_PAUSED) clock_pause(&ctx->clock);
+    if (atomic_load(&ctx->state) == PLAYER_ENDED) atomic_store(&ctx->state, PLAYER_PLAYING);
+    ctx->seek_request = true;
+    pthread_mutex_unlock(&ctx->seek_mu);
 }
 
 void player_set_filter_graph(PlayerContext *ctx, const char *chain) {
@@ -463,6 +467,7 @@ void player_destroy(PlayerContext *ctx) {
     queue_destroy(&ctx->frame_queue, frame_free);
     if (ctx->window) ANativeWindow_release(ctx->window);
     clock_destroy(&ctx->clock);
+    pthread_mutex_destroy(&ctx->seek_mu);
     pthread_mutex_destroy(&ctx->filter_mu);
     pthread_mutex_destroy(&ctx->surface_mu);
     pthread_cond_destroy(&ctx->surface_cond);

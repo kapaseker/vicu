@@ -254,12 +254,22 @@ static int64_t master_clock_us(PlayerContext *ctx) {
     return clock_playback_us(&ctx->clock);
 }
 
+/** 结束事件也携带代际，避免跨 JNI 的旧回调暂停新的 seek。锁内不调用外部回调。 */
+static void report_ended(PlayerContext *ctx, unsigned epoch) {
+    pthread_mutex_lock(&ctx->seek_mu);
+    bool current = epoch == atomic_load(&ctx->media_epoch) && atomic_load(&ctx->state) != PLAYER_ENDED;
+    if (current) atomic_store(&ctx->state, PLAYER_ENDED);
+    pthread_mutex_unlock(&ctx->seek_mu);
+    if (current && ctx->callbacks.on_ended) ctx->callbacks.on_ended(ctx->user, epoch);
+}
+
 /** 渲染线程：等待帧 → 按主时钟对时 → EGL 上屏；音频为主时钟，无音频时以墙钟近似。 */
 void *render_thread_func(void *arg) {
     PlayerContext *ctx = arg;
     RendererState rs;
     memset(&rs, 0, sizeof(rs));
     bool egl_failed_reported = false;
+    unsigned report_epoch = (unsigned)-1;
 
     while (!atomic_load_explicit(&ctx->abort_request, memory_order_relaxed)) {
         ANativeWindow *target = acquire_window(ctx);
@@ -280,34 +290,31 @@ void *render_thread_func(void *arg) {
             }
         }
 
-        void *item = NULL;
+        int64_t pts_us = 0;
         unsigned stamp = 0;
-        if (!queue_peek_wait(&ctx->frame_queue, &item, &stamp, &ctx->abort_request)) {
+        if (!queue_peek_wait(&ctx->frame_queue, &pts_us, &stamp, &ctx->abort_request)) {
             if (atomic_load_explicit(&ctx->abort_request, memory_order_relaxed)) break;
             // 帧队列 EOF：视频播完；有音频时等音频也播完
-            bool audio_done = !ctx->has_audio || atomic_load(&ctx->audio_eof);
-            if (audio_done && atomic_load(&ctx->state) != PLAYER_ENDED) {
-                atomic_store(&ctx->state, PLAYER_ENDED);
-                if (ctx->callbacks.on_ended) ctx->callbacks.on_ended(ctx->user);
-            }
+            bool audio_done = !ctx->has_audio || atomic_load(&ctx->audio_eof_epoch) == stamp;
+            if (audio_done) report_ended(ctx, stamp);
             // 等待 seek 复位或 abort（支持结尾往回拖）
-            if (!queue_wait_reset(&ctx->frame_queue, &ctx->abort_request)) break;
+            if (!queue_wait_stamp_change(&ctx->frame_queue, stamp, &ctx->abort_request)) break;
             continue;
         }
 
-        AVFrame *frame = item;
-        int64_t pts_us = frame->pts;
         // 播放区间终点（trim 预览）：到点即停（帧不上屏），等 seek 复位
         if (pts_us >= atomic_load_explicit(&ctx->play_end_us, memory_order_relaxed)) {
-            if (atomic_load(&ctx->state) != PLAYER_ENDED) {
-                atomic_store(&ctx->state, PLAYER_ENDED);
-                if (ctx->callbacks.on_ended) ctx->callbacks.on_ended(ctx->user);
-            }
+            report_ended(ctx, stamp);
             // 该队列此时尚未 EOF，等 seek/flush 改变代际，避免反复检查同一帧忙循环
             if (!queue_wait_stamp_change(&ctx->frame_queue, stamp, &ctx->abort_request)) break;
             continue;
         }
-        clock_sync_base(&ctx->clock, pts_us);
+        // 与 seek 的时钟复位串行，旧帧不能在 reset 之后重新设置旧基准。
+        pthread_mutex_lock(&ctx->seek_mu);
+        bool current = stamp == atomic_load(&ctx->media_epoch);
+        if (current) clock_sync_base(&ctx->clock, pts_us);
+        pthread_mutex_unlock(&ctx->seek_mu);
+        if (!current) continue;
 
         // 等到展示时刻（音频时钟缺席时墙钟冻结即暂停）。
         // 期间若 seek 冲刷队列（代际变化）须立即放弃：旧帧 pts 远超新主时钟，
@@ -330,6 +337,10 @@ void *render_thread_func(void *arg) {
             }
             av_frame_free(&drawn);
             // 进度回报节流（200ms）
+            if (report_epoch != stamp) {
+                report_epoch = stamp;
+                ctx->last_report_us = 0;
+            }
             if (ctx->callbacks.on_position &&
                 (ctx->last_report_us == 0 || pts_us - ctx->last_report_us >= 200000)) {
                 ctx->last_report_us = pts_us;

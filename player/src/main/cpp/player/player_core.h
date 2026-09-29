@@ -27,7 +27,7 @@ typedef enum {
 typedef struct PlayerCallbacks {
     void (*on_prepared)(void *user, int width, int height, int64_t duration_ms, bool has_audio);
     void (*on_position)(void *user, int64_t position_ms);
-    void (*on_ended)(void *user);
+    void (*on_ended)(void *user, unsigned epoch);
     void (*on_error)(void *user, int code, const char *message);
     void (*on_destroy)(void *user);
     /** 音频帧回调（S16 双声道 48kHz 交错）；阻塞写回即自然背压。epoch 为 seek 代际。 */
@@ -60,10 +60,10 @@ void queue_destroy(BlockQueue *q, void (*free_item)(void *));
 bool queue_push(BlockQueue *q, void *data, const atomic_bool *abort);
 /** 仅在队列代际未变化时入队；seek 跨过生产过程时拒绝旧数据。 */
 bool queue_push_stamped(BlockQueue *q, void *data, unsigned stamp, const atomic_bool *abort);
-/** 空且（eof 或 abort）时返回 NULL。 */
-void *queue_pop(BlockQueue *q, const atomic_bool *abort);
-/** 阻塞等待直到有元素或（空且 eof/abort）；有元素时经 *out 返回（不接管所有权），*stamp 为对应代际。 */
-bool queue_peek_wait(BlockQueue *q, void **out, unsigned *stamp, const atomic_bool *abort);
+/** 弹出数据并在同一锁内取得其代际；空且 eof/abort 时返回 NULL，stamp 仍有效。 */
+void *queue_pop(BlockQueue *q, unsigned *stamp, const atomic_bool *abort);
+/** 帧队列专用：在锁内复制 PTS，避免向调用方泄露可被 seek 释放的帧指针。 */
+bool queue_peek_wait(BlockQueue *q, int64_t *pts_us, unsigned *stamp, const atomic_bool *abort);
 /** 清空队列、复位 eof 并递增代际（seek 用）；唤醒所有等待者。 */
 void queue_flush(BlockQueue *q, void (*free_item)(void *));
 /** 等待 eof 被 flush 复位或 abort；返回 true 表示可继续消费。 */
@@ -76,7 +76,7 @@ unsigned queue_stamp(BlockQueue *q);
 void *queue_pop_stamped(BlockQueue *q, unsigned stamp, const atomic_bool *abort);
 /** 唤醒所有等待者（stop 时配合 abort 标志使用）。 */
 void queue_abort_broadcast(BlockQueue *q);
-void queue_signal_eof(BlockQueue *q);
+void queue_signal_eof(BlockQueue *q, unsigned stamp);
 
 /** 播放时钟：暂停冻结、恢复平移基准，避免暂停时长计入播放进度。 */
 typedef struct Clock {
@@ -127,13 +127,12 @@ typedef struct PlayerContext {
     bool audio_started;
     bool render_started;
 
-    atomic_bool video_flush_request; // demux seek 置位，解码线程消费
-    atomic_bool audio_flush_request;
-    atomic_bool audio_eof;
+    atomic_uint audio_eof_epoch; // 只有与当前帧队列代际一致的 EOF 才有效
 
-    atomic_bool seek_request; // demux 线程消费
+    pthread_mutex_t seek_mu; // 串行发布目标、代际和队列复位；不覆盖解码或 I/O
+    bool seek_request; // seek_mu 保护，demux 线程消费
     atomic_llong seek_target_us; // seek 后丢弃目标点前的关键帧预滚
-    atomic_uint media_epoch; // seek 代际：perform_seek 递增；解码/回调据此丢弃 seek 前滞留帧
+    atomic_uint media_epoch; // 每个 player_seek 请求递增，与三个队列 stamp 及 Kotlin 音频代际一致
 
     // 视频滤镜链（Kotlin setFilterGraph 请求 → 解码线程消费重建）
     FilterState filter;      // 仅解码线程访问

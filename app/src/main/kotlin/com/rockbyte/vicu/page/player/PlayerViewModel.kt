@@ -10,6 +10,8 @@ import com.rockbyte.vicu.player.PlayerEvent
 import com.rockbyte.vicu.player.PlayerRepo
 import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.player.normalized
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -47,6 +49,7 @@ class PlayerViewModel(private val playerRepo: PlayerRepo) : ViewModel() {
         field = MutableStateFlow(PlayerUiState())
 
     private var selectedMedia: SelectedMedia? = null
+    private var seekJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -63,6 +66,7 @@ class PlayerViewModel(private val playerRepo: PlayerRepo) : ViewModel() {
     /** 绑定路由传入的视频（幂等）：换源或释放后重新打开。 */
     fun bind(media: SelectedMedia) {
         if (selectedMedia == media) return
+        seekJob?.cancel()
         selectedMedia = media
         uiState.value = PlayerUiState(videoName = media.name, phase = PlayerPhase.Preparing)
         viewModelScope.launch { playerRepo.open(Uri.parse(media.uri)) }
@@ -89,6 +93,7 @@ class PlayerViewModel(private val playerRepo: PlayerRepo) : ViewModel() {
 
     fun replay() {
         if (uiState.value.phase == PlayerPhase.Preparing) return
+        seekJob?.cancel()
         uiState.update { it.copy(playing = false, positionMs = 0L, phase = PlayerPhase.Preparing) }
         viewModelScope.launch { playerRepo.replay() }
     }
@@ -110,7 +115,11 @@ class PlayerViewModel(private val playerRepo: PlayerRepo) : ViewModel() {
                 phase = phase,
             )
         }
-        playerRepo.seekTo(clamped)
+        seekJob?.cancel()
+        seekJob = viewModelScope.launch {
+            delay(SEEK_DEBOUNCE_MS)
+            playerRepo.seekTo(clamped)
+        }
     }
 
     /** 设置画面裁剪（null 清除）；立即生效于预览滤镜链。 */
@@ -141,12 +150,14 @@ class PlayerViewModel(private val playerRepo: PlayerRepo) : ViewModel() {
 
     /** 页面离开时释放引擎；重进页面经 [bind] 重新打开。 */
     fun release() {
+        seekJob?.cancel()
         selectedMedia = null
         playerRepo.release()
         uiState.update { it.copy(playing = false, phase = PlayerPhase.Idle) }
     }
 
     override fun onCleared() {
+        seekJob?.cancel()
         playerRepo.release()
     }
 
@@ -164,3 +175,5 @@ class PlayerViewModel(private val playerRepo: PlayerRepo) : ViewModel() {
             is PlayerEvent.Failed -> copy(playing = false, phase = PlayerPhase.Failed(event.error))
         }
 }
+
+private const val SEEK_DEBOUNCE_MS = 150L

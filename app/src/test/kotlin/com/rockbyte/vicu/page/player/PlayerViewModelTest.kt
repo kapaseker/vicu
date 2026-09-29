@@ -10,7 +10,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -22,11 +25,11 @@ import org.junit.Test
 class PlayerViewModelTest {
 
     private val repo = FakePlayerRepo()
-    private val dispatcher = UnconfinedTestDispatcher()
+    private val dispatcher = StandardTestDispatcher()
 
     @Before
     fun setUp() {
-        // viewModelScope 依赖 Dispatchers.Main；单测注入 Unconfined 使 init 收集立即生效
+        // viewModelScope 依赖 Dispatchers.Main；可控虚拟时间用于验证 seek 合并。
         Dispatchers.setMain(dispatcher)
     }
 
@@ -91,9 +94,27 @@ class PlayerViewModelTest {
         viewModel.seekTo(1000)
         viewModel.seekTo(9000)
 
-        assertEquals(listOf(2000L, 8000L), repo.seekCalls)
+        dispatcher.scheduler.advanceTimeBy(200)
+        assertEquals(listOf(8000L), repo.seekCalls)
         // UI 进度立即反映 clamp 后的值
         assertEquals(8000L, viewModel.uiState.value.positionMs)
+    }
+
+    @Test
+    fun rapidSeeksOnlyDispatchLatestTarget() = runTest(dispatcher.scheduler) {
+        val viewModel = PlayerViewModel(repo)
+        viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 60000))
+
+        viewModel.seekTo(10000)
+        advanceTimeBy(100)
+        viewModel.seekTo(50000)
+
+        assertEquals(50000L, viewModel.uiState.value.positionMs)
+        advanceTimeBy(149)
+        assertEquals(emptyList<Long>(), repo.seekCalls)
+        advanceTimeBy(1)
+        runCurrent()
+        assertEquals(listOf(50000L), repo.seekCalls)
     }
 
     @Test
@@ -113,7 +134,9 @@ class PlayerViewModelTest {
 
     /** 经 fake 事件流注入事件（模拟 native 回调链路）。 */
     private fun PlayerViewModel.onEventForTest(event: PlayerEvent) {
+        dispatcher.scheduler.runCurrent()
         repo.emit(event)
+        dispatcher.scheduler.runCurrent()
     }
 
     private class FakePlayerRepo : PlayerRepo {

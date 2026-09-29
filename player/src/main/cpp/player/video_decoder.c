@@ -70,7 +70,6 @@ static void process_filter_update(PlayerContext *ctx) {
 
 /** 单个解码帧 →（滤镜）→ YUV420P → 帧队列；pts 存微秒；epoch 失配（解码期间 seek）则丢弃。 */
 static void push_frame(PlayerContext *ctx, AVFrame *frame, int64_t pts_us, unsigned epoch) {
-    unsigned stamp = queue_stamp(&ctx->frame_queue);
     int64_t target_us = atomic_load_explicit(&ctx->seek_target_us, memory_order_relaxed);
     if (pts_us < target_us) return;
     AVFrame *out = NULL;
@@ -96,7 +95,7 @@ static void push_frame(PlayerContext *ctx, AVFrame *frame, int64_t pts_us, unsig
         av_frame_free(&out);
         return;
     }
-    if (!queue_push_stamped(&ctx->frame_queue, out, stamp, &ctx->abort_request)) {
+    if (!queue_push_stamped(&ctx->frame_queue, out, epoch, &ctx->abort_request)) {
         av_frame_free(&out);
     }
 }
@@ -116,25 +115,31 @@ static void drain_frames(PlayerContext *ctx, DecoderState *st, unsigned epoch) {
 void *decode_thread_func(void *arg) {
     PlayerContext *ctx = arg;
     DecoderState st = {0};
+    unsigned decoder_epoch = 0;
     while (!atomic_load_explicit(&ctx->abort_request, memory_order_relaxed)) {
-        if (atomic_load_explicit(&ctx->video_flush_request, memory_order_relaxed)) {
-            atomic_store_explicit(&ctx->video_flush_request, false, memory_order_relaxed);
+        unsigned epoch;
+        AVPacket *pkt = queue_pop(&ctx->packet_queue, &epoch, &ctx->abort_request);
+        if (atomic_load(&ctx->abort_request)) {
+            av_packet_free(&pkt);
+            break;
+        }
+        // 代际与 packet 一起出队；先 reset 再送入新关键帧，不能在阻塞 pop 前消费 flush。
+        if (epoch != decoder_epoch) {
             avcodec_flush_buffers(ctx->vcodec);
+            decoder_epoch = epoch;
+            st.last_pts_us = 0;
             // seek 冲刷：滤镜图内残留旧时间戳帧，按当前链重建
             filter_state_configure(&ctx->filter, ctx->vcodec, ctx->filter.chain);
         }
         process_filter_update(ctx);
-        // 捕获 seek 代际：本轮解码全程携带，入队前复核
-        unsigned epoch = atomic_load_explicit(&ctx->media_epoch, memory_order_acquire);
-        AVPacket *pkt = queue_pop(&ctx->packet_queue, &ctx->abort_request);
         if (!pkt) {
             // EOF 或 abort：冲刷解码器残余帧
             avcodec_send_packet(ctx->vcodec, NULL);
             drain_frames(ctx, &st, epoch);
             if (atomic_load_explicit(&ctx->abort_request, memory_order_relaxed)) break;
-            queue_signal_eof(&ctx->frame_queue);
+            queue_signal_eof(&ctx->frame_queue, epoch);
             // EOF 后等待 seek 复位或 abort
-            if (!queue_wait_reset(&ctx->packet_queue, &ctx->abort_request)) break;
+            if (!queue_wait_stamp_change(&ctx->packet_queue, epoch, &ctx->abort_request)) break;
             continue;
         }
         int rc = avcodec_send_packet(ctx->vcodec, pkt);
@@ -144,7 +149,7 @@ void *decode_thread_func(void *arg) {
         }
         av_packet_free(&pkt);
         drain_frames(ctx, &st, epoch);
-        if (rc < 0 && rc != AVERROR(EAGAIN) && ctx->callbacks.on_error) {
+        if (rc < 0 && rc != AVERROR(EAGAIN) && epoch == atomic_load(&ctx->media_epoch) && ctx->callbacks.on_error) {
             char message[AV_ERROR_MAX_STRING_SIZE] = {0};
             av_strerror(rc, message, sizeof(message));
             ctx->callbacks.on_error(ctx->user, rc, message);

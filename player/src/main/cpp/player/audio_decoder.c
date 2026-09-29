@@ -99,22 +99,27 @@ static void drain_audio(PlayerContext *ctx, AudioState *st, unsigned epoch) {
 void *audio_thread_func(void *arg) {
     PlayerContext *ctx = arg;
     AudioState st = {0};
+    unsigned decoder_epoch = 0;
     while (!atomic_load_explicit(&ctx->abort_request, memory_order_relaxed)) {
-        if (atomic_load_explicit(&ctx->audio_flush_request, memory_order_relaxed)) {
-            atomic_store_explicit(&ctx->audio_flush_request, false, memory_order_relaxed);
+        unsigned epoch;
+        AVPacket *pkt = queue_pop(&ctx->audio_packet_queue, &epoch, &ctx->abort_request);
+        if (atomic_load(&ctx->abort_request)) {
+            av_packet_free(&pkt);
+            break;
+        }
+        if (epoch != decoder_epoch) {
             avcodec_flush_buffers(ctx->acodec);
             swr_free(&st.swr);
+            decoder_epoch = epoch;
+            st.last_pts_us = 0;
         }
-        // 捕获 seek 代际：本轮解码全程携带，发射前复核（seek 后旧帧无论 pts 均丢弃）
-        unsigned epoch = atomic_load_explicit(&ctx->media_epoch, memory_order_acquire);
-        AVPacket *pkt = queue_pop(&ctx->audio_packet_queue, &ctx->abort_request);
         if (!pkt) {
             avcodec_send_packet(ctx->acodec, NULL);
             drain_audio(ctx, &st, epoch);
             if (atomic_load_explicit(&ctx->abort_request, memory_order_relaxed)) break;
-            atomic_store(&ctx->audio_eof, true);
+            atomic_store(&ctx->audio_eof_epoch, epoch);
             // EOF 后等待 seek 复位或 abort
-            if (!queue_wait_reset(&ctx->audio_packet_queue, &ctx->abort_request)) break;
+            if (!queue_wait_stamp_change(&ctx->audio_packet_queue, epoch, &ctx->abort_request)) break;
             continue;
         }
         int rc = avcodec_send_packet(ctx->acodec, pkt);

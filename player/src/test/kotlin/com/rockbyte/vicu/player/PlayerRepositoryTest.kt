@@ -8,9 +8,12 @@ import android.os.ParcelFileDescriptor
 import android.view.Surface
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
@@ -167,7 +170,7 @@ class PlayerRepositoryTest {
             audioTrackFactory = { audioTrack },
         )
         player.preparedEvent = NativePlayerEvent.Prepared(1920, 1080, 10000, hasAudio = true)
-        Mockito.`when`(audioTrack.write(any(ByteArray::class.java), Mockito.anyInt(), Mockito.anyInt()))
+        Mockito.`when`(audioTrack.write(any(ByteArray::class.java), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt()))
             .thenReturn(AudioTrack.ERROR_DEAD_OBJECT)
         val failure = async(start = CoroutineStart.UNDISPATCHED) {
             failingRepository.events.filterIsInstance<PlayerEvent.Failed>().first()
@@ -182,6 +185,8 @@ class PlayerRepositoryTest {
     @Test
     fun backwardSeekInFlightAudioDoesNotPoisonClockBase() = runBlocking {
         val audioTrack = Mockito.mock(AudioTrack::class.java)
+        Mockito.`when`(audioTrack.write(any(ByteArray::class.java), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt()))
+            .thenAnswer { it.getArgument<Int>(2) }
         Mockito.`when`(audioTrack.playState).thenReturn(AudioTrack.PLAYSTATE_PLAYING)
         val audioRepository = PlayerRepository(
             context = context,
@@ -195,7 +200,7 @@ class PlayerRepositoryTest {
         audioRepository.seekTo(5000)
         // seek 已发起但引擎尚未完成时，旧位置的滞留音频帧到达（旧代际 0；pts=60s ≥ 新目标 5s）
         player.listener?.onEvent(NativePlayerEvent.AudioData(byteArrayOf(0, 0), 60_000_000L, 0))
-        // seek 后真正的首帧（perform_seek 已递增代际 → 1）
+        // seek 后真正的首帧（请求代际 1）
         player.listener?.onEvent(NativePlayerEvent.AudioData(byteArrayOf(0, 0), 5_020_000L, 1))
 
         assertEquals(5_020_000L, player.audioClockUs())
@@ -216,8 +221,89 @@ class PlayerRepositoryTest {
         player.listener?.onEvent(NativePlayerEvent.AudioData(byteArrayOf(0, 0), 4000000, 0))
 
         Mockito.verify(audioTrack, Mockito.never())
-            .write(any(ByteArray::class.java), Mockito.anyInt(), Mockito.anyInt())
+            .write(any(ByteArray::class.java), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt())
         Unit
+    }
+
+    @Test
+    fun staleEndedAfterSeekDoesNotPauseAudioOrEmitEnded() = runBlocking {
+        val audioTrack = Mockito.mock(AudioTrack::class.java)
+        val audioRepository = PlayerRepository(context, { player }, { audioTrack })
+        player.preparedEvent = NativePlayerEvent.Prepared(1920, 1080, 30000, hasAudio = true)
+        audioRepository.open(uri)
+        audioRepository.seekTo(5000)
+        Mockito.clearInvocations(audioTrack)
+        val events = mutableListOf<PlayerEvent>()
+        val collecting = launch(start = CoroutineStart.UNDISPATCHED) {
+            audioRepository.events.collect { events += it }
+        }
+
+        player.listener?.onEvent(NativePlayerEvent.Ended(0))
+        yield()
+
+        assertEquals(emptyList<PlayerEvent>(), events)
+        Mockito.verify(audioTrack, Mockito.never()).pause()
+        collecting.cancel()
+    }
+
+    @Test
+    fun currentEndedAfterSeekPausesAudioAndEmitsEnded() = runBlocking {
+        val audioTrack = Mockito.mock(AudioTrack::class.java)
+        val audioRepository = PlayerRepository(context, { player }, { audioTrack })
+        player.preparedEvent = NativePlayerEvent.Prepared(1920, 1080, 30000, hasAudio = true)
+        audioRepository.open(uri)
+        audioRepository.seekTo(5000)
+        Mockito.clearInvocations(audioTrack)
+        val ended = async(start = CoroutineStart.UNDISPATCHED) {
+            audioRepository.events.first()
+        }
+
+        player.listener?.onEvent(NativePlayerEvent.Ended(1))
+
+        assertEquals(PlayerEvent.Ended, withTimeout(1000) { ended.await() })
+        Mockito.verify(audioTrack).pause()
+        Unit
+    }
+
+    @Test
+    fun coalescedSeeksAcceptOnlyFinalRequestAudioGeneration() = runBlocking {
+        val audioTrack = Mockito.mock(AudioTrack::class.java)
+        Mockito.`when`(audioTrack.playState).thenReturn(AudioTrack.PLAYSTATE_PLAYING)
+        Mockito.`when`(audioTrack.write(any(ByteArray::class.java), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt()))
+            .thenAnswer { it.getArgument<Int>(2) }
+        val audioRepository = PlayerRepository(context, { player }, { audioTrack })
+        player.preparedEvent = NativePlayerEvent.Prepared(1920, 1080, 30000, hasAudio = true)
+        audioRepository.open(uri)
+        audioRepository.seekTo(5000)
+        audioRepository.seekTo(10000)
+        audioRepository.seekTo(20000)
+        val samples = byteArrayOf(0, 0, 0, 0)
+
+        player.listener?.onEvent(NativePlayerEvent.AudioData(samples, 25_000_000L, 1))
+        player.listener?.onEvent(NativePlayerEvent.AudioData(samples, 25_000_000L, 2))
+        player.listener?.onEvent(NativePlayerEvent.AudioData(samples, 20_020_000L, 3))
+
+        Mockito.verify(audioTrack).write(samples, 0, samples.size, AudioTrack.WRITE_NON_BLOCKING)
+        assertEquals(20_020_000L, player.audioClockUs())
+    }
+
+    @Test
+    fun partialNonBlockingAudioWritesRetryOnlyRemainingBytes() = runBlocking {
+        val audioTrack = Mockito.mock(AudioTrack::class.java)
+        Mockito.`when`(audioTrack.playState).thenReturn(AudioTrack.PLAYSTATE_PLAYING)
+        val samples = byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8)
+        Mockito.`when`(audioTrack.write(any(ByteArray::class.java), Mockito.anyInt(), Mockito.anyInt(), Mockito.anyInt()))
+            .thenReturn(0, 4, 4)
+        val audioRepository = PlayerRepository(context, { player }, { audioTrack })
+        player.preparedEvent = NativePlayerEvent.Prepared(1920, 1080, 30000, hasAudio = true)
+        audioRepository.open(uri)
+
+        player.listener?.onEvent(NativePlayerEvent.AudioData(samples, 2_000_000L, 0))
+
+        val writes = Mockito.inOrder(audioTrack)
+        writes.verify(audioTrack, Mockito.times(2)).write(samples, 0, 8, AudioTrack.WRITE_NON_BLOCKING)
+        writes.verify(audioTrack).write(samples, 4, 4, AudioTrack.WRITE_NON_BLOCKING)
+        assertEquals(2_000_000L, player.audioClockUs())
     }
 
     private class FakeNativePlayer : NativePlayer {

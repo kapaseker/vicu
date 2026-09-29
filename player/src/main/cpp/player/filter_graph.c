@@ -17,11 +17,18 @@ void filter_state_destroy(FilterState *fs) {
 }
 
 int filter_state_configure(FilterState *fs, const AVCodecContext *codec, const char *chain) {
+    // seek 重建时 chain 可以就是 fs->chain；拆图前保留副本，避免释放后读取。
+    char *saved_chain = chain && chain[0] ? strdup(chain) : NULL;
+    if (chain && chain[0] && !saved_chain) return AVERROR(ENOMEM);
     filter_state_destroy(fs); // 先拆旧图；失败时保持直通
-    if (!chain || !chain[0]) return 0;
+    if (!saved_chain) return 0;
+    fs->chain = saved_chain;
 
     fs->graph = avfilter_graph_alloc();
-    if (!fs->graph) return AVERROR(ENOMEM);
+    if (!fs->graph) {
+        filter_state_destroy(fs);
+        return AVERROR(ENOMEM);
+    }
 
     AVRational aspect = codec->sample_aspect_ratio;
     if (aspect.num <= 0 || aspect.den <= 0) aspect = av_make_q(1, 1);
@@ -63,7 +70,7 @@ int filter_state_configure(FilterState *fs, const AVCodecContext *codec, const c
     inputs->filter_ctx = fs->sink;
     inputs->pad_idx = 0;
     inputs->next = NULL;
-    rc = avfilter_graph_parse_ptr(fs->graph, chain, &inputs, &outputs, NULL);
+    rc = avfilter_graph_parse_ptr(fs->graph, fs->chain, &inputs, &outputs, NULL);
     rc = rc < 0 ? rc : avfilter_graph_config(fs->graph, NULL);
 
 inout_fail:
@@ -71,7 +78,6 @@ inout_fail:
     avfilter_inout_free(&outputs);
     if (rc < 0) goto fail;
 
-    fs->chain = strdup(chain);
     return 0;
 
 fail:

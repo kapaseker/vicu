@@ -33,7 +33,7 @@ static bool cache_method_ids(JNIEnv *env, jobject thiz) {
     if (!g_player_class) return false;
     g_notify_prepared = (*env)->GetMethodID(env, g_player_class, "notifyPrepared", "(IIJZ)V");
     g_notify_position = (*env)->GetMethodID(env, g_player_class, "notifyPosition", "(J)V");
-    g_notify_ended = (*env)->GetMethodID(env, g_player_class, "notifyEnded", "()V");
+    g_notify_ended = (*env)->GetMethodID(env, g_player_class, "notifyEnded", "(I)V");
     g_notify_error = (*env)->GetMethodID(env, g_player_class, "notifyError", "(ILjava/lang/String;)V");
     g_notify_audio_data = (*env)->GetMethodID(env, g_player_class, "notifyAudioData", "([BJI)V");
     g_audio_clock = (*env)->GetMethodID(env, g_player_class, "audioClockUs", "()J");
@@ -73,11 +73,11 @@ static void jni_on_position(void *user, int64_t position_ms) {
     if (attached) (*g_vm)->DetachCurrentThread(g_vm);
 }
 
-static void jni_on_ended(void *user) {
+static void jni_on_ended(void *user, unsigned epoch) {
     bool attached = false;
     JNIEnv *env = get_env(&attached);
     if (!env) return;
-    (*env)->CallVoidMethod(env, user, g_notify_ended);
+    (*env)->CallVoidMethod(env, user, g_notify_ended, (jint) epoch);
     if (attached) (*g_vm)->DetachCurrentThread(g_vm);
 }
 

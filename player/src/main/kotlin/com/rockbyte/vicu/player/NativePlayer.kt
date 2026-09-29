@@ -12,7 +12,7 @@ internal sealed interface NativePlayerEvent {
     ) : NativePlayerEvent
 
     data class Position(val positionMs: Long) : NativePlayerEvent
-    data object Ended : NativePlayerEvent
+    data class Ended(val epoch: Int) : NativePlayerEvent
     data object Failed : NativePlayerEvent
 
     /** 音频帧（S16 双声道 48kHz）；由仓库直写 AudioTrack，不经事件流。epoch 为 seek 代际。 */
@@ -105,8 +105,8 @@ private class NativePlayerImpl : NativePlayer {
         listener?.onEvent(NativePlayerEvent.Position(positionMs))
     }
 
-    private fun notifyEnded() {
-        listener?.onEvent(NativePlayerEvent.Ended)
+    private fun notifyEnded(epoch: Int) {
+        listener?.onEvent(NativePlayerEvent.Ended(epoch))
     }
 
     private fun notifyError(code: Int, message: String?) {

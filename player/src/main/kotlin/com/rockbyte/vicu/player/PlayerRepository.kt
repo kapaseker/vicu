@@ -43,7 +43,7 @@ class PlayerRepository internal constructor(
     private var lastPositionMs = 0L // 最近进度（applyEffects 判断是否需跳到区间起点）
     private val playbackFailed = AtomicBoolean(false)
     private val seekTargetUs = AtomicLong(0)
-    private val audioEpoch = AtomicInteger(0) // seek 代际：与 native perform_seek 逐一对应
+    private val audioEpoch = AtomicInteger(0) // 与每个 native player_seek 请求逐一对应（包括被合并的请求）
 
     // 音频输出（S16 双声道 48kHz，与 native 重采样输出一致）
     private val audioLock = Any()
@@ -77,9 +77,11 @@ class PlayerRepository internal constructor(
                 lastPositionMs = event.positionMs
                 _events.tryEmit(PlayerEvent.Position(event.positionMs))
             }
-            NativePlayerEvent.Ended -> {
-                stopAudioPlayback() // 播完即停，截掉缓冲尾音
-                _events.tryEmit(PlayerEvent.Ended)
+            is NativePlayerEvent.Ended -> synchronized(audioLock) {
+                if (event.epoch == audioEpoch.get()) {
+                    track?.pause() // 播完即停；旧 seek 的 EOF 不得暂停新输出
+                    _events.tryEmit(PlayerEvent.Ended)
+                }
             }
             NativePlayerEvent.Failed -> failPlayback()
         }
@@ -122,13 +124,11 @@ class PlayerRepository internal constructor(
 
     override fun seekTo(positionMs: Long) {
         if (positionMs < 0) return
-        seekTargetUs.set(positionMs * 1000)
-        // 先递增代际再冲音频输出：滞留的 seek 前音频帧（旧代际）一律丢弃，
-        // 消除向后 seek 时旧帧 pts ≥ 新目标污染时钟基准的可能
-        audioEpoch.incrementAndGet()
         // 先冲音频输出再让引擎跳转：新音频到达即重建时钟基准；
         // 暂停态 seek 只冲不播，与视频暂停态保持一致
         synchronized(audioLock) {
+            seekTargetUs.set(positionMs * 1000)
+            audioEpoch.incrementAndGet()
             track?.let {
                 it.pause()
                 it.flush()
@@ -212,31 +212,34 @@ class PlayerRepository internal constructor(
         true
     }
 
-    /** 音频帧直写 AudioTrack（native 音频线程回调；写满阻塞即自然背压）。 */
+    /** 仅非阻塞写持有 audioLock；满缓冲的等待在锁外，seek/pause/release 不会被写阻塞。 */
     private fun writeAudio(data: ByteArray, ptsUs: Long, epoch: Int) {
-        // 代际不符：解码期间发生 seek 的滞留旧帧（pts 守卫对向后 seek 拦不住）
-        if (epoch != audioEpoch.get()) return
-        if (ptsUs < seekTargetUs.get()) return
-        val audioTrack = synchronized(audioLock) {
-            val t = track ?: return
-            if (awaitingAudioStart) {
-                audioStartPtsUs = ptsUs
-                awaitingAudioStart = false
+        var offset = 0
+        while (offset < data.size) {
+            val written = synchronized(audioLock) {
+                // 与 flush、基准设置和实际写入处于同一临界区，拦住已在途的旧回调。
+                if (epoch != audioEpoch.get() || ptsUs < seekTargetUs.get()) return
+                val t = track ?: return
+                val count = t.write(data, offset, data.size - offset, AudioTrack.WRITE_NON_BLOCKING)
+                if (count > 0 && awaitingAudioStart) {
+                    audioStartPtsUs = ptsUs
+                    awaitingAudioStart = false
+                }
+                count
             }
-            t
+            if (written < 0) {
+                failPlayback()
+                return
+            }
+            offset += written
+            if (written == 0) Thread.sleep(5)
         }
-        if (audioTrack.write(data, 0, data.size) < 0) failPlayback()
     }
 
     private fun failPlayback() {
         if (!playbackFailed.compareAndSet(false, true)) return
         stopAudio()
         _events.tryEmit(PlayerEvent.Failed(PlayerError.PlaybackFailed))
-    }
-
-    /** 停止播放但保留输出（Ended 截尾音）；恢复需 play()。 */
-    private fun stopAudioPlayback() {
-        synchronized(audioLock) { track?.pause() }
     }
 
     /** 释放音频输出（换源/会话结束）；先于引擎释放，解除写阻塞。 */

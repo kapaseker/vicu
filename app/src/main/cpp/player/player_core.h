@@ -30,8 +30,8 @@ typedef struct PlayerCallbacks {
     void (*on_ended)(void *user);
     void (*on_error)(void *user, int code, const char *message);
     void (*on_destroy)(void *user);
-    /** 音频帧回调（S16 双声道 48kHz 交错）；阻塞写回即自然背压。 */
-    void (*on_audio_data)(void *user, const uint8_t *data, int size, int64_t pts_us);
+    /** 音频帧回调（S16 双声道 48kHz 交错）；阻塞写回即自然背压。epoch 为 seek 代际。 */
+    void (*on_audio_data)(void *user, const uint8_t *data, int size, int64_t pts_us, unsigned epoch);
     /** 音频主时钟（微秒，媒体时间）；无有效时钟时返回 -1（渲染回退墙钟）。 */
     int64_t (*get_audio_clock_us)(void *user);
 } PlayerCallbacks;
@@ -133,6 +133,7 @@ typedef struct PlayerContext {
 
     atomic_bool seek_request; // demux 线程消费
     atomic_llong seek_target_us; // seek 后丢弃目标点前的关键帧预滚
+    atomic_uint media_epoch; // seek 代际：perform_seek 递增；解码/回调据此丢弃 seek 前滞留帧
 
     // 视频滤镜链（Kotlin setFilterGraph 请求 → 解码线程消费重建）
     FilterState filter;      // 仅解码线程访问

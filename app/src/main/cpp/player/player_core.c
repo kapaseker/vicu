@@ -272,6 +272,7 @@ PlayerContext *player_create(const PlayerCallbacks *callbacks, void *user) {
     atomic_init(&ctx->audio_eof, false);
     atomic_init(&ctx->seek_request, false);
     atomic_init(&ctx->seek_target_us, 0);
+    atomic_init(&ctx->media_epoch, 0);
     atomic_init(&ctx->play_start_us, 0);
     atomic_init(&ctx->play_end_us, INT64_MAX);
     ctx->callbacks = *callbacks;

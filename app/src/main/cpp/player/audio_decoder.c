@@ -48,7 +48,7 @@ static bool ensure_swr(AudioState *st, AVFrame *frame) {
 }
 
 /** 解码帧 → S16 双声道 48kHz 交错后经回调送 Kotlin AudioTrack（阻塞写回即背压）。 */
-static void emit_audio_frame(PlayerContext *ctx, AVFrame *frame, AudioState *st) {
+static void emit_audio_frame(PlayerContext *ctx, AVFrame *frame, AudioState *st, unsigned epoch) {
     if (!ensure_swr(st, frame)) return;
 
     int64_t pts = frame->pts;
@@ -63,6 +63,8 @@ static void emit_audio_frame(PlayerContext *ctx, AVFrame *frame, AudioState *st)
     if (pts_us >= atomic_load_explicit(&ctx->play_end_us, memory_order_relaxed)) {
         return;
     }
+    // seek 代际失效：解码期间发生 seek（向后 seek 的旧帧 pts 可 ≥ 新目标，pts 守卫拦不住）
+    if (atomic_load_explicit(&ctx->media_epoch, memory_order_acquire) != epoch) return;
     int64_t target_us = atomic_load_explicit(&ctx->seek_target_us, memory_order_relaxed);
     if (pts_us < target_us) return;
 
@@ -80,14 +82,14 @@ static void emit_audio_frame(PlayerContext *ctx, AVFrame *frame, AudioState *st)
                                 (const uint8_t *const *) frame->data, frame->nb_samples);
     if (converted <= 0) return;
     int size = converted * AUDIO_OUT_CHANNELS * (int) sizeof(int16_t);
-    ctx->callbacks.on_audio_data(ctx->user, st->buffer, size, pts_us);
+    ctx->callbacks.on_audio_data(ctx->user, st->buffer, size, pts_us, epoch);
 }
 
-static void drain_audio(PlayerContext *ctx, AudioState *st) {
+static void drain_audio(PlayerContext *ctx, AudioState *st, unsigned epoch) {
     AVFrame *frame = av_frame_alloc();
     if (!frame) return;
     while (avcodec_receive_frame(ctx->acodec, frame) == 0) {
-        emit_audio_frame(ctx, frame, st);
+        emit_audio_frame(ctx, frame, st, epoch);
         av_frame_unref(frame);
     }
     av_frame_free(&frame);
@@ -103,10 +105,12 @@ void *audio_thread_func(void *arg) {
             avcodec_flush_buffers(ctx->acodec);
             swr_free(&st.swr);
         }
+        // 捕获 seek 代际：本轮解码全程携带，发射前复核（seek 后旧帧无论 pts 均丢弃）
+        unsigned epoch = atomic_load_explicit(&ctx->media_epoch, memory_order_acquire);
         AVPacket *pkt = queue_pop(&ctx->audio_packet_queue, &ctx->abort_request);
         if (!pkt) {
             avcodec_send_packet(ctx->acodec, NULL);
-            drain_audio(ctx, &st);
+            drain_audio(ctx, &st, epoch);
             if (atomic_load_explicit(&ctx->abort_request, memory_order_relaxed)) break;
             atomic_store(&ctx->audio_eof, true);
             // EOF 后等待 seek 复位或 abort
@@ -115,11 +119,11 @@ void *audio_thread_func(void *arg) {
         }
         int rc = avcodec_send_packet(ctx->acodec, pkt);
         if (rc == AVERROR(EAGAIN)) {
-            drain_audio(ctx, &st);
+            drain_audio(ctx, &st, epoch);
             rc = avcodec_send_packet(ctx->acodec, pkt);
         }
         av_packet_free(&pkt);
-        drain_audio(ctx, &st);
+        drain_audio(ctx, &st, epoch);
     }
     audio_state_free(&st);
     return NULL;

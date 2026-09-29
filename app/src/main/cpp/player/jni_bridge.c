@@ -35,7 +35,7 @@ static bool cache_method_ids(JNIEnv *env, jobject thiz) {
     g_notify_position = (*env)->GetMethodID(env, g_player_class, "notifyPosition", "(J)V");
     g_notify_ended = (*env)->GetMethodID(env, g_player_class, "notifyEnded", "()V");
     g_notify_error = (*env)->GetMethodID(env, g_player_class, "notifyError", "(ILjava/lang/String;)V");
-    g_notify_audio_data = (*env)->GetMethodID(env, g_player_class, "notifyAudioData", "([BJ)V");
+    g_notify_audio_data = (*env)->GetMethodID(env, g_player_class, "notifyAudioData", "([BJI)V");
     g_audio_clock = (*env)->GetMethodID(env, g_player_class, "audioClockUs", "()J");
     g_handle_fid = (*env)->GetFieldID(env, g_player_class, "nativeHandle", "J");
     return g_notify_prepared && g_notify_position && g_notify_ended && g_notify_error &&
@@ -99,14 +99,14 @@ static void jni_on_destroy(void *user) {
     }
 }
 
-static void jni_on_audio_data(void *user, const uint8_t *data, int size, int64_t pts_us) {
+static void jni_on_audio_data(void *user, const uint8_t *data, int size, int64_t pts_us, unsigned epoch) {
     bool attached = false;
     JNIEnv *env = get_env(&attached);
     if (!env) return;
     jbyteArray array = (*env)->NewByteArray(env, size);
     if (array) {
         (*env)->SetByteArrayRegion(env, array, 0, size, (const jbyte *) data);
-        (*env)->CallVoidMethod(env, user, g_notify_audio_data, array, (jlong) pts_us);
+        (*env)->CallVoidMethod(env, user, g_notify_audio_data, array, (jlong) pts_us, (jint) epoch);
         (*env)->DeleteLocalRef(env, array);
     }
     if (attached) (*g_vm)->DetachCurrentThread(g_vm);

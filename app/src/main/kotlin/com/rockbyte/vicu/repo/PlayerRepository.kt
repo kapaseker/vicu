@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 internal class PlayerRepository(
@@ -37,6 +38,7 @@ internal class PlayerRepository(
     private var lastPositionMs = 0L // 最近进度（applyEffects 判断是否需跳到区间起点）
     private val playbackFailed = AtomicBoolean(false)
     private val seekTargetUs = AtomicLong(0)
+    private val audioEpoch = AtomicInteger(0) // seek 代际：与 native perform_seek 逐一对应
 
     // 音频输出（S16 双声道 48kHz，与 native 重采样输出一致）
     private val audioLock = Any()
@@ -56,7 +58,7 @@ internal class PlayerRepository(
 
     private val listener = NativePlayer.Listener { event ->
         when (event) {
-            is NativePlayerEvent.AudioData -> writeAudio(event.data, event.ptsUs)
+            is NativePlayerEvent.AudioData -> writeAudio(event.data, event.ptsUs, event.epoch)
             is NativePlayerEvent.Prepared -> {
                 if (event.hasAudio && !ensureAudioTrack()) {
                     failPlayback()
@@ -83,6 +85,7 @@ internal class PlayerRepository(
         release()
         playbackFailed.set(false)
         seekTargetUs.set(0)
+        audioEpoch.set(0)
         val uri = media.uri.toUri()
         withContext(Dispatchers.IO) {
             val opened = try {
@@ -116,6 +119,9 @@ internal class PlayerRepository(
     override fun seekTo(positionMs: Long) {
         if (positionMs < 0) return
         seekTargetUs.set(positionMs * 1000)
+        // 先递增代际再冲音频输出：滞留的 seek 前音频帧（旧代际）一律丢弃，
+        // 消除向后 seek 时旧帧 pts ≥ 新目标污染时钟基准的可能
+        audioEpoch.incrementAndGet()
         // 先冲音频输出再让引擎跳转：新音频到达即重建时钟基准；
         // 暂停态 seek 只冲不播，与视频暂停态保持一致
         synchronized(audioLock) {
@@ -203,7 +209,9 @@ internal class PlayerRepository(
     }
 
     /** 音频帧直写 AudioTrack（native 音频线程回调；写满阻塞即自然背压）。 */
-    private fun writeAudio(data: ByteArray, ptsUs: Long) {
+    private fun writeAudio(data: ByteArray, ptsUs: Long, epoch: Int) {
+        // 代际不符：解码期间发生 seek 的滞留旧帧（pts 守卫对向后 seek 拦不住）
+        if (epoch != audioEpoch.get()) return
         if (ptsUs < seekTargetUs.get()) return
         val audioTrack = synchronized(audioLock) {
             val t = track ?: return

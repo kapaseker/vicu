@@ -309,8 +309,11 @@ void *render_thread_func(void *arg) {
         }
         clock_sync_base(&ctx->clock, pts_us);
 
-        // 等到展示时刻（音频时钟缺席时墙钟冻结即暂停）
+        // 等到展示时刻（音频时钟缺席时墙钟冻结即暂停）。
+        // 期间若 seek 冲刷队列（代际变化）须立即放弃：旧帧 pts 远超新主时钟，
+        // 否则会死等 (旧pts - 新时钟) 的全部时长，表现为画面/进度冻结而声音正常
         while (!atomic_load_explicit(&ctx->abort_request, memory_order_relaxed)) {
+            if (queue_stamp(&ctx->frame_queue) != stamp) break;
             int64_t wait_us = pts_us - master_clock_us(ctx);
             if (wait_us <= 0) break;
             sleep_us(wait_us > 10000 ? 10000 : wait_us);

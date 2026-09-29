@@ -186,9 +186,31 @@ class PlayerRepositoryTest {
         }
 
         failingRepository.open(media)
-        player.listener?.onEvent(NativePlayerEvent.AudioData(byteArrayOf(0, 0), 0))
+        player.listener?.onEvent(NativePlayerEvent.AudioData(byteArrayOf(0, 0), 0, 0))
 
         assertEquals(PlayerEvent.Failed(PlayerError.PlaybackFailed), failure.await())
+    }
+
+    @Test
+    fun backwardSeekInFlightAudioDoesNotPoisonClockBase() = runBlocking {
+        val audioTrack = Mockito.mock(AudioTrack::class.java)
+        Mockito.`when`(audioTrack.playState).thenReturn(AudioTrack.PLAYSTATE_PLAYING)
+        val audioRepository = PlayerRepository(
+            context = context,
+            playerFactory = { player },
+            audioTrackFactory = { audioTrack },
+        )
+        player.preparedEvent = NativePlayerEvent.Prepared(1920, 1080, 10000, hasAudio = true)
+        audioRepository.open(media)
+
+        // 播放中位于 60s，用户向后拖拽到 5s
+        audioRepository.seekTo(5000)
+        // seek 已发起但引擎尚未完成时，旧位置的滞留音频帧到达（旧代际 0；pts=60s ≥ 新目标 5s）
+        player.listener?.onEvent(NativePlayerEvent.AudioData(byteArrayOf(0, 0), 60_000_000L, 0))
+        // seek 后真正的首帧（perform_seek 已递增代际 → 1）
+        player.listener?.onEvent(NativePlayerEvent.AudioData(byteArrayOf(0, 0), 5_020_000L, 1))
+
+        assertEquals(5_020_000L, player.audioClockUs())
     }
 
     @Test
@@ -203,7 +225,7 @@ class PlayerRepositoryTest {
         audioRepository.open(media)
 
         audioRepository.seekTo(5000)
-        player.listener?.onEvent(NativePlayerEvent.AudioData(byteArrayOf(0, 0), 4000000))
+        player.listener?.onEvent(NativePlayerEvent.AudioData(byteArrayOf(0, 0), 4000000, 0))
 
         Mockito.verify(audioTrack, Mockito.never())
             .write(any(ByteArray::class.java), Mockito.anyInt(), Mockito.anyInt())
@@ -245,6 +267,7 @@ class PlayerRepositoryTest {
         override fun setAudioClockProvider(provider: NativePlayer.AudioClockProvider?) {
             audioClockProvider = provider
         }
+        fun audioClockUs(): Long = audioClockProvider?.audioClockUs() ?: -1L
         override fun setFilterGraph(chain: String) {
             filterChain = chain
         }

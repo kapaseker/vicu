@@ -15,8 +15,8 @@ internal sealed interface NativePlayerEvent {
     data object Ended : NativePlayerEvent
     data object Failed : NativePlayerEvent
 
-    /** 音频帧（S16 双声道 48kHz）；由仓库直写 AudioTrack，不经事件流。 */
-    data class AudioData(val data: ByteArray, val ptsUs: Long) : NativePlayerEvent
+    /** 音频帧（S16 双声道 48kHz）；由仓库直写 AudioTrack，不经事件流。epoch 为 seek 代际。 */
+    data class AudioData(val data: ByteArray, val ptsUs: Long, val epoch: Int) : NativePlayerEvent
 }
 
 /**
@@ -113,8 +113,8 @@ private class NativePlayerImpl : NativePlayer {
         listener?.onEvent(NativePlayerEvent.Failed)
     }
 
-    private fun notifyAudioData(data: ByteArray, ptsUs: Long) {
-        listener?.onEvent(NativePlayerEvent.AudioData(data, ptsUs))
+    private fun notifyAudioData(data: ByteArray, ptsUs: Long, epoch: Int) {
+        listener?.onEvent(NativePlayerEvent.AudioData(data, ptsUs, epoch))
     }
 
     private fun audioClockUs(): Long = audioClockProvider?.audioClockUs() ?: -1L

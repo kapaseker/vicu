@@ -37,6 +37,11 @@ data class VicuDimensions(
     val playerProgressTrackHeight: Dp,
     val playerProgressThumbSize: Dp,
     val playerProgressTouchHeight: Dp,
+    val cropHandleSize: Dp,
+    val cropBorderWidth: Dp,
+    val cropDashLength: Dp,
+    val cropDashGap: Dp,
+    val cropHandleTouchRadius: Dp,
 )
 
 /** 无量纲的透明度 token。 */
@@ -47,11 +52,15 @@ data class VicuAlpha(
     val ambientShadow: Float = 0.02f,
     val statusPulseMinimum: Float = 0.3f,
     val glassOverlay: Float = 0.7f,
+    val cropDim: Float = 0.3f,
 )
 
 /** 动效 token。 */
 @Immutable
-data class VicuMotion(val statusPulseDurationMillis: Int)
+data class VicuMotion(
+    val statusPulseDurationMillis: Int,
+    val controlsHideDelayMillis: Int,
+)
 
 @Composable
 internal fun resourceDimensions() = VicuDimensions(
@@ -84,9 +93,15 @@ internal fun resourceDimensions() = VicuDimensions(
     playerProgressTrackHeight = dimensionResource(R.dimen.vicu_player_progress_track_height),
     playerProgressThumbSize = dimensionResource(R.dimen.vicu_player_progress_thumb_size),
     playerProgressTouchHeight = dimensionResource(R.dimen.vicu_player_progress_touch_height),
+    cropHandleSize = dimensionResource(R.dimen.vicu_crop_handle_size),
+    cropBorderWidth = dimensionResource(R.dimen.vicu_crop_border_width),
+    cropDashLength = dimensionResource(R.dimen.vicu_crop_dash_length),
+    cropDashGap = dimensionResource(R.dimen.vicu_crop_dash_gap),
+    cropHandleTouchRadius = dimensionResource(R.dimen.vicu_crop_handle_touch_radius),
 )
 
 @Composable
 internal fun resourceMotion() = VicuMotion(
     statusPulseDurationMillis = integerResource(R.integer.vicu_status_pulse_duration_millis),
+    controlsHideDelayMillis = integerResource(R.integer.vicu_controls_hide_delay_millis),
 )

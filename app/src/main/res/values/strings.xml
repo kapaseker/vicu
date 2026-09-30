@@ -73,4 +73,11 @@
     <string name="player_effect_done">完成</string>
     <string name="player_crop_reset">重置裁剪</string>
     <string name="player_trim_reset">重置区间</string>
+    <string name="video_crop">裁剪</string>
+    <string name="crop_cut">剪切</string>
+    <string name="cropping">裁剪中…</string>
+    <string name="crop_success">裁剪成功</string>
+    <string name="crop_failed_retry">裁剪失败，重试</string>
+    <string name="crop_complete">已保存到 Movies/FFmpegKitNext 文件夹。</string>
+    <string name="crop_failed">裁剪失败：%1$s</string>
 </resources>

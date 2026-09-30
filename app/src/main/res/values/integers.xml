@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <integer name="vicu_status_pulse_duration_millis">600</integer>
+    <integer name="vicu_controls_hide_delay_millis">3000</integer>
 </resources>

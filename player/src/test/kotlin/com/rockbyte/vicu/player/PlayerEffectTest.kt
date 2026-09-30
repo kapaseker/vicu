@@ -50,6 +50,14 @@ class PlayerEffectTest {
     }
 
     @Test
+    fun videoFilterNormalizesAndMatchesPreviewChain() {
+        val crop = PlayerEffect.Crop(left = 11, top = 21, width = 101, height = 51)
+        assertEquals("crop=w=100:h=50:x=10:y=20", crop.toVideoFilter())
+        // 导出滤镜与预览链共用同一字符串，保证所见即所得
+        assertEquals(crop.toVideoFilter(), listOf(crop).toPreviewFilterChain())
+    }
+
+    @Test
     fun exportArgumentsWithoutEffectsAreEmpty() {
         assertArrayEquals(emptyArray<String>(), emptyList<PlayerEffect>().toExportArguments())
     }

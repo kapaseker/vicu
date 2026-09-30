@@ -4,6 +4,7 @@ import com.rockbyte.vicu.page.AudioConvertViewModel
 import com.rockbyte.vicu.page.AudioExportViewModel
 import com.rockbyte.vicu.page.HomeViewModel
 import com.rockbyte.vicu.page.VideoConvertViewModel
+import com.rockbyte.vicu.page.crop.CropViewModel
 import com.rockbyte.vicu.page.player.PlayerViewModel
 import com.rockbyte.vicu.repo.AudioConvertRepo
 import com.rockbyte.vicu.repo.AudioConvertRepository
@@ -48,4 +49,5 @@ val appModule = module {
     viewModel { VideoConvertViewModel(get()) }
     viewModel { AudioConvertViewModel(get()) }
     viewModel { PlayerViewModel(get()) }
+    viewModel { CropViewModel(get()) }
 }

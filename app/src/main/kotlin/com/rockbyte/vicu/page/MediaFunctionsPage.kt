@@ -36,7 +36,7 @@ import com.rockbyte.vicu.ui.theme.VicuTheme
 
 /**
  * 媒体功能列表页：所有多媒体点击后进入。
- * 标题与功能集随媒体类型变化；视频提供「播放」「导出音频」「视频转换」入口，音频提供「音频转换」入口，图片展示敬请期待占位。
+ * 标题与功能集随媒体类型变化；视频提供「播放」「裁剪」「导出音频」「视频转换」入口，音频提供「音频转换」入口，图片展示敬请期待占位。
  */
 @Composable
 fun MediaFunctionsPage(
@@ -45,6 +45,7 @@ fun MediaFunctionsPage(
     onConvertVideo: () -> Unit,
     onConvertAudio: () -> Unit,
     onPlayVideo: () -> Unit,
+    onCropVideo: () -> Unit,
     onBack: () -> Unit,
 ) {
     VicuScaffold(
@@ -52,7 +53,8 @@ fun MediaFunctionsPage(
         onBack = onBack,
     ) {
         when (media.kind) {
-            MediaKind.VIDEO -> VideoFunctionsContent(media.name, onPlayVideo, onExportAudio, onConvertVideo)
+            MediaKind.VIDEO ->
+                VideoFunctionsContent(media.name, onPlayVideo, onCropVideo, onExportAudio, onConvertVideo)
             MediaKind.AUDIO -> AudioFunctionsContent(media.name, onConvertAudio)
             MediaKind.IMAGE -> ComingSoonContent(media.kind)
         }
@@ -79,6 +81,7 @@ private fun MediaKind.functionTitleRes(): Int = when (this) {
 private fun VideoFunctionsContent(
     name: String,
     onPlayVideo: () -> Unit,
+    onCropVideo: () -> Unit,
     onExportAudio: () -> Unit,
     onConvertVideo: () -> Unit,
 ) {
@@ -86,6 +89,7 @@ private fun VideoFunctionsContent(
         FunctionGrid(
             listOf(
                 FunctionEntry(R.drawable.ic_play, R.string.video_play, onPlayVideo),
+                FunctionEntry(R.drawable.ic_crop, R.string.video_crop, onCropVideo),
                 FunctionEntry(R.drawable.ic_audio, R.string.export_audio, onExportAudio),
                 FunctionEntry(R.drawable.ic_transfer, R.string.video_convert, onConvertVideo),
             ),
@@ -223,6 +227,7 @@ private fun MediaFunctionsPageVideoPreview() {
             onConvertVideo = {},
             onConvertAudio = {},
             onPlayVideo = {},
+            onCropVideo = {},
             onBack = {},
         )
     }
@@ -242,6 +247,7 @@ private fun MediaFunctionsPageAudioPreview() {
             onConvertVideo = {},
             onConvertAudio = {},
             onPlayVideo = {},
+            onCropVideo = {},
             onBack = {},
         )
     }
@@ -261,6 +267,7 @@ private fun MediaFunctionsPageComingSoonPreview() {
             onConvertVideo = {},
             onConvertAudio = {},
             onPlayVideo = {},
+            onCropVideo = {},
             onBack = {},
         )
     }

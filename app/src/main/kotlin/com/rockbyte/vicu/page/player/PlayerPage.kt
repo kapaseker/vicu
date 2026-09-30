@@ -1,19 +1,14 @@
 package com.rockbyte.vicu.page.player
 
-import android.view.SurfaceHolder
-import android.view.SurfaceView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,9 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -46,7 +39,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.roundToInt
@@ -58,6 +50,8 @@ import com.rockbyte.vicu.player.normalized
 import com.rockbyte.vicu.ui.component.PrimaryIconButton
 import com.rockbyte.vicu.ui.component.VicuButton
 import com.rockbyte.vicu.ui.component.StatusRow
+import com.rockbyte.vicu.ui.component.VideoSeekBar
+import com.rockbyte.vicu.ui.component.VideoSurface
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.theme.VicuTheme
 import org.koin.androidx.compose.koinViewModel
@@ -158,36 +152,6 @@ private fun videoAspectRatio(state: PlayerUiState): Float =
     }
 
 @Composable
-private fun VideoSurface(
-    modifier: Modifier = Modifier,
-    onSurfaceAvailable: (android.view.Surface?) -> Unit,
-) {
-    AndroidView(
-        factory = { context ->
-            SurfaceView(context).apply {
-                holder.addCallback(object : SurfaceHolder.Callback {
-                    override fun surfaceCreated(holder: SurfaceHolder) = Unit
-
-                    override fun surfaceChanged(
-                        holder: SurfaceHolder,
-                        format: Int,
-                        width: Int,
-                        height: Int,
-                    ) {
-                        onSurfaceAvailable(holder.surface)
-                    }
-
-                    override fun surfaceDestroyed(holder: SurfaceHolder) {
-                        onSurfaceAvailable(null)
-                    }
-                })
-            }
-        },
-        modifier = modifier,
-    )
-}
-
-@Composable
 private fun PlayerControls(
     state: PlayerUiState,
     editMode: Boolean,
@@ -203,7 +167,7 @@ private fun PlayerControls(
     Column(
         verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
     ) {
-        PlayerSeekBar(
+        VideoSeekBar(
             positionMs = state.positionMs,
             durationMs = state.durationMs,
             enabled = state.durationMs > 0 && state.phase in seekablePhases,
@@ -315,97 +279,6 @@ private fun trimRangeText(trim: PlayerEffect.Trim?, durationMs: Long): String {
 }
 
 private val seekablePhases = setOf(PlayerPhase.Playing, PlayerPhase.Paused, PlayerPhase.Ended)
-
-/**
- * 自定义进度条（无 Material3）：pill 轨道 + 黑色填充与圆形 thumb。
- * 拖拽期间显示本地预览位置并逐帧刷新画面（音频静音），松手才跳转并恢复播放；
- * 点按直接跳转。
- */
-@Composable
-private fun PlayerSeekBar(
-    positionMs: Long,
-    durationMs: Long,
-    enabled: Boolean,
-    onSeek: (Long) -> Unit,
-    onScrubStart: () -> Unit,
-    onScrub: (Long) -> Unit,
-    onScrubEnd: (Long) -> Unit,
-) {
-    var dragFraction by remember { mutableStateOf<Float?>(null) }
-    var trackWidthPx by remember { mutableFloatStateOf(0f) }
-    val fraction = dragFraction
-        ?: if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
-    val thumbSize = VicuTheme.dimensions.playerProgressThumbSize
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(VicuTheme.dimensions.playerProgressTouchHeight)
-            .onSizeChanged { trackWidthPx = it.width.toFloat() }
-            .alpha(if (enabled) VicuTheme.alpha.full else VicuTheme.alpha.disabled)
-            .pointerInput(enabled, durationMs) {
-                if (!enabled || durationMs <= 0) return@pointerInput
-                detectTapGestures { offset ->
-                    val tapped = (offset.x / trackWidthPx).coerceIn(0f, 1f)
-                    onSeek((tapped * durationMs).toLong())
-                }
-            }
-            .pointerInput(enabled, durationMs) {
-                if (!enabled || durationMs <= 0) return@pointerInput
-                fun fractionAt(x: Float) = (x / trackWidthPx).coerceIn(0f, 1f)
-                detectHorizontalDragGestures(
-                    onDragStart = { offset ->
-                        val f = fractionAt(offset.x)
-                        dragFraction = f
-                        onScrubStart()
-                        onScrub((f * durationMs).toLong())
-                    },
-                    onHorizontalDrag = { change, _ ->
-                        val f = fractionAt(change.position.x)
-                        dragFraction = f
-                        onScrub((f * durationMs).toLong())
-                    },
-                    onDragEnd = {
-                        dragFraction?.let { f -> onScrubEnd((f * durationMs).toLong()) }
-                        dragFraction = null
-                    },
-                    onDragCancel = {
-                        dragFraction?.let { f -> onScrubEnd((f * durationMs).toLong()) }
-                        dragFraction = null
-                    },
-                )
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(VicuTheme.dimensions.playerProgressTrackHeight)
-                .clip(VicuTheme.shapes.full)
-                .background(VicuTheme.colors.outlineVariant),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .fillMaxWidth(fraction)
-                    .clip(VicuTheme.shapes.full)
-                    .background(VicuTheme.colors.primary),
-            )
-        }
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset {
-                    IntOffset(
-                        x = (trackWidthPx * fraction).roundToInt() - thumbSize.roundToPx() / 2,
-                        y = 0,
-                    )
-                }
-                .size(thumbSize)
-                .clip(CircleShape)
-                .background(VicuTheme.colors.primary),
-        )
-    }
-}
 
 /** 归一化裁剪框（0..1，相对视频画面）。 */
 private data class CropRectF(val left: Float, val top: Float, val right: Float, val bottom: Float)

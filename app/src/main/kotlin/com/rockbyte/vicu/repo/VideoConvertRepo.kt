@@ -24,6 +24,8 @@ data class VideoConvertRequest(
     val displayName: String,
     val format: VideoConvertFormat,
     val quality: VideoConvertQuality,
+    /** 输出视频滤镜链（如裁剪 `crop=w:h:x:y`）；null 表示无滤镜。 */
+    val videoFilter: String? = null,
 )
 
 sealed interface VideoConvertResult {

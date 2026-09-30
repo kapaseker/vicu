@@ -65,8 +65,12 @@ class VideoConvertRepositoryTest {
         suspend fun convert(
             format: VideoConvertFormat = VideoConvertFormat.MP4,
             quality: VideoConvertQuality = VideoConvertQuality.SUITABLE,
+            videoFilter: String? = null,
             onProgress: (Float) -> Unit = {},
-        ) = repo.convert(VideoConvertRequest(input, "video.mp4", format, quality), onProgress)
+        ) = repo.convert(
+            VideoConvertRequest(input, "video.mp4", format, quality, videoFilter),
+            onProgress,
+        )
     }
 
     @Test
@@ -108,6 +112,24 @@ class VideoConvertRepositoryTest {
             assertEquals(listOf("-hide_banner", "-i", "input", "-map", "0:v:0", "-map", "0:a:0?",
                 *videoArgs, *audioArgs, "-f", container, "output"), f.arguments)
         }
+    }
+
+    @Test
+    fun videoFilterIsInsertedBeforeEncodingArguments() = runBlocking {
+        val f = Fixture()
+        assertTrue(f.convert(videoFilter = "crop=w=640:h=480:x=0:y=0") is VideoConvertResult.Success)
+        assertEquals(listOf("-hide_banner", "-i", "input", "-map", "0:v:0", "-map", "0:a:0?",
+            "-vf", "crop=w=640:h=480:x=0:y=0",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+            "-maxrate", "4000k", "-bufsize", "8000k",
+            "-c:a", "aac", "-b:a", "128k", "-f", "mp4", "output"), f.arguments)
+    }
+
+    @Test
+    fun blankVideoFilterIsOmitted() = runBlocking {
+        val f = Fixture()
+        assertTrue(f.convert(videoFilter = "") is VideoConvertResult.Success)
+        assertFalse(f.arguments.contains("-vf"))
     }
 
     @Test

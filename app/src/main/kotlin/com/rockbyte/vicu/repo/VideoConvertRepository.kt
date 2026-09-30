@@ -79,6 +79,7 @@ internal data class SourceVideoInfo(val bitrateKbps: Int?, val durationMs: Long?
  * crf 固定档：质量最好 16 / 平衡 23 / 体积最小 34；「最合适」= 平衡档 crf + 源码率封顶
  * （不比源更糊，也不为模糊的源浪费体积），探测失败回退纯平衡档。
  * AVI（mpeg4 无 crf）：固定档用 q:v 2/4/12，「最合适」直接按源码率做目标码率。
+ * 可选 [VideoConvertRequest.videoFilter] 以 `-vf` 插在 `-map` 之后，供裁剪等滤镜复用同一管线。
  */
 internal fun converterArguments(
     request: VideoConvertRequest,
@@ -136,9 +137,12 @@ internal fun converterArguments(
             container = "avi"
         }
     }
+    val filterArgs = request.videoFilter?.takeIf { it.isNotEmpty() }
+        ?.let { arrayOf("-vf", it) } ?: emptyArray()
     return arrayOf(
         "-hide_banner", "-i", input,
         "-map", "0:v:0", "-map", "0:a:0?",
+        *filterArgs,
         *videoArgs, *audioArgs,
         "-f", container, output,
     )

@@ -19,13 +19,15 @@ fun PlayerEffect.Crop.normalized(): PlayerEffect.Crop = PlayerEffect.Crop(
     height = (height.coerceAtLeast(2)) / 2 * 2,
 )
 
+/** 单个 crop 的滤镜表达式（预览链与导出共用同一字符串，保证所见即所得）。 */
+fun PlayerEffect.Crop.toVideoFilter(): String {
+    val n = normalized()
+    return "crop=w=${n.width}:h=${n.height}:x=${n.left}:y=${n.top}"
+}
+
 /** 预览滤镜链：crop 依列表顺序逗号连接；trim 不进链。空串表示无滤镜（直通）。 */
 internal fun List<PlayerEffect>.toPreviewFilterChain(): String =
-    filterIsInstance<PlayerEffect.Crop>()
-        .joinToString(",") { c ->
-            val n = c.normalized()
-            "crop=w=${n.width}:h=${n.height}:x=${n.left}:y=${n.top}"
-        }
+    filterIsInstance<PlayerEffect.Crop>().joinToString(",") { it.toVideoFilter() }
 
 /** 导出参数（输出侧 seek）：trim → `-ss start -to end`（毫秒），crop → `-vf` 滤镜链。 */
 internal fun List<PlayerEffect>.toExportArguments(): Array<String> {

@@ -33,4 +33,10 @@
     <dimen name="vicu_player_progress_track_height">4dp</dimen>
     <dimen name="vicu_player_progress_thumb_size">12dp</dimen>
     <dimen name="vicu_player_progress_touch_height">32dp</dimen>
+
+    <dimen name="vicu_crop_handle_size">16dp</dimen>
+    <dimen name="vicu_crop_border_width">2dp</dimen>
+    <dimen name="vicu_crop_dash_length">8dp</dimen>
+    <dimen name="vicu_crop_dash_gap">6dp</dimen>
+    <dimen name="vicu_crop_handle_touch_radius">24dp</dimen>
 </resources>

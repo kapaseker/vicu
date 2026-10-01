@@ -1,4 +1,5 @@
 #include "player_core.h"
+#include "frame_upload.h"
 
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
@@ -47,6 +48,7 @@ typedef struct RendererState {
     GLuint tex_v;
     GLint a_position;
     GLint a_texcoord;
+    FrameUploadBuffer upload;
     bool egl_ready;
 } RendererState;
 
@@ -140,6 +142,7 @@ static bool renderer_init(RendererState *r, ANativeWindow *window) {
     }
 
     glDisable(GL_DEPTH_TEST);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     r->egl_ready = true;
     return true;
 }
@@ -167,27 +170,32 @@ static void renderer_destroy(RendererState *r) {
         ANativeWindow_release(r->window);
         r->window = NULL;
     }
+    frame_upload_release(&r->upload);
     r->egl_ready = false;
 }
 
 /** 上传三平面并按保持宽高比的 letterbox 绘制。 */
-static bool renderer_draw(RendererState *r, AVFrame *frame) {
-    if (!r->egl_ready) return false;
+static int renderer_draw(RendererState *r, AVFrame *frame) {
+    if (!r->egl_ready) return 0;
     int win_w = ANativeWindow_getWidth(r->window);
     int win_h = ANativeWindow_getHeight(r->window);
+    int rc = frame_upload_prepare(&r->upload, frame);
+    if (rc < 0) return rc;
+    int chroma_w = (frame->width + 1) / 2;
+    int chroma_h = (frame->height + 1) / 2;
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, r->tex_y);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, frame->width, frame->height, 0,
-                 GL_LUMINANCE, GL_UNSIGNED_BYTE, frame->data[0]);
+                 GL_LUMINANCE, GL_UNSIGNED_BYTE, r->upload.planes[0]);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, r->tex_u);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, frame->width / 2, frame->height / 2, 0,
-                 GL_LUMINANCE, GL_UNSIGNED_BYTE, frame->data[1]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, chroma_w, chroma_h, 0,
+                 GL_LUMINANCE, GL_UNSIGNED_BYTE, r->upload.planes[1]);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, r->tex_v);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, frame->width / 2, frame->height / 2, 0,
-                 GL_LUMINANCE, GL_UNSIGNED_BYTE, frame->data[2]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, chroma_w, chroma_h, 0,
+                 GL_LUMINANCE, GL_UNSIGNED_BYTE, r->upload.planes[2]);
 
     double aspect = (double) frame->width / frame->height;
     if (frame->sample_aspect_ratio.num && frame->sample_aspect_ratio.den) {
@@ -331,11 +339,18 @@ void *render_thread_func(void *arg) {
         void *owned = queue_pop_stamped(&ctx->frame_queue, stamp, &ctx->abort_request);
         if (owned) {
             AVFrame *drawn = owned;
-            if (!renderer_draw(&rs, drawn)) {
+            int draw_result = renderer_draw(&rs, drawn);
+            av_frame_free(&drawn);
+            if (draw_result < 0) {
+                char message[AV_ERROR_MAX_STRING_SIZE] = {0};
+                av_strerror(draw_result, message, sizeof(message));
+                if (ctx->callbacks.on_error) ctx->callbacks.on_error(ctx->user, draw_result, message);
+                break;
+            }
+            if (draw_result == 0) {
                 // Surface 销毁/替换可以让 swap 短暂失败；释放 EGL 并在下轮重绑，不上报永久播放错误
                 renderer_destroy(&rs);
             }
-            av_frame_free(&drawn);
             // 进度回报节流（200ms）
             if (report_epoch != stamp) {
                 report_epoch = stamp;

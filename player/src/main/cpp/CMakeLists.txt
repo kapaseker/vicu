@@ -21,6 +21,7 @@ add_library(vicuplayer SHARED
         player/video_decoder.c
         player/audio_decoder.c
         player/filter_graph.c
+        player/frame_upload.c
         player/renderer.c)
 
 target_include_directories(vicuplayer PRIVATE ${FFMPEG_INCLUDE_DIR})
@@ -36,3 +37,11 @@ target_link_libraries(vicuplayer
         log
         EGL
         GLESv2)
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_executable(frame_upload_test
+            ../../test/cpp/frame_upload_test.c
+            player/frame_upload.c)
+    target_include_directories(frame_upload_test PRIVATE ${FFMPEG_INCLUDE_DIR})
+    target_link_libraries(frame_upload_test avutil)
+endif()

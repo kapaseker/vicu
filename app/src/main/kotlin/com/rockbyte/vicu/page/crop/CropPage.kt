@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -554,6 +555,7 @@ private fun CropHandle(
         modifier = Modifier
             .offset { offsetPx }
             .size(boxSize)
+            .then(if (enabled && edge.isHorizontal) Modifier.systemGestureExclusion() else Modifier)
             .pointerInput(edge, enabled) {
                 if (!enabled) return@pointerInput
                 if (edge.isHorizontal) {

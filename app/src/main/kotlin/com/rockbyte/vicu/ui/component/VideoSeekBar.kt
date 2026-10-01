@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -50,6 +51,7 @@ fun VideoSeekBar(
         modifier = Modifier
             .fillMaxWidth()
             .height(VicuTheme.dimensions.playerProgressTouchHeight)
+            .then(if (enabled && durationMs > 0) Modifier.systemGestureExclusion() else Modifier)
             .onSizeChanged { trackWidthPx = it.width.toFloat() }
             .alpha(if (enabled) VicuTheme.alpha.full else VicuTheme.alpha.disabled)
             .pointerInput(enabled, durationMs) {

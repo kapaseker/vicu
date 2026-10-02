@@ -1,6 +1,7 @@
 package com.rockbyte.vicu.repo
 
 import android.net.Uri
+import com.rockbyte.vicu.player.PlayerEffect
 
 enum class VideoConvertFormat(val mime: String, val extension: String) {
     MP4("video/mp4", "mp4"),
@@ -26,6 +27,8 @@ data class VideoConvertRequest(
     val quality: VideoConvertQuality,
     /** 输出视频滤镜链（如裁剪 `crop=w:h:x:y`）；null 表示无滤镜。 */
     val videoFilter: String? = null,
+    /** 可选截取区间，以源视频的毫秒时间为基准。 */
+    val trim: PlayerEffect.Trim? = null,
 )
 
 sealed interface VideoConvertResult {
@@ -34,6 +37,6 @@ sealed interface VideoConvertResult {
 }
 
 interface VideoConvertRepo {
-    /** 转码整段视频并发布到媒体库；取消时回滚并传播取消信号。[onProgress] 在转码期间以 0..1 进度回调（FFmpeg 线程）。 */
+    /** 转码视频或所选段落并发布到媒体库；取消时回滚并传播取消信号。[onProgress] 在转码期间以 0..1 进度回调（FFmpeg 线程）。 */
     suspend fun convert(request: VideoConvertRequest, onProgress: (Float) -> Unit = {}): VideoConvertResult
 }

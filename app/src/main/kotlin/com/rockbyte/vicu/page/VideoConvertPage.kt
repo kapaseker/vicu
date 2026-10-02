@@ -20,7 +20,7 @@ import com.rockbyte.vicu.repo.VideoConvertError
 import com.rockbyte.vicu.repo.VideoConvertFormat
 import com.rockbyte.vicu.repo.VideoConvertQuality
 import com.rockbyte.vicu.ui.component.OutlineButton
-import com.rockbyte.vicu.ui.component.PrimaryIconButton
+import com.rockbyte.vicu.ui.component.PrimaryButton
 import com.rockbyte.vicu.ui.component.ProgressButton
 import com.rockbyte.vicu.ui.component.RadioOptionGroup
 import com.rockbyte.vicu.ui.component.StatusRow
@@ -103,8 +103,7 @@ private fun VideoConvertContent(
                             modifier = Modifier.weight(1f),
                         )
                     } else {
-                        PrimaryIconButton(
-                            icon = R.drawable.ic_transfer,
+                        PrimaryButton(
                             text = convertButtonText(state.phase),
                             onClick = onConvert,
                             modifier = Modifier.weight(1f),
@@ -181,7 +180,7 @@ private fun convertButtonText(phase: ConvertPhase): String = stringResource(
         is ConvertPhase.Complete -> R.string.convert_success
         is ConvertPhase.Failed -> R.string.convert_failed_retry
         is ConvertPhase.Converting -> R.string.converting
-        else -> R.string.video_convert
+        else -> R.string.confirm
     }
 )
 

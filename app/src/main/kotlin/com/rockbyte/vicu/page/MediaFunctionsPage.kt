@@ -4,7 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
@@ -31,12 +30,11 @@ import com.rockbyte.vicu.R
 import com.rockbyte.vicu.repo.MediaKind
 import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.ui.component.VicuScaffold
-import com.rockbyte.vicu.ui.component.iconRes
 import com.rockbyte.vicu.ui.theme.VicuTheme
 
 /**
  * 媒体功能列表页：所有多媒体点击后进入。
- * 标题与功能集随媒体类型变化；视频提供「播放」「裁剪」「导出音频」「视频转换」入口，音频提供「音频转换」入口，图片展示敬请期待占位。
+ * 标题与功能集随媒体类型变化；视频提供「播放」「裁剪」「截取视频」「导出音频」「视频转换」入口，音频提供「音频转换」入口，图片提供「裁剪图片」入口。
  */
 @Composable
 fun MediaFunctionsPage(
@@ -46,6 +44,8 @@ fun MediaFunctionsPage(
     onConvertAudio: () -> Unit,
     onPlayVideo: () -> Unit,
     onCropVideo: () -> Unit,
+    onTrimVideo: () -> Unit,
+    onCropImage: () -> Unit,
     onBack: () -> Unit,
 ) {
     VicuScaffold(
@@ -54,9 +54,11 @@ fun MediaFunctionsPage(
     ) {
         when (media.kind) {
             MediaKind.VIDEO ->
-                VideoFunctionsContent(media.name, onPlayVideo, onCropVideo, onExportAudio, onConvertVideo)
+                VideoFunctionsContent(media.name, onPlayVideo, onCropVideo, onTrimVideo, onExportAudio, onConvertVideo)
             MediaKind.AUDIO -> AudioFunctionsContent(media.name, onConvertAudio)
-            MediaKind.IMAGE -> ComingSoonContent(media.kind)
+            MediaKind.IMAGE -> BasicDescriptionContent(media.name, R.string.functions_description_image) {
+                FunctionGrid(listOf(FunctionEntry(R.drawable.ic_crop, R.string.image_crop, onCropImage)))
+            }
         }
     }
 }
@@ -82,6 +84,7 @@ private fun VideoFunctionsContent(
     name: String,
     onPlayVideo: () -> Unit,
     onCropVideo: () -> Unit,
+    onTrimVideo: () -> Unit,
     onExportAudio: () -> Unit,
     onConvertVideo: () -> Unit,
 ) {
@@ -90,6 +93,7 @@ private fun VideoFunctionsContent(
             listOf(
                 FunctionEntry(R.drawable.ic_play, R.string.video_play, onPlayVideo),
                 FunctionEntry(R.drawable.ic_crop, R.string.video_crop, onCropVideo),
+                FunctionEntry(R.drawable.ic_cut, R.string.video_trim, onTrimVideo),
                 FunctionEntry(R.drawable.ic_audio, R.string.export_audio, onExportAudio),
                 FunctionEntry(R.drawable.ic_transfer, R.string.video_convert, onConvertVideo),
             ),
@@ -189,30 +193,6 @@ private fun FunctionTile(
     }
 }
 
-@Composable
-private fun ComingSoonContent(kind: MediaKind) {
-    Box(Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(horizontal = VicuTheme.dimensions.screenGutter),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit * 2),
-        ) {
-            Image(
-                painter = painterResource(kind.iconRes),
-                contentDescription = null,
-                modifier = Modifier.size(VicuTheme.dimensions.iconLarge),
-                colorFilter = ColorFilter.tint(VicuTheme.colors.onSurfaceVariant),
-            )
-            BasicText(
-                stringResource(R.string.coming_soon),
-                style = VicuTheme.typography.bodyLg.copy(color = VicuTheme.colors.onSurfaceVariant),
-            )
-        }
-    }
-}
-
 @Preview(showBackground = true)
 @Composable
 private fun MediaFunctionsPageVideoPreview() {
@@ -228,6 +208,8 @@ private fun MediaFunctionsPageVideoPreview() {
             onConvertAudio = {},
             onPlayVideo = {},
             onCropVideo = {},
+            onTrimVideo = {},
+            onCropImage = {},
             onBack = {},
         )
     }
@@ -248,6 +230,8 @@ private fun MediaFunctionsPageAudioPreview() {
             onConvertAudio = {},
             onPlayVideo = {},
             onCropVideo = {},
+            onTrimVideo = {},
+            onCropImage = {},
             onBack = {},
         )
     }
@@ -255,7 +239,7 @@ private fun MediaFunctionsPageAudioPreview() {
 
 @Preview(showBackground = true)
 @Composable
-private fun MediaFunctionsPageComingSoonPreview() {
+private fun MediaFunctionsPageImagePreview() {
     VicuTheme {
         MediaFunctionsPage(
             media = SelectedMedia(
@@ -268,6 +252,8 @@ private fun MediaFunctionsPageComingSoonPreview() {
             onConvertAudio = {},
             onPlayVideo = {},
             onCropVideo = {},
+            onTrimVideo = {},
+            onCropImage = {},
             onBack = {},
         )
     }

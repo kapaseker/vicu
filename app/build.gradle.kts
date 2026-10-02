@@ -13,7 +13,13 @@ android {
         minSdk = libs.versions.sdk.min.get().toInt()
         versionCode = libs.versions.version.code.get().toInt()
         versionName = libs.versions.version.name.get()
+        testInstrumentationRunner = "android.test.InstrumentationTestRunner"
+        testInstrumentationRunnerArguments["package"] = "com.rockbyte.vicu"
     }
+
+    // Platform test runner: real ImageDecoder/MediaStore coverage without a new test dependency.
+    useLibrary("android.test.runner", false)
+    useLibrary("android.test.base", false)
 
     signingConfigs {
         create("app") {

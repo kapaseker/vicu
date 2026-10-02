@@ -1,6 +1,7 @@
 package com.rockbyte.vicu.repo
 
 import android.net.Uri
+import com.rockbyte.vicu.player.PlayerEffect
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
@@ -71,6 +72,41 @@ class VideoConvertRepositoryTest {
             VideoConvertRequest(input, "video.mp4", format, quality, videoFilter),
             onProgress,
         )
+    }
+
+    @Test
+    fun trimUsesOutputSeekAndSegmentDurationForProgress() = runBlocking {
+        val f = Fixture()
+        f.source = SourceVideoInfo(4000, 10000)
+        f.timeReportsMs = listOf(1000, 2000, 4500)
+        val progress = mutableListOf<Float>()
+        val request = VideoConvertRequest(f.input, "video.mp4", VideoConvertFormat.MP4,
+            VideoConvertQuality.SUITABLE, trim = PlayerEffect.Trim(3000, 7000))
+        assertTrue(f.repo.convert(request, progress::add) is VideoConvertResult.Success)
+        assertEquals(listOf(0.25f, 0.5f, 1f), progress)
+        assertEquals(listOf("-ss", "3000ms", "-t", "4000ms"),
+            f.arguments.drop(f.arguments.indexOf("-ss")).take(4))
+        assertTrue(f.arguments.indexOf("-ss") > f.arguments.indexOf("-i"))
+        assertEquals(listOf("probe", "create", "execute", "publish"), f.events)
+    }
+
+    @Test
+    fun invalidTrimNeverCreatesOutput() = runBlocking {
+        for (trim in listOf(PlayerEffect.Trim(-1, 500), PlayerEffect.Trim(500, 500),
+            PlayerEffect.Trim(600, 500), PlayerEffect.Trim(0, 11000))) {
+            val f = Fixture()
+            f.source = SourceVideoInfo(4000, 10000)
+            val request = VideoConvertRequest(f.input, "video.mp4", VideoConvertFormat.MP4,
+                VideoConvertQuality.SUITABLE, trim = trim)
+            assertTrue(f.repo.convert(request) is VideoConvertResult.Failure)
+            assertFalse(f.events.contains("create"))
+            assertFalse(f.events.contains("execute"))
+        }
+        val f = Fixture()
+        f.source = null
+        assertTrue(f.repo.convert(VideoConvertRequest(f.input, "video.mp4", VideoConvertFormat.MP4,
+            VideoConvertQuality.SUITABLE, trim = PlayerEffect.Trim(0, 1000))) is VideoConvertResult.Failure)
+        assertFalse(f.events.contains("create"))
     }
 
     @Test

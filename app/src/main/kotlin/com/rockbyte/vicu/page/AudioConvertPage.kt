@@ -20,7 +20,7 @@ import com.rockbyte.vicu.repo.AudioConvertFormat
 import com.rockbyte.vicu.repo.AudioConvertQuality
 import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.ui.component.OutlineButton
-import com.rockbyte.vicu.ui.component.PrimaryIconButton
+import com.rockbyte.vicu.ui.component.PrimaryButton
 import com.rockbyte.vicu.ui.component.ProgressButton
 import com.rockbyte.vicu.ui.component.RadioOptionGroup
 import com.rockbyte.vicu.ui.component.StatusRow
@@ -103,8 +103,7 @@ private fun AudioConvertContent(
                             modifier = Modifier.weight(1f),
                         )
                     } else {
-                        PrimaryIconButton(
-                            icon = R.drawable.ic_transfer,
+                        PrimaryButton(
                             text = convertButtonText(state.phase),
                             onClick = onConvert,
                             modifier = Modifier.weight(1f),
@@ -181,7 +180,7 @@ private fun convertButtonText(phase: AudioConvertPhase): String = stringResource
         is AudioConvertPhase.Complete -> R.string.convert_success
         is AudioConvertPhase.Failed -> R.string.convert_failed_retry
         is AudioConvertPhase.Converting -> R.string.converting
-        else -> R.string.audio_convert
+        else -> R.string.confirm
     }
 )
 

@@ -100,12 +100,33 @@ class PlayerViewModel(private val playerRepo: PlayerRepo) : ViewModel() {
                 uiState.update { it.copy(playing = false, phase = PlayerPhase.Paused) }
             }
             PlayerPhase.Paused -> {
+                uiState.value.trim?.let { trim ->
+                    if (uiState.value.positionMs >= trim.endMs) seekTo(trim.startMs)
+                }
                 playerRepo.play()
                 uiState.update { it.copy(playing = true, phase = PlayerPhase.Playing) }
             }
-            PlayerPhase.Ended -> replay()
+            PlayerPhase.Ended -> {
+                val trim = uiState.value.trim
+                if (trim == null) replay() else {
+                    previewAt(trim.startMs)
+                    togglePlayPause()
+                }
+            }
             else -> Unit
         }
+    }
+
+    /** 编辑端点/导出前暂停，Ended 态也先暂停引擎，防止 seek 自动起播。 */
+    fun pause() {
+        playerRepo.pause()
+        resetScrub()
+        uiState.update { it.copy(playing = false, phase = if (it.phase in setOf(PlayerPhase.Playing, PlayerPhase.Ended)) PlayerPhase.Paused else it.phase) }
+    }
+
+    fun previewAt(positionMs: Long) {
+        pause()
+        seekTo(positionMs)
     }
 
     fun replay() {

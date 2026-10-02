@@ -2,9 +2,15 @@ package com.rockbyte.vicu.di
 
 import com.rockbyte.vicu.page.AudioConvertViewModel
 import com.rockbyte.vicu.page.AudioExportViewModel
+import com.rockbyte.vicu.page.imagecrop.ImageCropViewModel
+import com.rockbyte.vicu.repo.ImageCropRepo
+import com.rockbyte.vicu.repo.ImageCropRepository
+import com.rockbyte.vicu.repo.ImageCropStore
+import com.rockbyte.vicu.repo.ImageCropStorage
 import com.rockbyte.vicu.page.HomeViewModel
 import com.rockbyte.vicu.page.VideoConvertViewModel
 import com.rockbyte.vicu.page.crop.CropViewModel
+import com.rockbyte.vicu.page.trim.TrimViewModel
 import com.rockbyte.vicu.page.player.PlayerViewModel
 import com.rockbyte.vicu.repo.AudioConvertRepo
 import com.rockbyte.vicu.repo.AudioConvertRepository
@@ -34,6 +40,11 @@ import org.koin.dsl.module
 
 val appModule = module {
     single<MediaLibraryStore> { MediaLibraryStorage(androidContext()) }
+    single<ImageCropStore> {
+        ImageCropStorage(androidContext().contentResolver, System::currentTimeMillis) { Runtime.getRuntime().maxMemory() }
+    }
+    single<ImageCropRepo> { ImageCropRepository(get()) }
+    viewModel { ImageCropViewModel(get()) }
     single<MediaRepo> { MediaRepository(androidContext().contentResolver, get()) }
     single<AudioEncoder> { FFmpegAudioEncoder(androidContext()) }
     single<AudioOutputStore> { AudioOutputStorage(androidContext().contentResolver, System::currentTimeMillis) }
@@ -50,4 +61,5 @@ val appModule = module {
     viewModel { AudioConvertViewModel(get()) }
     viewModel { PlayerViewModel(get()) }
     viewModel { CropViewModel(get()) }
+    viewModel { TrimViewModel(get()) }
 }

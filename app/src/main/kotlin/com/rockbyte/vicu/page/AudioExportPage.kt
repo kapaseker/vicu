@@ -20,7 +20,7 @@ import com.rockbyte.vicu.repo.AudioExportFormat
 import com.rockbyte.vicu.repo.AudioExportQuality
 import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.ui.component.OutlineButton
-import com.rockbyte.vicu.ui.component.PrimaryIconButton
+import com.rockbyte.vicu.ui.component.PrimaryButton
 import com.rockbyte.vicu.ui.component.ProgressButton
 import com.rockbyte.vicu.ui.component.RadioOptionGroup
 import com.rockbyte.vicu.ui.component.StatusRow
@@ -103,8 +103,7 @@ private fun AudioExportContent(
                             modifier = Modifier.weight(1f),
                         )
                     } else {
-                        PrimaryIconButton(
-                            icon = R.drawable.ic_export,
+                        PrimaryButton(
                             text = exportButtonText(phase),
                             onClick = onExport,
                             modifier = Modifier.weight(1f),
@@ -179,7 +178,7 @@ private fun exportButtonText(phase: ExportPhase): String = stringResource(
         is ExportPhase.Complete -> R.string.export_success
         is ExportPhase.Failed -> R.string.export_failed_retry
         is ExportPhase.Exporting -> R.string.exporting
-        else -> R.string.export_audio
+        else -> R.string.confirm
     }
 )
 

@@ -310,8 +310,9 @@ void *render_thread_func(void *arg) {
             continue;
         }
 
-        // 播放区间终点（trim 预览）：到点即停（帧不上屏），等 seek 复位
-        if (pts_us >= atomic_load_explicit(&ctx->play_end_us, memory_order_relaxed)) {
+        // 正式播放到区间终点即停；暂停 seek 允许显示端点帧，供截取选区预览。
+        if (pts_us >= atomic_load_explicit(&ctx->play_end_us, memory_order_relaxed) &&
+            atomic_load(&ctx->state) != PLAYER_PAUSED) {
             report_ended(ctx, stamp);
             // 该队列此时尚未 EOF，等 seek/flush 改变代际，避免反复检查同一帧忙循环
             if (!queue_wait_stamp_change(&ctx->frame_queue, stamp, &ctx->abort_request)) break;

@@ -21,17 +21,30 @@ internal class VideoConvertRepository(
         try {
             return withContext(Dispatchers.IO) {
                 currentCoroutineContext().ensureActive()
-                val destination = outputStore.create(request.displayName, request.format)
-                output = destination
-                failureType = VideoConvertError.Unknown
-                currentCoroutineContext().ensureActive()
-                val source = try {
+                suspend fun probeSource() = try {
                     converter.probe(request.uri)
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
                     null
                 }
+                val trimSource = if (request.trim != null) {
+                    failureType = VideoConvertError.Unknown
+                    val source = probeSource()
+                    val duration = source?.durationMs ?: 0L
+                    val trim = request.trim
+                    require(duration > 0 && trim.startMs >= 0 && trim.startMs < trim.endMs && trim.endMs <= duration) {
+                        "Invalid trim range or unknown source duration"
+                    }
+                    source
+                } else null
+                currentCoroutineContext().ensureActive()
+                failureType = VideoConvertError.OutputCreationFailed
+                val destination = outputStore.create(request.displayName, request.format)
+                output = destination
+                failureType = VideoConvertError.Unknown
+                currentCoroutineContext().ensureActive()
+                val source = trimSource ?: probeSource()
                 currentCoroutineContext().ensureActive()
                 val arguments = converterArguments(
                     request, source, converter.inputUrl(request.uri), converter.outputUrl(destination),
@@ -40,8 +53,8 @@ internal class VideoConvertRepository(
                 var lastPermille = -1
                 check(
                     converter.execute(arguments) { timeMs ->
-                        // 进度 = 已转码时间 / 源时长；按 0.1% 粒度去重，避免统计回调高频触发上层刷新
-                        val durationMs = source?.durationMs ?: 0L
+                        // 进度 = 已转码时间 / 输出段落时长；按 0.1% 粒度去重，避免统计回调高频触发上层刷新
+                        val durationMs = request.trim?.let { it.endMs - it.startMs } ?: source?.durationMs ?: 0L
                         if (durationMs > 0) {
                             val permille = (timeMs * 1000 / durationMs).toInt().coerceIn(0, 1000)
                             if (permille != lastPermille) {
@@ -139,8 +152,12 @@ internal fun converterArguments(
     }
     val filterArgs = request.videoFilter?.takeIf { it.isNotEmpty() }
         ?.let { arrayOf("-vf", it) } ?: emptyArray()
+    val trimArgs = request.trim?.let {
+        arrayOf("-ss", "${it.startMs}ms", "-t", "${it.endMs - it.startMs}ms")
+    } ?: emptyArray()
     return arrayOf(
         "-hide_banner", "-i", input,
+        *trimArgs,
         "-map", "0:v:0", "-map", "0:a:0?",
         *filterArgs,
         *videoArgs, *audioArgs,

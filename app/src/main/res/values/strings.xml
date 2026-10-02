@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="confirm">确认</string>
     <string name="app_name">Vicu</string>
     <string name="app_title">导出音频</string>
     <string name="screen_description">从视频中提取音频，支持导出为原声、MP3 或 M4A 格式。</string>
@@ -80,4 +81,31 @@
     <string name="crop_failed_retry">裁剪失败，重试</string>
     <string name="crop_complete">已保存到 Movies/FFmpegKitNext 文件夹。</string>
     <string name="crop_failed">裁剪失败：%1$s</string>
+    <string name="video_trim">截取视频</string>
+    <string name="trim_start">开始时间（秒）</string>
+    <string name="trim_end">结束时间（秒）</string>
+    <string name="trimming">截取中…</string>
+    <string name="trim_retry">截取失败，重试</string>
+    <string name="trim_complete">已保存到 Movies/FFmpegKitNext 文件夹。</string>
+    <string name="trim_failed">截取失败：%1$s</string>
+    <string name="trim_error_empty">请输入开始和结束时间</string>
+    <string name="trim_error_format">请输入秒数，最多保留三位小数</string>
+    <string name="trim_error_bounds">时间必须在视频时长范围内</string>
+    <string name="trim_error_order">开始时间必须小于结束时间</string>
+    <string name="image_crop">裁剪图片</string>
+    <string name="functions_description_image">选择要对图片文件 %1$s 执行的操作。</string>
+    <string name="image_crop_preview">待裁剪图片</string>
+    <string name="image_crop_dimensions">原图 %1$d × %2$d · 裁剪 %3$d × %4$d</string>
+    <string name="image_crop_loading">正在加载图片…</string>
+    <string name="image_crop_saving">正在裁剪并保存…</string>
+    <string name="image_crop_complete">已保存到 Pictures/Vicu 文件夹。</string>
+    <string name="image_crop_error_load">无法加载图片，请返回后重新选择。</string>
+    <string name="image_crop_error_animation">暂不支持裁剪动画图片。</string>
+    <string name="image_crop_error_large">图片过大，超出可用内存预算，无法保留原始像素裁剪。</string>
+    <string name="image_crop_error_crop">图片裁剪失败，请重试。</string>
+    <string name="image_crop_error_save">图片保存失败，请重试。</string>
+    <string name="crop_edge_left">裁剪框左边</string>
+    <string name="crop_edge_top">裁剪框上边</string>
+    <string name="crop_edge_right">裁剪框右边</string>
+    <string name="crop_edge_bottom">裁剪框下边</string>
 </resources>

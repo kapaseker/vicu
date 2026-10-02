@@ -237,6 +237,21 @@ class PlayerViewModelTest {
         assertEquals(PlayerPhase.Playing, viewModel.uiState.value.phase)
     }
 
+    @Test fun endpointPreviewFromEndedStaysPausedAndPlayRestartsSelectedRange() {
+        val vm = PlayerViewModel(repo)
+        vm.onEventForTest(PlayerEvent.Prepared(1920, 1080, 10000))
+        vm.setTrim(PlayerEffect.Trim(2000, 7000))
+        vm.onEventForTest(PlayerEvent.Ended)
+        vm.previewAt(7000)
+        assertEquals(false, vm.uiState.value.playing)
+        assertEquals(PlayerPhase.Paused, vm.uiState.value.phase)
+        assertEquals(7000L, repo.seekCalls.last())
+        assertEquals(0, repo.playCalls)
+        vm.togglePlayPause()
+        assertEquals(2000L, repo.seekCalls.last())
+        assertEquals(1, repo.playCalls)
+    }
+
     /** 经 fake 事件流注入事件（模拟 native 回调链路）。 */
     private fun PlayerViewModel.onEventForTest(event: PlayerEvent) {
         dispatcher.scheduler.runCurrent()

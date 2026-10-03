@@ -108,4 +108,16 @@
     <string name="crop_edge_top">裁剪框上边</string>
     <string name="crop_edge_right">裁剪框右边</string>
     <string name="crop_edge_bottom">裁剪框下边</string>
+    <string name="audio_trim">音频截取</string>
+    <string name="audio_trim_file">音频：%1$s</string>
+    <string name="audio_trim_position">%1$s / %2$s 秒</string>
+    <string name="audio_trim_precision">保留原格式，截取边界可能有少量偏差。</string>
+    <string name="audio_trim_loading">正在读取音频…</string>
+    <string name="audio_trim_preview_failed">无法试听此音频，仍可选择区间并截取。</string>
+    <string name="audio_trim_error_probe">无法读取音频信息或时长，请返回后重新选择。</string>
+    <string name="audio_trim_error_format">暂不支持此音频格式，仅支持 MP3、M4A、WAV、FLAC、OGG。</string>
+    <string name="audio_trim_error_bounds">时间必须在音频时长范围内</string>
+    <string name="audio_trim_error_create">无法创建截取文件</string>
+    <string name="audio_trim_error_export">音频截取失败</string>
+    <string name="audio_trim_error_publish">无法保存截取文件到媒体库</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.rockbyte.vicu.page.trim
 
+import com.rockbyte.vicu.ui.component.trim.TrimInputError
 import android.net.Uri
 import com.rockbyte.vicu.player.PlayerEffect
 import com.rockbyte.vicu.repo.MediaKind

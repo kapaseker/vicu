@@ -9,7 +9,7 @@ class FFmpegAudioEncoderTest {
         assertArrayEquals(
             arrayOf(
                 "-v", "error", "-select_streams", "a:0",
-                "-show_entries", "stream=codec_name,bit_rate,sample_fmt:format=duration",
+                "-show_entries", "stream=codec_name,bit_rate,sample_fmt:format=duration,format_name:format_tags=major_brand",
                 "-of", "default=nokey=0:noprint_wrappers=1", "input",
             ),
             probeAudioArguments("input"),
@@ -47,6 +47,24 @@ class FFmpegAudioEncoderTest {
         assertNull(parseAudioProbeOutput("codec_name=aac\nbit_rate=69447\nduration=N/A")?.durationMs)
         assertNull(parseAudioProbeOutput("codec_name=aac\nbit_rate=69447\nduration=0")?.durationMs)
         assertNull(parseAudioProbeOutput("codec_name=aac\nbit_rate=69447")?.durationMs)
+    }
+
+    @Test
+    fun containerIsParsedAndNonFiniteDurationIsRejected() {
+        val info = parseAudioProbeOutput("codec_name=opus\nformat_name=ogg\nduration=6.000")!!
+        assertEquals("ogg", info.containerName)
+        assertEquals(6000L, info.durationMs)
+        assertEquals("M4A", parseAudioProbeOutput("codec_name=aac\nTAG:major_brand=M4A ")!!.containerBrand)
+        assertNull(parseAudioProbeOutput("codec_name=aac\nduration=Infinity")?.durationMs)
+    }
+
+    @Test
+    fun packetOffsetsAreParsedAndEmptyOrUnseekablePacketsAreRejected() {
+        assertEquals(listOf(AudioPacketInfo(8288, 512), AudioPacketInfo(8800, 400)), parseAudioPackets(
+            "[PACKET]\nsize=512\npos=8288\n[/PACKET]\n[PACKET]\npos=8800\nsize=400\n[/PACKET]"))
+        for (output in listOf("", "[PACKET]\npos=N/A\nsize=10\n[/PACKET]", "[PACKET]\npos=1\nsize=0\n[/PACKET]")) {
+            try { parseAudioPackets(output); fail("Expected packet rejection") } catch (_: IllegalStateException) { }
+        }
     }
 
     @Test

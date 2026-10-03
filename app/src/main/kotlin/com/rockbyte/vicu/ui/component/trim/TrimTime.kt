@@ -1,4 +1,4 @@
-package com.rockbyte.vicu.page.trim
+package com.rockbyte.vicu.ui.component.trim
 
 internal enum class TrimInputError { EMPTY, FORMAT, OUT_OF_BOUNDS, ORDER }
 

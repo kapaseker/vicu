@@ -88,17 +88,20 @@ internal class AudioExportRepository(
         }
     }
 }
-/** 源音频探测结果：codec 仅用于原声直拷判断，码率用于质量档封顶，采样格式用于 WAV 位深匹配，时长仅用于进度换算。 */
+/** 源音频信息：编码与容器用于原格式截取，码率与采样格式用于转换，时长用于选段及进度。 */
 internal data class SourceAudioInfo(
     val codec: String?,
     val bitrateKbps: Int?,
     val durationMs: Long? = null,
     val sampleFmt: String? = null,
+    val containerName: String? = null,
+    val containerBrand: String? = null,
 )
 
 /** 同步调用返回后不得继续写入输出。[execute] 的 onTimeMs 在 FFmpeg 线程回调（已处理毫秒数）。 */
 internal interface AudioEncoder {
     fun probe(uri: Uri): SourceAudioInfo?
+    fun packets(uri: Uri, firstOnly: Boolean = false): List<AudioPacketInfo> = error("Packet inspection unavailable")
     fun inputUrl(uri: Uri): String
     fun outputUrl(uri: Uri): String
     fun execute(arguments: Array<String>, onTimeMs: (Long) -> Unit): Boolean

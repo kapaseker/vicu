@@ -13,6 +13,7 @@ import com.rockbyte.vicu.page.VideoConvertPage
 import com.rockbyte.vicu.page.imagecrop.ImageCropPage
 import com.rockbyte.vicu.page.crop.CropPage
 import com.rockbyte.vicu.page.trim.TrimPage
+import com.rockbyte.vicu.page.audiotrim.AudioTrimPage
 import com.rockbyte.vicu.page.player.PlayerPage
 import com.rockbyte.vicu.repo.SelectedMedia
 import kotlinx.serialization.Serializable
@@ -64,6 +65,10 @@ data class ImageCropRoute(val media: SelectedMedia) : NavKey
 @Serializable
 data class TrimRoute(val media: SelectedMedia) : NavKey
 
+/** 音频截取目的地。 */
+@Serializable
+data class AudioTrimRoute(val media: SelectedMedia) : NavKey
+
 /** Navigation 3 路由与目的地集中注册（AGENTS.md）。 */
 @Composable
 fun MainApp() {
@@ -91,6 +96,7 @@ fun MainApp() {
                     onPlayVideo = { backStack.add(PlayerRoute(route.media)) },
                     onCropVideo = { backStack.add(CropRoute(route.media)) },
                     onTrimVideo = { backStack.add(TrimRoute(route.media)) },
+                    onTrimAudio = { backStack.add(AudioTrimRoute(route.media)) },
                     onCropImage = { backStack.add(ImageCropRoute(route.media)) },
                     onBack = { backStack.removeLastOrNull() },
                 )
@@ -139,6 +145,12 @@ fun MainApp() {
                         backStack.clear()
                         backStack.add(HomeRoute)
                     },
+                )
+            }
+            entry<AudioTrimRoute> { route ->
+                AudioTrimPage(route.media,
+                    onBack = { backStack.removeLastOrNull() },
+                    onGoHome = { backStack.clear(); backStack.add(HomeRoute) },
                 )
             }
             entry<ImageCropRoute> { route ->

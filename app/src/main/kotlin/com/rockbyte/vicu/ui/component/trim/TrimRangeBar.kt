@@ -1,4 +1,4 @@
-package com.rockbyte.vicu.page.trim
+package com.rockbyte.vicu.ui.component.trim
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable

@@ -1,5 +1,6 @@
 package com.rockbyte.vicu.page.trim
 
+import com.rockbyte.vicu.ui.component.trim.*
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

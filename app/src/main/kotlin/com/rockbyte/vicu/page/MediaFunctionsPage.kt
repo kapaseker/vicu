@@ -34,7 +34,7 @@ import com.rockbyte.vicu.ui.theme.VicuTheme
 
 /**
  * 媒体功能列表页：所有多媒体点击后进入。
- * 标题与功能集随媒体类型变化；视频提供「播放」「裁剪」「截取视频」「导出音频」「视频转换」入口，音频提供「音频转换」入口，图片提供「裁剪图片」入口。
+ * 标题与功能集随媒体类型变化；视频提供「播放」「裁剪」「截取视频」「导出音频」「视频转换」入口，音频提供「音频截取」「音频转换」入口，图片提供「裁剪图片」入口。
  */
 @Composable
 fun MediaFunctionsPage(
@@ -45,6 +45,7 @@ fun MediaFunctionsPage(
     onPlayVideo: () -> Unit,
     onCropVideo: () -> Unit,
     onTrimVideo: () -> Unit,
+    onTrimAudio: () -> Unit,
     onCropImage: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -55,7 +56,7 @@ fun MediaFunctionsPage(
         when (media.kind) {
             MediaKind.VIDEO ->
                 VideoFunctionsContent(media.name, onPlayVideo, onCropVideo, onTrimVideo, onExportAudio, onConvertVideo)
-            MediaKind.AUDIO -> AudioFunctionsContent(media.name, onConvertAudio)
+            MediaKind.AUDIO -> AudioFunctionsContent(media.name, onTrimAudio, onConvertAudio)
             MediaKind.IMAGE -> BasicDescriptionContent(media.name, R.string.functions_description_image) {
                 FunctionGrid(listOf(FunctionEntry(R.drawable.ic_crop, R.string.image_crop, onCropImage)))
             }
@@ -104,11 +105,15 @@ private fun VideoFunctionsContent(
 @Composable
 private fun AudioFunctionsContent(
     name: String,
+    onTrimAudio: () -> Unit,
     onConvertAudio: () -> Unit,
 ) {
     BasicDescriptionContent(name, R.string.functions_description_audio) {
         FunctionGrid(
-            listOf(FunctionEntry(R.drawable.ic_transfer, R.string.audio_convert, onConvertAudio)),
+            listOf(
+                FunctionEntry(R.drawable.ic_cut, R.string.audio_trim, onTrimAudio),
+                FunctionEntry(R.drawable.ic_transfer, R.string.audio_convert, onConvertAudio),
+            ),
         )
     }
 }
@@ -209,6 +214,7 @@ private fun MediaFunctionsPageVideoPreview() {
             onPlayVideo = {},
             onCropVideo = {},
             onTrimVideo = {},
+            onTrimAudio = {},
             onCropImage = {},
             onBack = {},
         )
@@ -231,6 +237,7 @@ private fun MediaFunctionsPageAudioPreview() {
             onPlayVideo = {},
             onCropVideo = {},
             onTrimVideo = {},
+            onTrimAudio = {},
             onCropImage = {},
             onBack = {},
         )
@@ -253,6 +260,7 @@ private fun MediaFunctionsPageImagePreview() {
             onPlayVideo = {},
             onCropVideo = {},
             onTrimVideo = {},
+            onTrimAudio = {},
             onCropImage = {},
             onBack = {},
         )

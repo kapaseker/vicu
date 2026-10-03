@@ -1,4 +1,4 @@
-package com.rockbyte.vicu.page.trim
+package com.rockbyte.vicu.ui.component.trim
 
 import org.junit.Assert.*
 import com.rockbyte.vicu.player.PlayerEffect

@@ -2,7 +2,6 @@ package com.rockbyte.vicu.page.audiotrim
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
@@ -10,11 +9,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalResources
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -22,6 +19,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.rockbyte.vicu.R
+import com.rockbyte.vicu.page.audiotrim.screen.AudioWaveformScreen
 import com.rockbyte.vicu.player.PlayerEffect
 import com.rockbyte.vicu.repo.*
 import com.rockbyte.vicu.ui.component.*
@@ -44,14 +42,17 @@ fun AudioTrimPage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Unit
     }
     val state by vm.uiState.collectAsState()
     val preview by vm.previewState.collectAsState()
-    AudioTrimContent(state, preview, vm::selectRange, vm::seekTo, vm::togglePlayPause,
-        vm::confirm, onBack, onGoHome)
+    val waveform by vm.waveformState.collectAsState()
+    AudioTrimContent(state, preview, waveform, vm::retryWaveform, vm::selectRange, vm::seekTo,
+        vm::togglePlayPause, vm::confirm, onBack, onGoHome)
 }
 
 @Composable
 private fun AudioTrimContent(
     state: AudioTrimUiState,
     preview: AudioPreviewState,
+    waveform: AudioWaveformState,
+    onRetryWaveform: () -> Unit,
     onRangeChange: (Long, Long) -> Boolean,
     onSeek: (Long) -> Unit,
     onPlayPause: () -> Unit,
@@ -83,22 +84,19 @@ private fun AudioTrimContent(
         ) {
             BasicText(stringResource(R.string.audio_trim_file, state.audioName),
                 style = VicuTheme.typography.bodyLg.copy(color = VicuTheme.colors.onSurface))
-            Image(painterResource(R.drawable.ic_audio), null,
-                Modifier.align(Alignment.CenterHorizontally).size(VicuTheme.dimensions.iconLarge),
-                colorFilter = ColorFilter.tint(VicuTheme.colors.onSurfaceVariant))
             BasicText(stringResource(R.string.audio_trim_position,
                 formatTrimTime(preview.positionMs), formatTrimTime(state.durationMs)), Modifier.fillMaxWidth(),
                 style = VicuTheme.typography.bodySm.copy(color = VicuTheme.colors.onSurfaceVariant, textAlign = TextAlign.Center))
             OutlineButton(stringResource(if (preview.playing) R.string.player_pause else R.string.player_play),
                 onPlayPause, Modifier.align(Alignment.CenterHorizontally),
                 enabled = state.editable && preview.phase == AudioPreviewPhase.Ready)
-            TrimRangeBar(state.range ?: PlayerEffect.Trim(0, 1), state.durationMs, preview.positionMs,
-                state.editable, onChange = { range, position ->
+            AudioWaveformScreen(waveform, state.range ?: PlayerEffect.Trim(0, 1), state.durationMs,
+                preview.positionMs, preview.playing, state.editable, onChange = { range, position ->
                     focusManager.clearFocus()
                     startText = formatTrimTime(range.startMs)
                     endText = formatTrimTime(range.endMs)
                     if (onRangeChange(range.startMs, range.endMs)) onSeek(position)
-                }, onSeek = onSeek)
+                }, onSeek = onSeek, onRetry = onRetryWaveform)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit * 2)) {
                 TrimTimeInput(stringResource(R.string.trim_start), startText, state.editable,
                     TextAlign.Start, Modifier.weight(1f),
@@ -164,6 +162,8 @@ internal val AudioTrimError.messageRes: Int get() = when (this) {
 private fun AudioTrimReadyPreview() {
     VicuTheme {
         AudioTrimContent(AudioTrimUiState("music.mp3", false, 10000, PlayerEffect.Trim(1000, 7000)),
-            AudioPreviewState(AudioPreviewPhase.Ready, 2000), { _, _ -> true }, {}, {}, { _, _ -> null }, {}, {})
+            AudioPreviewState(AudioPreviewPhase.Ready, 2000), AudioWaveformState.Ready(
+                AudioWaveform(FloatArray(1000) { i -> if (i in 400..450) 0f else ((i % 37) / 37f) * 0.8f }, 10.0, 10000.0)),
+            {}, { _, _ -> true }, {}, {}, { _, _ -> null }, {}, {})
     }
 }

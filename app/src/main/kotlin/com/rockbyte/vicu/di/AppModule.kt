@@ -20,6 +20,10 @@ import com.rockbyte.vicu.repo.AudioPreviewRepo
 import com.rockbyte.vicu.repo.AudioPreviewRepository
 import com.rockbyte.vicu.repo.AudioPreviewStore
 import com.rockbyte.vicu.repo.AudioPreviewStorage
+import com.rockbyte.vicu.repo.AudioWaveformStore
+import com.rockbyte.vicu.repo.AudioWaveformStorage
+import com.rockbyte.vicu.repo.AudioWaveformRepo
+import com.rockbyte.vicu.repo.AudioWaveformRepository
 import com.rockbyte.vicu.page.player.PlayerViewModel
 import com.rockbyte.vicu.repo.AudioConvertRepo
 import com.rockbyte.vicu.repo.AudioConvertRepository
@@ -65,7 +69,9 @@ val appModule = module {
     // Playback sessions belong to one page; sharing them would mix ranges across back-stack entries.
     factory<AudioPreviewStore> { AudioPreviewStorage(androidContext()) }
     factory<AudioPreviewRepo> { AudioPreviewRepository(get()) }
-    viewModel { AudioTrimViewModel(get(), get()) }
+    single<AudioWaveformStore> { AudioWaveformStorage(androidContext()) }
+    single<AudioWaveformRepo> { AudioWaveformRepository(get()) }
+    viewModel { AudioTrimViewModel(get(), get(), get()) }
     single<VideoConverter> { FFmpegVideoConverter(androidContext()) }
     single<VideoOutputStore> { VideoOutputStorage(androidContext().contentResolver, System::currentTimeMillis) }
     single<VideoConvertRepo> { VideoConvertRepository(get(), get()) }

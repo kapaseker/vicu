@@ -30,31 +30,65 @@ data class AudioTrimUiState(
     val editable: Boolean get() = !loading && sourceError == null && durationMs > 0 && phase !is AudioTrimPhase.Trimming
 }
 
+sealed interface AudioWaveformState {
+    data object Idle : AudioWaveformState
+    data object Loading : AudioWaveformState
+    data class Ready(val waveform: AudioWaveform) : AudioWaveformState
+    data object Failed : AudioWaveformState
+}
+
 class AudioTrimViewModel(
     private val audioTrimRepo: AudioTrimRepo,
     private val previewRepo: AudioPreviewRepo,
+    private val waveformRepo: AudioWaveformRepo,
 ) : ViewModel() {
     val uiState: StateFlow<AudioTrimUiState>
         field = MutableStateFlow(AudioTrimUiState())
     val previewState: StateFlow<AudioPreviewState> = previewRepo.state
+    val waveformState: StateFlow<AudioWaveformState>
+        field = MutableStateFlow<AudioWaveformState>(AudioWaveformState.Idle)
     private var selectedMedia: SelectedMedia? = null
     private var inspection: Job? = null
+    private var waveformLoading: Job? = null
+    private var session = 0
+    private var waveformRequest = 0
 
     fun bind(media: SelectedMedia) {
         if (selectedMedia == media) return
         selectedMedia = media
+        val currentSession = ++session
         inspection?.cancel()
+        waveformLoading?.cancel()
+        waveformState.value = AudioWaveformState.Idle
         previewRepo.release()
         uiState.value = AudioTrimUiState(audioName = media.name)
         inspection = viewModelScope.launch {
-            when (val result = audioTrimRepo.inspect(Uri.parse(media.uri))) {
+            val result = audioTrimRepo.inspect(Uri.parse(media.uri))
+            if (session != currentSession) return@launch
+            when (result) {
                 is AudioTrimProbeResult.Success -> {
                     uiState.value = AudioTrimUiState(media.name, false, result.info.durationMs,
                         PlayerEffect.Trim(0, result.info.durationMs))
                     previewRepo.open(Uri.parse(media.uri), 0, result.info.durationMs)
+                    retryWaveform()
                 }
                 is AudioTrimProbeResult.Failure -> uiState.update { it.copy(loading = false, sourceError = result.error) }
             }
+        }
+    }
+
+    fun retryWaveform() {
+        val media = selectedMedia ?: return
+        val duration = uiState.value.durationMs
+        if (duration <= 0 || uiState.value.sourceError != null) return
+        waveformLoading?.cancel()
+        val currentSession = session
+        val currentRequest = ++waveformRequest
+        waveformState.value = AudioWaveformState.Loading
+        waveformLoading = viewModelScope.launch {
+            val result = waveformRepo.load(Uri.parse(media.uri), duration)
+            if (session != currentSession || waveformRequest != currentRequest) return@launch
+            waveformState.value = result.fold({ AudioWaveformState.Ready(it) }, { AudioWaveformState.Failed })
         }
     }
 
@@ -96,10 +130,14 @@ class AudioTrimViewModel(
     }
 
     fun release() {
+        session++
         inspection?.cancel()
         inspection = null
         selectedMedia = null // A retained ViewModel must prepare again when the same file is reopened.
         previewRepo.release()
+        waveformLoading?.cancel()
+        waveformLoading = null
+        waveformState.value = AudioWaveformState.Idle
     }
     override fun onCleared() { release() }
 }

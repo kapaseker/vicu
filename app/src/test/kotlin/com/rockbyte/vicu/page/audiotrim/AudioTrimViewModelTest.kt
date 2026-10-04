@@ -5,6 +5,8 @@ import com.rockbyte.vicu.player.PlayerEffect
 import com.rockbyte.vicu.repo.*
 import com.rockbyte.vicu.ui.component.trim.TrimInputError
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,12 +30,13 @@ class AudioTrimViewModelTest {
     private val media = SelectedMedia("content://media/audio/1", "audio.mp3", MediaKind.AUDIO)
     private val repo = FakeTrimRepo()
     private val preview = FakePreviewRepo()
+    private val waveform = FakeWaveformRepo()
     private lateinit var vm: AudioTrimViewModel
     @Before fun setUp() {
         Dispatchers.setMain(dispatcher)
         uriMock = Mockito.mockStatic(Uri::class.java)
         uriMock.`when`<Uri> { Uri.parse(anyString()) }.thenReturn(uri)
-        vm = AudioTrimViewModel(repo, preview)
+        vm = AudioTrimViewModel(repo, preview, waveform)
     }
     @After fun tearDown() { vm.release(); uriMock.close(); Dispatchers.resetMain() }
     private fun bind() { vm.bind(media); dispatcher.scheduler.advanceUntilIdle() }
@@ -96,6 +99,53 @@ class AudioTrimViewModelTest {
         vm.selectRange(2000, 4000)
         assertEquals(PlayerEffect.Trim(2000, 4000), preview.range)
         assertTrue(preview.pauses > 0)
+    }
+
+    @Test fun waveformFailureDoesNotBlockExportAndRetryKeepsSelection() {
+        waveform.result = Result.failure(IllegalStateException("decode"))
+        bind()
+        assertEquals(AudioWaveformState.Failed, vm.waveformState.value)
+        assertTrue(vm.uiState.value.editable)
+        vm.selectRange(1000, 3000)
+        waveform.result = Result.success(AudioWaveform(floatArrayOf(0.5f), 10.0, 10.0))
+        vm.retryWaveform(); dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(vm.waveformState.value is AudioWaveformState.Ready)
+        assertEquals(PlayerEffect.Trim(1000, 3000), vm.uiState.value.range)
+        assertNull(vm.confirm("1", "3")); dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(AudioTrimPhase.Complete, vm.uiState.value.phase)
+    }
+
+    @Test fun switchingFileIgnoresLateWaveformAndReleaseDropsPeaks() {
+        val old = CompletableDeferred<Result<AudioWaveform>>()
+        waveform.gate = old
+        bind()
+        assertEquals(AudioWaveformState.Loading, vm.waveformState.value)
+        waveform.gate = null
+        vm.bind(media.copy(uri = "content://media/audio/2", name = "second.mp3"))
+        dispatcher.scheduler.advanceUntilIdle()
+        val ready = vm.waveformState.value
+        old.complete(Result.failure(IllegalStateException("old failure")))
+        dispatcher.scheduler.advanceUntilIdle()
+        assertSame(ready, vm.waveformState.value)
+        vm.release()
+        assertEquals(AudioWaveformState.Idle, vm.waveformState.value)
+    }
+
+    @Test fun releaseIgnoresLateWaveformCompletion() {
+        val late = CompletableDeferred<Result<AudioWaveform>>()
+        waveform.gate = late
+        bind(); vm.release()
+        late.complete(waveform.result); dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(AudioWaveformState.Idle, vm.waveformState.value)
+    }
+}
+
+private class FakeWaveformRepo : AudioWaveformRepo {
+    var result = Result.success(AudioWaveform(floatArrayOf(0.5f), 10.0, 10.0))
+    var gate: CompletableDeferred<Result<AudioWaveform>>? = null
+    override suspend fun load(uri: Uri, durationMs: Long): Result<AudioWaveform> {
+        val waiting = gate
+        return if (waiting != null) withContext(NonCancellable) { waiting.await() } else result
     }
 }
 

@@ -34,7 +34,7 @@ import com.rockbyte.vicu.ui.theme.VicuTheme
 
 /**
  * 媒体功能列表页：所有多媒体点击后进入。
- * 标题与功能集随媒体类型变化；视频提供「播放」「裁剪」「截取视频」「导出音频」「视频转换」入口，音频提供「音频截取」「音频转换」入口，图片提供「裁剪图片」入口。
+ * 标题与功能集随媒体类型变化；视频提供「播放」「裁剪」「截取视频」「导出音频」「视频转换」入口，音频提供「音频截取」「音频转换」入口，图片提供「裁剪图片」「缩放图片」入口。
  */
 @Composable
 fun MediaFunctionsPage(
@@ -47,6 +47,7 @@ fun MediaFunctionsPage(
     onTrimVideo: () -> Unit,
     onTrimAudio: () -> Unit,
     onCropImage: () -> Unit,
+    onScaleImage: () -> Unit,
     onBack: () -> Unit,
 ) {
     VicuScaffold(
@@ -58,7 +59,10 @@ fun MediaFunctionsPage(
                 VideoFunctionsContent(media.name, onPlayVideo, onCropVideo, onTrimVideo, onExportAudio, onConvertVideo)
             MediaKind.AUDIO -> AudioFunctionsContent(media.name, onTrimAudio, onConvertAudio)
             MediaKind.IMAGE -> BasicDescriptionContent(media.name, R.string.functions_description_image) {
-                FunctionGrid(listOf(FunctionEntry(R.drawable.ic_crop, R.string.image_crop, onCropImage)))
+                FunctionGrid(listOf(
+                    FunctionEntry(R.drawable.ic_crop, R.string.image_crop, onCropImage),
+                    FunctionEntry(R.drawable.ic_scale, R.string.image_scale, onScaleImage),
+                ))
             }
         }
     }
@@ -216,6 +220,7 @@ private fun MediaFunctionsPageVideoPreview() {
             onTrimVideo = {},
             onTrimAudio = {},
             onCropImage = {},
+            onScaleImage = {},
             onBack = {},
         )
     }
@@ -239,6 +244,7 @@ private fun MediaFunctionsPageAudioPreview() {
             onTrimVideo = {},
             onTrimAudio = {},
             onCropImage = {},
+            onScaleImage = {},
             onBack = {},
         )
     }
@@ -262,6 +268,7 @@ private fun MediaFunctionsPageImagePreview() {
             onTrimVideo = {},
             onTrimAudio = {},
             onCropImage = {},
+            onScaleImage = {},
             onBack = {},
         )
     }

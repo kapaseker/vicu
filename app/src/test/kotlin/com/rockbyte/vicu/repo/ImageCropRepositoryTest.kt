@@ -31,7 +31,10 @@ class ImageCropRepositoryTest {
             override fun decodeCrop(uri: Uri, region: ImageCropRegion, previewBytes: Long): ImageCropPreview {
                 fail("decode"); decoded = true; return image
             }
-            override fun create(displayName: String, format: ImageCropFormat): Uri {
+            override fun decodeScaled(uri: Uri, width: Int, height: Int, previewBytes: Long): ImageCropPreview {
+                fail("decodeScaled"); decoded = true; return image
+            }
+            override fun create(displayName: String, suffix: String, format: ImageCropFormat): Uri {
                 fail("create"); pending = true; return output
             }
             override fun write(uri: Uri, bitmap: Bitmap, format: ImageCropFormat) { duringWrite(); fail("write") }

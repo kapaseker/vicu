@@ -16,12 +16,19 @@ internal class ImageCropStorage(
     private val currentTimeMillis: () -> Long,
     private val maxHeapBytes: () -> Long,
 ) : ImageCropStore {
-    override fun load(uri: Uri): ImageCropPreview = decode(uri, null, 0)
+    override fun load(uri: Uri): ImageCropPreview = decode(uri, null, 0, null)
 
     override fun decodeCrop(uri: Uri, region: ImageCropRegion, previewBytes: Long): ImageCropPreview =
-        decode(uri, region, previewBytes)
+        decode(uri, region, previewBytes, null)
 
-    private fun decode(uri: Uri, region: ImageCropRegion?, previewBytes: Long): ImageCropPreview {
+    override fun decodeScaled(uri: Uri, width: Int, height: Int, previewBytes: Long): ImageCropPreview {
+        require(width > 0 && height > 0)
+        return decode(uri, null, previewBytes, width to height)
+    }
+
+    private fun decode(
+        uri: Uri, region: ImageCropRegion?, previewBytes: Long, targetSize: Pair<Int, Int>?,
+    ): ImageCropPreview {
         lateinit var sourceInfo: ImageCropInfo
         val bitmap = try {
             ImageDecoder.decodeBitmap(ImageDecoder.createSource(resolver, uri)) { decoder, info, _ ->
@@ -30,19 +37,28 @@ internal class ImageCropStorage(
                 sourceInfo = ImageCropInfo(info.size.width, info.size.height, info.mimeType)
                 decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 decoder.setTargetColorSpace(ColorSpace.get(ColorSpace.Named.SRGB))
-                if (region == null) {
-                    val scale = minOf(1.0, 2048.0 / maxOf(sourceInfo.width, sourceInfo.height))
-                    decoder.setTargetSize(
-                        (sourceInfo.width * scale).roundToInt().coerceAtLeast(1),
-                        (sourceInfo.height * scale).roundToInt().coerceAtLeast(1),
-                    )
-                } else {
-                    require(region.left >= 0 && region.top >= 0 && region.right <= sourceInfo.width &&
-                        region.bottom <= sourceInfo.height && region.width > 0 && region.height > 0)
-                    if (!imageCropFitsMemory(sourceInfo, region, previewBytes, maxHeapBytes())) {
-                        throw ImageCropException(ImageCropError.ImageTooLarge)
+                when {
+                    targetSize != null -> {
+                        if (!imageCropFitsMemory(sourceInfo,
+                                ImageCropRegion(0, 0, sourceInfo.width, sourceInfo.height), previewBytes, maxHeapBytes())
+                        ) throw ImageCropException(ImageCropError.ImageTooLarge)
+                        decoder.setTargetSize(targetSize.first, targetSize.second)
                     }
-                    decoder.crop = Rect(region.left, region.top, region.right, region.bottom)
+                    region == null -> {
+                        val scale = minOf(1.0, 2048.0 / maxOf(sourceInfo.width, sourceInfo.height))
+                        decoder.setTargetSize(
+                            (sourceInfo.width * scale).roundToInt().coerceAtLeast(1),
+                            (sourceInfo.height * scale).roundToInt().coerceAtLeast(1),
+                        )
+                    }
+                    else -> {
+                        require(region.left >= 0 && region.top >= 0 && region.right <= sourceInfo.width &&
+                            region.bottom <= sourceInfo.height && region.width > 0 && region.height > 0)
+                        if (!imageCropFitsMemory(sourceInfo, region, previewBytes, maxHeapBytes())) {
+                            throw ImageCropException(ImageCropError.ImageTooLarge)
+                        }
+                        decoder.crop = Rect(region.left, region.top, region.right, region.bottom)
+                    }
                 }
             }
         } catch (error: OutOfMemoryError) {
@@ -60,11 +76,11 @@ internal class ImageCropStorage(
         }
     }
 
-    override fun create(displayName: String, format: ImageCropFormat): Uri {
+    override fun create(displayName: String, suffix: String, format: ImageCropFormat): Uri {
         val stem = displayName.substringBeforeLast('.', displayName)
             .replace(Regex("[^\\p{L}\\p{N}._-]"), "_").trim('_').ifBlank { "image" }
         val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "${stem}_crop_${currentTimeMillis()}.${format.extension}")
+            put(MediaStore.MediaColumns.DISPLAY_NAME, "${stem}${suffix}_${currentTimeMillis()}.${format.extension}")
             put(MediaStore.MediaColumns.MIME_TYPE, format.mime)
             put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/Vicu")
             put(MediaStore.MediaColumns.IS_PENDING, 1)

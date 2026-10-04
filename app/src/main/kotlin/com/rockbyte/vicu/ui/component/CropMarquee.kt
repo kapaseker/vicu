@@ -2,9 +2,7 @@ package com.rockbyte.vicu.ui.component
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -49,7 +47,7 @@ internal data class CropRectF(val left: Float, val top: Float, val right: Float,
 /** 剪切框的四条边。 */
 internal enum class CropEdge { LEFT, TOP, RIGHT, BOTTOM }
 
-/** 左右两条边只吃横向增量，上下两条边只吃竖向增量。 */
+/** 左右两条边贴画面两侧，需要申请排除系统手势区。 */
 internal val CropEdge.isHorizontal: Boolean
     get() = this == CropEdge.LEFT || this == CropEdge.RIGHT
 
@@ -122,7 +120,7 @@ internal fun hitEdge(
 
 /**
  * 剪切框覆盖层：Canvas 画虚线边框 + 框外 30% 黑遮罩 + 四条边中点圆点，单击画面切换播放状态；
- * 四个圆点是各自独立的手势节点（透明触区），左右边只吃横向、上下边只吃竖向增量。
+ * 四个圆点是各自独立的手势节点（透明触区），统一接收 2D 增量；各边几何上只应用自身轴。
  * 框内还有一块平移触区：按住框内拖动整体挪动选区（不改变宽高）。
  *
  * 不给单覆盖层叠 tap/drag 两个检测器：detectTapGestures 会消费 down，drag 永远收不到事件。
@@ -221,9 +219,9 @@ internal fun CropMarquee(
                     }
                 },
             )
-            // 触区夹在覆盖层内：圆点压在画面边缘时（初始选区就是整幅画面）不会有一半落到父 bounds 外
-            val maxX = (overlaySize.width - touchRadiusPx * 2f).coerceAtLeast(0f)
-            val maxY = (overlaySize.height - touchRadiusPx * 2f).coerceAtLeast(0f)
+            // 触区以圆点为中心原样放置，不夹回覆盖层：圆点压在画面边缘时（初始选区就是整幅画面）
+            // 圆点外侧的触区照样有效。Compose 允许子节点越出父 bounds 命中，页面上唯一的裁剪者
+            // verticalScroll 只沿交叉轴裁且边界是整屏宽，越界部分落在页边距内、照样可命中。
             CropEdge.entries.forEach { edge ->
                 val center = edgeCenterPx(edge, rect, overlaySize)
                 val description = stringResource(when (edge) {
@@ -241,8 +239,8 @@ internal fun CropMarquee(
                 CropHandle(
                     edge = edge,
                     offsetPx = IntOffset(
-                        (center.x - touchRadiusPx).coerceIn(0f, maxX).roundToInt(),
-                        (center.y - touchRadiusPx).coerceIn(0f, maxY).roundToInt(),
+                        (center.x - touchRadiusPx).roundToInt(),
+                        (center.y - touchRadiusPx).roundToInt(),
                     ),
                     boxSize = touchBoxSize,
                     enabled = enabled,
@@ -304,11 +302,13 @@ private fun CropMoveArea(
 }
 
 /**
- * 单条边的拖拽手柄：透明触区 Box，按边方向只接收横向或竖向增量。
- * 用增量（dragAmount）而不是绝对坐标，抓取点不压准圆点也不会让这条边跳变。
+ * 单条边的拖拽手柄：透明触区 Box，接收 2D 增量。
+ * 用增量（dragAmount）而不是绝对坐标，抓取点不压准圆点也不会让这条边跳变；
+ * 检测器不区分轴向——斜向拖拽立即跨过 touch slop 开始响应，
+ * 垂直于边方向的分量由 moveEdge 的几何钳制自然忽略。
  */
 @Composable
-private fun CropHandle(
+internal fun CropHandle(
     edge: CropEdge,
     offsetPx: IntOffset,
     boxSize: Dp,
@@ -325,12 +325,7 @@ private fun CropHandle(
             .then(if (enabled && edge.isHorizontal) Modifier.systemGestureExclusion() else Modifier)
             .pointerInput(edge, enabled) {
                 if (!enabled) return@pointerInput
-                if (edge.isHorizontal) {
-                    // 横/竖检测器的 dragAmount 是单轴 Float（不是 Offset）
-                    detectHorizontalDragGestures { _, dragAmount -> latestOnDrag(dragAmount, 0f) }
-                } else {
-                    detectVerticalDragGestures { _, dragAmount -> latestOnDrag(0f, dragAmount) }
-                }
+                detectDragGestures { _, dragAmount -> latestOnDrag(dragAmount.x, dragAmount.y) }
             },
     )
 }

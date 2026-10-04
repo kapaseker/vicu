@@ -1,6 +1,5 @@
 package com.rockbyte.vicu.repo
 
-import android.graphics.Bitmap
 import android.net.Uri
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -9,7 +8,12 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
-internal class ImageCropRepository(private val store: ImageCropStore) : ImageCropRepo {
+interface ImageScaleRepo {
+    suspend fun load(uri: Uri): Result<ImageCropPreview>
+    suspend fun scale(uri: Uri, displayName: String, width: Int, height: Int, previewBytes: Long): Result<Uri>
+}
+
+internal class ImageScaleRepository(private val store: ImageCropStore) : ImageScaleRepo {
     override suspend fun load(uri: Uri): Result<ImageCropPreview> {
         var preview: ImageCropPreview? = null
         return try {
@@ -21,25 +25,25 @@ internal class ImageCropRepository(private val store: ImageCropStore) : ImageCro
         } catch (error: Exception) {
             preview?.bitmap?.recycle()
             if (error is CancellationException) throw error
-            Result.failure(error.asImageCropException(ImageCropError.LoadFailed))
+            Result.failure(error.asImageScaleException(ImageCropError.LoadFailed))
         }
     }
 
-    override suspend fun crop(
-        uri: Uri, displayName: String, region: ImageCropRegion, previewBytes: Long,
+    override suspend fun scale(
+        uri: Uri, displayName: String, width: Int, height: Int, previewBytes: Long,
     ): Result<Uri> {
         var output: Uri? = null
         var failureType = ImageCropError.CropFailed
         return try {
             withContext(Dispatchers.IO) {
-                require(region.left >= 0 && region.top >= 0 && region.right > region.left && region.bottom > region.top)
+                require(width > 0 && height > 0)
                 currentCoroutineContext().ensureActive()
-                val image = store.decodeCrop(uri, region, previewBytes)
+                val image = store.decodeScaled(uri, width, height, previewBytes)
                 try {
                     currentCoroutineContext().ensureActive()
                     val format = imageCropFormat(image.info.mime)
                     failureType = ImageCropError.SaveFailed
-                    val destination = store.create(displayName, "_crop", format)
+                    val destination = store.create(displayName, "_scale", format)
                     output = destination
                     currentCoroutineContext().ensureActive()
                     store.write(destination, image.bitmap, format)
@@ -59,22 +63,10 @@ internal class ImageCropRepository(private val store: ImageCropStore) : ImageCro
                 }
             }
             if (error is CancellationException) throw error
-            Result.failure(error.asImageCropException(failureType))
+            Result.failure(error.asImageScaleException(failureType))
         }
     }
 }
 
-private fun Exception.asImageCropException(fallback: ImageCropError): ImageCropException =
+private fun Exception.asImageScaleException(fallback: ImageCropError): ImageCropException =
     this as? ImageCropException ?: ImageCropException(fallback, this)
-
-internal interface ImageCropStore {
-    fun load(uri: Uri): ImageCropPreview
-    fun decodeCrop(uri: Uri, region: ImageCropRegion, previewBytes: Long): ImageCropPreview
-
-    /** 解码整图并缩放到 [width] × [height]（解码期重采样，目标不大于原图时内存可控）。 */
-    fun decodeScaled(uri: Uri, width: Int, height: Int, previewBytes: Long): ImageCropPreview
-    fun create(displayName: String, suffix: String, format: ImageCropFormat): Uri
-    fun write(uri: Uri, bitmap: Bitmap, format: ImageCropFormat)
-    fun publish(uri: Uri)
-    fun delete(uri: Uri)
-}

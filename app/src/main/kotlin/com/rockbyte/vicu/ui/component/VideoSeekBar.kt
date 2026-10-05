@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntOffset
@@ -41,6 +42,9 @@ fun VideoSeekBar(
     onScrubStart: () -> Unit,
     onScrub: (Long) -> Unit,
     onScrubEnd: (Long) -> Unit,
+    trackColor: Color = VicuTheme.colors.outlineVariant,
+    fillColor: Color = VicuTheme.colors.primary,
+    thumbColor: Color = VicuTheme.colors.primary,
 ) {
     var dragFraction by remember { mutableStateOf<Float?>(null) }
     var trackWidthPx by remember { mutableFloatStateOf(0f) }
@@ -93,14 +97,14 @@ fun VideoSeekBar(
                 .fillMaxWidth()
                 .height(VicuTheme.dimensions.playerProgressTrackHeight)
                 .clip(VicuTheme.shapes.full)
-                .background(VicuTheme.colors.outlineVariant),
+                .background(trackColor),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(fraction)
                     .clip(VicuTheme.shapes.full)
-                    .background(VicuTheme.colors.primary),
+                    .background(fillColor),
             )
         }
         Box(
@@ -114,7 +118,7 @@ fun VideoSeekBar(
                 }
                 .size(thumbSize)
                 .clip(CircleShape)
-                .background(VicuTheme.colors.primary),
+                .background(thumbColor),
         )
     }
 }

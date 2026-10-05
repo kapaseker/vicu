@@ -1,64 +1,48 @@
 package com.rockbyte.vicu.page.player
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.view.Surface
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
-import kotlin.math.abs
-import kotlin.math.hypot
-import kotlin.math.roundToInt
 import com.rockbyte.vicu.R
-import com.rockbyte.vicu.player.PlayerEffect
 import com.rockbyte.vicu.player.PlayerError
 import com.rockbyte.vicu.repo.SelectedMedia
-import com.rockbyte.vicu.player.normalized
-import com.rockbyte.vicu.ui.component.PrimaryIconButton
-import com.rockbyte.vicu.ui.component.VicuButton
+import com.rockbyte.vicu.page.player.screen.PlayerControlsOverlay
 import com.rockbyte.vicu.ui.component.StatusRow
-import com.rockbyte.vicu.ui.component.VideoSeekBar
 import com.rockbyte.vicu.ui.component.VideoSurface
-import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.theme.VicuTheme
+import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * 播放页：原生引擎播放所选视频，支持播放/暂停、进度拖拽与 seek；
- * 效果编辑模式提供 crop 拖拽手柄与 trim 双端滑杆（预览与导出共用效果描述）。
+ * 播放页：沉浸式全屏播放所选视频——视频等比 letterbox 居中，控制层（返回/进度/播放暂停/时间）
+ * 悬浮于画面上层，播放中 [VicuTheme.motion.controlsHideDelayMillis] 无操作自动隐藏，点按画面切换显隐；
  * 页面离开时释放引擎（引擎由 [PlayerViewModel.release] 终结）。
  */
 @Composable
@@ -77,8 +61,6 @@ fun PlayerPage(media: SelectedMedia, onBack: () -> Unit) {
         onScrubStart = viewModel::scrubStart,
         onScrub = viewModel::scrubTo,
         onScrubEnd = viewModel::scrubEnd,
-        onCropChange = viewModel::setCrop,
-        onTrimChange = viewModel::setTrim,
         onSurfaceAvailable = viewModel::setSurface,
         onBack = onBack,
     )
@@ -92,52 +74,103 @@ private fun PlayerContent(
     onScrubStart: () -> Unit,
     onScrub: (Long) -> Unit,
     onScrubEnd: (Long) -> Unit,
-    onCropChange: (PlayerEffect.Crop?) -> Unit,
-    onTrimChange: (PlayerEffect.Trim?) -> Unit,
-    onSurfaceAvailable: (android.view.Surface?) -> Unit,
+    onSurfaceAvailable: (Surface?) -> Unit,
     onBack: () -> Unit,
 ) {
-    var editMode by remember { mutableStateOf(false) }
-    VicuScaffold(
-        title = stringResource(R.string.video_play),
-        onBack = onBack,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .navigationBarsPadding()
-                .padding(VicuTheme.dimensions.screenGutter),
-            verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit * 2),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(videoAspectRatio(state)),
-            ) {
-                VideoSurface(
-                    modifier = Modifier.matchParentSize(),
-                    onSurfaceAvailable = onSurfaceAvailable,
-                )
-                if (editMode && state.videoWidth > 0 && state.videoHeight > 0) {
-                    CropOverlay(
-                        videoWidth = state.videoWidth,
-                        videoHeight = state.videoHeight,
-                        crop = state.crop,
-                        onCropChange = onCropChange,
-                    )
+    var controlsVisible by remember { mutableStateOf(true) }
+    var scrubbing by remember { mutableStateOf(false) }
+    val controlsHideDelayMillis = VicuTheme.motion.controlsHideDelayMillis.toLong()
+
+    ImmersivePlayerWindow()
+
+    // 播放中显示控制层超过时限且未在拖拽进度条时自动隐藏；暂停/Ended/Preparing 常显
+    LaunchedEffect(controlsVisible, state.playing, state.phase, scrubbing) {
+        if (controlsVisible && state.playing && !scrubbing) {
+            delay(controlsHideDelayMillis)
+            controlsVisible = false
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .pointerInput(state.phase) {
+                detectTapGestures {
+                    // 隐藏时点按唤出；可见时仅在播放中隐藏（暂停/Ended 常显）
+                    controlsVisible = if (controlsVisible) {
+                        state.phase != PlayerPhase.Playing
+                    } else {
+                        true
+                    }
                 }
+            },
+    ) {
+        LetterboxedVideo(
+            state = state,
+            onSurfaceAvailable = onSurfaceAvailable,
+            modifier = Modifier.align(Alignment.Center),
+        )
+        when (val phase = state.phase) {
+            is PlayerPhase.Failed -> Box(Modifier.align(Alignment.Center)) {
+                StatusRow(
+                    dotColor = VicuTheme.colors.error,
+                    text = stringResource(
+                        R.string.player_failed, stringResource(phase.error.messageRes)
+                    ),
+                    textColor = VicuTheme.colors.error,
+                )
             }
-            PlayerControls(
+            PlayerPhase.Preparing -> Box(Modifier.align(Alignment.Center)) {
+                StatusRow(
+                    dotColor = VicuTheme.colors.secondary,
+                    text = stringResource(R.string.player_preparing),
+                    pulsing = true,
+                    textColor = Color.White,
+                )
+            }
+            else -> Unit
+        }
+        if (controlsVisible) {
+            PlayerControlsOverlay(
                 state = state,
-                editMode = editMode,
-                onToggleEditMode = { editMode = !editMode },
                 onTogglePlayPause = onTogglePlayPause,
                 onSeek = onSeek,
-                onScrubStart = onScrubStart,
+                onScrubStart = {
+                    scrubbing = true
+                    onScrubStart()
+                },
                 onScrub = onScrub,
-                onScrubEnd = onScrubEnd,
-                onCropChange = onCropChange,
-                onTrimChange = onTrimChange,
+                onScrubEnd = {
+                    scrubbing = false
+                    onScrubEnd(it)
+                },
+                onBack = onBack,
+            )
+        }
+    }
+}
+
+/** 视频等比缩放（letterbox）居中：SurfaceView 由引擎拉伸填满，故容器必须匹配视频宽高比。 */
+@Composable
+private fun LetterboxedVideo(
+    state: PlayerUiState,
+    onSurfaceAvailable: (Surface?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(modifier = modifier) {
+        val videoAspect = videoAspectRatio(state)
+        val boxAspect = maxWidth / maxHeight
+        Box(
+            modifier = if (videoAspect > boxAspect) {
+                Modifier.fillMaxWidth().aspectRatio(videoAspect)
+            } else {
+                Modifier.fillMaxHeight().aspectRatio(videoAspect)
+            }
+        ) {
+            VideoSurface(
+                modifier = Modifier.matchParentSize(),
+                onSurfaceAvailable = onSurfaceAvailable,
             )
         }
     }
@@ -151,386 +184,41 @@ private fun videoAspectRatio(state: PlayerUiState): Float =
         16f / 9f
     }
 
+/**
+ * 沉浸式全屏：隐藏系统状态栏与导航栏（下滑临时呼出），状态栏图标切浅色，播放期间保持屏幕常亮；
+ * 离开页面恢复浅色主题的系统栏外观。宿主非 Activity（如 Preview）时不生效。
+ */
 @Composable
-private fun PlayerControls(
-    state: PlayerUiState,
-    editMode: Boolean,
-    onToggleEditMode: () -> Unit,
-    onTogglePlayPause: () -> Unit,
-    onSeek: (Long) -> Unit,
-    onScrubStart: () -> Unit,
-    onScrub: (Long) -> Unit,
-    onScrubEnd: (Long) -> Unit,
-    onCropChange: (PlayerEffect.Crop?) -> Unit,
-    onTrimChange: (PlayerEffect.Trim?) -> Unit,
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
-    ) {
-        VideoSeekBar(
-            positionMs = state.positionMs,
-            durationMs = state.durationMs,
-            enabled = state.durationMs > 0 && state.phase in seekablePhases,
-            onSeek = onSeek,
-            onScrubStart = onScrubStart,
-            onScrub = onScrub,
-            onScrubEnd = onScrubEnd,
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            PrimaryIconButton(
-                icon = if (state.playing) R.drawable.ic_pause else R.drawable.ic_play,
-                text = playButtonText(state),
-                onClick = onTogglePlayPause,
-                enabled = state.phase != PlayerPhase.Preparing,
-            )
-            BasicText(
-                text = playerTimeText(state.positionMs, state.durationMs),
-                style = VicuTheme.typography.bodySm.copy(color = VicuTheme.colors.onSurfaceVariant),
-            )
-            Spacer(Modifier.weight(1f))
-            VicuButton(
-                onClick = onToggleEditMode,
-                style = VicuTheme.styles.secondaryButton,
-                rippleColor = VicuTheme.colors.onSurface,
-                enabled = state.phase != PlayerPhase.Preparing,
-            ) {
-                BasicText(
-                    text = stringResource(
-                        if (editMode) R.string.player_effect_done else R.string.player_effect_edit
-                    ),
-                )
-            }
-        }
-        if (editMode && state.durationMs > 0) {
-            EffectPanel(
-                state = state,
-                onCropChange = onCropChange,
-                onTrimChange = onTrimChange,
-            )
-        }
-        when (val phase = state.phase) {
-            is PlayerPhase.Failed -> StatusRow(
-                dotColor = VicuTheme.colors.error,
-                text = stringResource(R.string.player_failed, stringResource(phase.error.messageRes)),
-                textColor = VicuTheme.colors.error,
-            )
-            PlayerPhase.Preparing -> StatusRow(
-                dotColor = VicuTheme.colors.secondary,
-                text = stringResource(R.string.player_preparing),
-                pulsing = true,
-            )
-            else -> Unit
+private fun ImmersivePlayerWindow() {
+    val context = LocalContext.current
+    DisposableEffect(context) {
+        val window = context.findActivity()?.window
+        val controller = window?.insetsController
+        controller?.hide(WindowInsets.Type.systemBars())
+        controller?.systemBarsBehavior =
+            WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        setLightSystemBars(controller, light = false)
+        window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            controller?.show(WindowInsets.Type.systemBars())
+            setLightSystemBars(controller, light = true)
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 }
 
-/** 效果面板：trim 双端滑杆 + 区间文本 + crop/trim 重置。 */
-@Composable
-private fun EffectPanel(
-    state: PlayerUiState,
-    onCropChange: (PlayerEffect.Crop?) -> Unit,
-    onTrimChange: (PlayerEffect.Trim?) -> Unit,
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
-    ) {
-        TrimRangeSlider(
-            durationMs = state.durationMs,
-            trim = state.trim,
-            onTrimChange = onTrimChange,
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            BasicText(
-                text = trimRangeText(state.trim, state.durationMs),
-                style = VicuTheme.typography.bodySm.copy(color = VicuTheme.colors.onSurfaceVariant),
-            )
-            Spacer(Modifier.weight(1f))
-            VicuButton(
-                onClick = { onCropChange(null) },
-                style = VicuTheme.styles.secondaryButton,
-                rippleColor = VicuTheme.colors.onSurface,
-                enabled = state.crop != null,
-            ) {
-                BasicText(text = stringResource(R.string.player_crop_reset))
-            }
-            VicuButton(
-                onClick = { onTrimChange(null) },
-                style = VicuTheme.styles.secondaryButton,
-                rippleColor = VicuTheme.colors.onSurface,
-                enabled = state.trim != null,
-            ) {
-                BasicText(text = stringResource(R.string.player_trim_reset))
-            }
-        }
-    }
+/** 系统栏图标外观：light = 深色图标（浅色主题默认），否则浅色图标（黑底播放器用）。 */
+private fun setLightSystemBars(controller: WindowInsetsController?, light: Boolean) {
+    val mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
+        WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+    controller?.setSystemBarsAppearance(if (light) mask else 0, mask)
 }
 
-/** trim 区间文本（未设置时显示全片范围）。 */
-private fun trimRangeText(trim: PlayerEffect.Trim?, durationMs: Long): String {
-    val start = (trim?.startMs ?: 0L) / 1000
-    val end = (trim?.endMs ?: durationMs) / 1000
-    return "${formatClock(start)} – ${formatClock(end)}"
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
-
-private val seekablePhases = setOf(PlayerPhase.Playing, PlayerPhase.Paused, PlayerPhase.Ended)
-
-/** 归一化裁剪框（0..1，相对视频画面）。 */
-private data class CropRectF(val left: Float, val top: Float, val right: Float, val bottom: Float)
-
-/** crop 拖拽覆盖层：边框 + 四角手柄；拖拽松手换算视频像素坐标回调。 */
-@Composable
-private fun CropOverlay(
-    videoWidth: Int,
-    videoHeight: Int,
-    crop: PlayerEffect.Crop?,
-    onCropChange: (PlayerEffect.Crop?) -> Unit,
-) {
-    var rect by remember(crop) {
-        mutableStateOf(
-            crop?.let {
-                CropRectF(
-                    it.left.toFloat() / videoWidth,
-                    it.top.toFloat() / videoHeight,
-                    (it.left + it.width).toFloat() / videoWidth,
-                    (it.top + it.height).toFloat() / videoHeight,
-                )
-            } ?: CropRectF(0f, 0f, 1f, 1f)
-        )
-    }
-    var dragCorner by remember { mutableIntStateOf(-1) }
-    var overlaySize by remember { mutableStateOf(IntSize.Zero) }
-    val density = LocalDensity.current
-    val thumbSize = VicuTheme.dimensions.playerProgressThumbSize
-    // 最小可拖尺寸（对应 2 视频像素），防止框缩成点
-    val minW = (2f / videoWidth).coerceAtLeast(0.02f)
-    val minH = (2f / videoHeight).coerceAtLeast(0.02f)
-
-    fun hitCorner(x: Float, y: Float): Int {
-        val radius = with(density) { 24.dp.toPx() }
-        val corners = arrayOf(
-            rect.left to rect.top,
-            rect.right to rect.top,
-            rect.left to rect.bottom,
-            rect.right to rect.bottom,
-        )
-        var best = -1
-        var bestDistance = radius
-        corners.forEachIndexed { index, (cx, cy) ->
-            val px = cx * overlaySize.width
-            val py = cy * overlaySize.height
-            val distance = hypot(x - px, y - py)
-            if (distance < bestDistance) {
-                best = index
-                bestDistance = distance
-            }
-        }
-        return best
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .onSizeChanged { overlaySize = it }
-            .pointerInput(videoWidth, videoHeight) {
-                detectDragGestures(
-                    onDragStart = { offset -> dragCorner = hitCorner(offset.x, offset.y) },
-                    onDrag = { change, _ ->
-                        val corner = dragCorner
-                        if (corner < 0) return@detectDragGestures
-                        change.consume()
-                        val x = (change.position.x / overlaySize.width).coerceIn(0f, 1f)
-                        val y = (change.position.y / overlaySize.height).coerceIn(0f, 1f)
-                        rect = when (corner) {
-                            0 -> rect.copy(
-                                left = x.coerceAtMost(rect.right - minW),
-                                top = y.coerceAtMost(rect.bottom - minH),
-                            )
-                            1 -> rect.copy(
-                                right = x.coerceAtLeast(rect.left + minW),
-                                top = y.coerceAtMost(rect.bottom - minH),
-                            )
-                            2 -> rect.copy(
-                                left = x.coerceAtMost(rect.right - minW),
-                                bottom = y.coerceAtLeast(rect.top + minH),
-                            )
-                            else -> rect.copy(
-                                right = x.coerceAtLeast(rect.left + minW),
-                                bottom = y.coerceAtLeast(rect.top + minH),
-                            )
-                        }
-                    },
-                    onDragEnd = {
-                        if (dragCorner >= 0) {
-                            onCropChange(
-                                PlayerEffect.Crop(
-                                    left = (rect.left * videoWidth).toInt(),
-                                    top = (rect.top * videoHeight).toInt(),
-                                    width = ((rect.right - rect.left) * videoWidth).toInt(),
-                                    height = ((rect.bottom - rect.top) * videoHeight).toInt(),
-                                ).normalized()
-                            )
-                        }
-                        dragCorner = -1
-                    },
-                    onDragCancel = { dragCorner = -1 },
-                )
-            },
-    ) {
-        // 裁剪框边框
-        Box(
-            modifier = Modifier
-                .offset {
-                    IntOffset(
-                        (rect.left * overlaySize.width).roundToInt(),
-                        (rect.top * overlaySize.height).roundToInt(),
-                    )
-                }
-                .size(
-                    with(density) {
-                        ((rect.right - rect.left) * overlaySize.width).toDp()
-                    },
-                    with(density) {
-                        ((rect.bottom - rect.top) * overlaySize.height).toDp()
-                    },
-                )
-                .border(2.dp, VicuTheme.colors.onSurface)
-        )
-        // 四角手柄（触控命中半径 24dp，见 hitCorner）
-        val corners = listOf(
-            rect.left to rect.top,
-            rect.right to rect.top,
-            rect.left to rect.bottom,
-            rect.right to rect.bottom,
-        )
-        corners.forEach { (cx, cy) ->
-            Box(
-                modifier = Modifier
-                    .offset {
-                        IntOffset(
-                            (cx * overlaySize.width).roundToInt() - (thumbSize.toPx() / 2).roundToInt(),
-                            (cy * overlaySize.height).roundToInt() - (thumbSize.toPx() / 2).roundToInt(),
-                        )
-                    }
-                    .size(thumbSize)
-                    .clip(CircleShape)
-                    .background(VicuTheme.colors.primary)
-            )
-        }
-    }
-}
-
-/** trim 双端滑杆：拖任一端调整区间（最小 500ms），松手才回调。 */
-@Composable
-private fun TrimRangeSlider(
-    durationMs: Long,
-    trim: PlayerEffect.Trim?,
-    onTrimChange: (PlayerEffect.Trim?) -> Unit,
-) {
-    var startFraction by remember(trim) {
-        mutableFloatStateOf(trim?.let { it.startMs.toFloat() / durationMs } ?: 0f)
-    }
-    var endFraction by remember(trim) {
-        mutableFloatStateOf(trim?.let { it.endMs.toFloat() / durationMs } ?: 1f)
-    }
-    var dragging by remember { mutableIntStateOf(0) } // -1 = 起点端，1 = 终点端，0 = 未拖拽
-    var trackWidthPx by remember { mutableFloatStateOf(0f) }
-    val minGap = (500f / durationMs).coerceIn(0.01f, 0.5f)
-    val thumbSize = VicuTheme.dimensions.playerProgressThumbSize
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(VicuTheme.dimensions.playerProgressTouchHeight)
-            .onSizeChanged { trackWidthPx = it.width.toFloat() }
-            .pointerInput(durationMs) {
-                detectDragGestures(
-                    onDragStart = { offset ->
-                        val hitRadius = 24.dp.toPx()
-                        dragging = when {
-                            abs(offset.x - startFraction * trackWidthPx) < hitRadius -> -1
-                            abs(offset.x - endFraction * trackWidthPx) < hitRadius -> 1
-                            else -> 0
-                        }
-                    },
-                    onDrag = { change, _ ->
-                        if (dragging == 0) return@detectDragGestures
-                        change.consume()
-                        val fraction = (change.position.x / trackWidthPx).coerceIn(0f, 1f)
-                        if (dragging < 0) {
-                            startFraction = fraction.coerceAtMost(endFraction - minGap)
-                        } else {
-                            endFraction = fraction.coerceAtLeast(startFraction + minGap)
-                        }
-                    },
-                    onDragEnd = {
-                        if (dragging != 0) {
-                            onTrimChange(
-                                PlayerEffect.Trim(
-                                    startMs = (startFraction * durationMs).toLong(),
-                                    endMs = (endFraction * durationMs).toLong(),
-                                )
-                            )
-                        }
-                        dragging = 0
-                    },
-                    onDragCancel = { dragging = 0 },
-                )
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(VicuTheme.dimensions.playerProgressTrackHeight)
-                .clip(VicuTheme.shapes.full)
-                .background(VicuTheme.colors.outlineVariant),
-        )
-        // 区间高亮（primary）
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset { IntOffset((startFraction * trackWidthPx).roundToInt(), 0) }
-                .size(
-                    with(LocalDensity.current) { ((endFraction - startFraction) * trackWidthPx).toDp() },
-                    VicuTheme.dimensions.playerProgressTrackHeight,
-                )
-                .clip(VicuTheme.shapes.full)
-                .background(VicuTheme.colors.primary),
-        )
-        listOf(startFraction, endFraction).forEach { fraction ->
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .offset {
-                        IntOffset(
-                            (fraction * trackWidthPx).roundToInt() -
-                                    (thumbSize.toPx() / 2).roundToInt(),
-                            0,
-                        )
-                    }
-                    .size(thumbSize)
-                    .clip(CircleShape)
-                    .background(VicuTheme.colors.primary)
-            )
-        }
-    }
-}
-
-@Composable
-private fun playButtonText(state: PlayerUiState): String = stringResource(
-    when (state.phase) {
-        PlayerPhase.Playing -> R.string.player_pause
-        PlayerPhase.Paused -> R.string.player_play
-        PlayerPhase.Ended -> R.string.player_replay
-        else -> R.string.player_play
-    }
-)
 
 private val PlayerError.messageRes: Int
     get() = when (this) {
@@ -572,8 +260,6 @@ private fun PlayerPagePlayingPreview() {
             onScrubStart = {},
             onScrub = {},
             onScrubEnd = {},
-            onCropChange = {},
-            onTrimChange = {},
             onSurfaceAvailable = {},
             onBack = {},
         )
@@ -582,27 +268,23 @@ private fun PlayerPagePlayingPreview() {
 
 @Preview(showBackground = true)
 @Composable
-private fun PlayerPageEffectsPreview() {
+private fun PlayerPagePausedPreview() {
     VicuTheme {
         PlayerContent(
             state = PlayerUiState(
                 videoName = "sample.mp4",
                 playing = false,
                 phase = PlayerPhase.Paused,
-                videoWidth = 1920,
-                videoHeight = 1080,
+                videoWidth = 1080,
+                videoHeight = 1920,
                 durationMs = 65000,
                 positionMs = 30000,
-                crop = PlayerEffect.Crop(left = 160, top = 90, width = 1600, height = 900),
-                trim = PlayerEffect.Trim(startMs = 10000, endMs = 50000),
             ),
             onTogglePlayPause = {},
             onSeek = {},
             onScrubStart = {},
             onScrub = {},
             onScrubEnd = {},
-            onCropChange = {},
-            onTrimChange = {},
             onSurfaceAvailable = {},
             onBack = {},
         )
@@ -623,8 +305,6 @@ private fun PlayerPageFailedPreview() {
             onScrubStart = {},
             onScrub = {},
             onScrubEnd = {},
-            onCropChange = {},
-            onTrimChange = {},
             onSurfaceAvailable = {},
             onBack = {},
         )

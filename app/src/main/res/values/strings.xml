@@ -70,10 +70,6 @@
     <string name="player_failed">播放失败：%1$s</string>
     <string name="player_error_open">无法打开视频</string>
     <string name="player_error_playback">播放出错</string>
-    <string name="player_effect_edit">编辑效果</string>
-    <string name="player_effect_done">完成</string>
-    <string name="player_crop_reset">重置裁剪</string>
-    <string name="player_trim_reset">重置区间</string>
     <string name="video_crop">裁剪</string>
     <string name="crop_cut">剪切</string>
     <string name="cropping">裁剪中…</string>
@@ -153,4 +149,23 @@
     <string name="audio_trim_error_create">无法创建截取文件</string>
     <string name="audio_trim_error_export">音频截取失败</string>
     <string name="audio_trim_error_publish">无法保存截取文件到媒体库</string>
+    <string name="video_replace_audio">替换音轨</string>
+    <string name="replace_audio_music_label">背景音乐</string>
+    <string name="replace_audio_pick_music">选择音乐</string>
+    <string name="replace_audio_change_music">重新选择</string>
+    <string name="replace_audio_duration_format">视频 %1$s · 音乐 %2$s</string>
+    <string name="replace_audio_duration_unknown">--:--</string>
+    <string name="replace_audio_mode_label">时长适配</string>
+    <string name="replace_audio_mode_truncate">截断（以视频时长为准）</string>
+    <string name="replace_audio_mode_stretch_video">伸缩视频（以音乐时长为准）</string>
+    <string name="replace_audio_mode_stretch_audio">伸缩音频（以视频时长为准）</string>
+    <string name="replace_audio_running">替换中…</string>
+    <string name="replace_audio_success">替换成功</string>
+    <string name="replace_audio_failed_retry">替换失败，重试</string>
+    <string name="replace_audio_complete">已保存到 Movies/FFmpegKitNext 文件夹。</string>
+    <string name="replace_audio_failed">替换失败：%1$s</string>
+    <string name="replace_audio_error_transcode">音轨替换失败</string>
+    <string name="replace_audio_error_output_creation">无法创建替换文件</string>
+    <string name="replace_audio_error_invalid">无法读取媒体时长，请重新选择</string>
+    <string name="replace_audio_error_unknown">未知错误</string>
 </resources>

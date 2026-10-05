@@ -1,17 +1,12 @@
 package com.rockbyte.vicu.ui.component
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.style.MutableStyleState
 import androidx.compose.foundation.style.styleable
 import androidx.compose.foundation.text.BasicText
@@ -19,13 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import com.rockbyte.vicu.R
 import com.rockbyte.vicu.ui.theme.VicuTheme
 
 /**
@@ -84,31 +73,6 @@ fun VicuTopAppBar(
             ),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun BackButton(onClick: () -> Unit, enabled: Boolean) {
-    val interactionSource = remember { MutableInteractionSource() }
-    Box(
-        modifier = Modifier
-            .size(VicuTheme.dimensions.navigationTouchSize)
-            .clip(CircleShape)
-            .clickable(
-                interactionSource = interactionSource,
-                enabled = enabled,
-                onClick = onClick,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Image(
-            painter = painterResource(R.drawable.ic_left),
-            contentDescription = stringResource(R.string.back),
-            modifier = Modifier
-                .size(VicuTheme.dimensions.iconMedium)
-                .alpha(if (enabled) VicuTheme.alpha.full else VicuTheme.alpha.disabled),
-            colorFilter = ColorFilter.tint(VicuTheme.colors.onSurface),
         )
     }
 }

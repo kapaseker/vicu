@@ -37,6 +37,7 @@ fun <T> RadioOptionGroup(
     enabled: Boolean,
     optionLabel: @Composable (T) -> String,
     onSelect: (T) -> Unit,
+    optionEnabled: (T) -> Boolean = { true },
 ) {
     val cardState = remember { MutableStyleState(null) }
     Column(
@@ -54,7 +55,7 @@ fun <T> RadioOptionGroup(
                 RadioOption(
                     label = optionLabel(option),
                     selected = option == selected,
-                    enabled = enabled,
+                    enabled = enabled && optionEnabled(option),
                     onClick = { onSelect(option) },
                 )
             }

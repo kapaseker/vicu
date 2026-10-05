@@ -7,6 +7,7 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.rockbyte.vicu.page.AudioConvertPage
 import com.rockbyte.vicu.page.AudioExportPage
+import com.rockbyte.vicu.page.AudioReplacePage
 import com.rockbyte.vicu.page.HomePage
 import com.rockbyte.vicu.page.MediaFunctionsPage
 import com.rockbyte.vicu.page.VideoConvertPage
@@ -70,6 +71,10 @@ data class ImageScaleRoute(val media: SelectedMedia) : NavKey
 @Serializable
 data class TrimRoute(val media: SelectedMedia) : NavKey
 
+/** 替换音轨目的地；携带所选视频。 */
+@Serializable
+data class AudioReplaceRoute(val media: SelectedMedia) : NavKey
+
 /** 音频截取目的地。 */
 @Serializable
 data class AudioTrimRoute(val media: SelectedMedia) : NavKey
@@ -104,6 +109,7 @@ fun MainApp() {
                     onTrimAudio = { backStack.add(AudioTrimRoute(route.media)) },
                     onCropImage = { backStack.add(ImageCropRoute(route.media)) },
                     onScaleImage = { backStack.add(ImageScaleRoute(route.media)) },
+                    onReplaceAudio = { backStack.add(AudioReplaceRoute(route.media)) },
                     onBack = { backStack.removeLastOrNull() },
                 )
             }
@@ -145,6 +151,16 @@ fun MainApp() {
             }
             entry<TrimRoute> { route ->
                 TrimPage(
+                    media = route.media,
+                    onBack = { backStack.removeLastOrNull() },
+                    onGoHome = {
+                        backStack.clear()
+                        backStack.add(HomeRoute)
+                    },
+                )
+            }
+            entry<AudioReplaceRoute> { route ->
+                AudioReplacePage(
                     media = route.media,
                     onBack = { backStack.removeLastOrNull() },
                     onGoHome = {

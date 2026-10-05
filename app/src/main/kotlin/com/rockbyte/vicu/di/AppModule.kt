@@ -12,6 +12,7 @@ import com.rockbyte.vicu.repo.ImageScaleRepo
 import com.rockbyte.vicu.repo.ImageScaleRepository
 import com.rockbyte.vicu.page.HomeViewModel
 import com.rockbyte.vicu.page.VideoConvertViewModel
+import com.rockbyte.vicu.page.AudioReplaceViewModel
 import com.rockbyte.vicu.page.crop.CropViewModel
 import com.rockbyte.vicu.page.trim.TrimViewModel
 import com.rockbyte.vicu.page.audiotrim.AudioTrimViewModel
@@ -36,6 +37,8 @@ import com.rockbyte.vicu.repo.AudioExportRepo
 import com.rockbyte.vicu.repo.AudioExportRepository
 import com.rockbyte.vicu.repo.AudioEncoder
 import com.rockbyte.vicu.repo.FFmpegAudioEncoder
+import com.rockbyte.vicu.repo.AudioReplaceRepo
+import com.rockbyte.vicu.repo.AudioReplaceRepository
 import com.rockbyte.vicu.repo.AudioOutputStore
 import com.rockbyte.vicu.repo.AudioOutputStorage
 import com.rockbyte.vicu.repo.FFmpegVideoConverter
@@ -80,10 +83,12 @@ val appModule = module {
     single<VideoConverter> { FFmpegVideoConverter(androidContext()) }
     single<VideoOutputStore> { VideoOutputStorage(androidContext().contentResolver, System::currentTimeMillis) }
     single<VideoConvertRepo> { VideoConvertRepository(get(), get()) }
+    single<AudioReplaceRepo> { AudioReplaceRepository(get(), get(), get()) }
     single<PlayerRepo> { PlayerRepository(androidContext()) }
     viewModel { HomeViewModel(androidContext(), get()) }
     viewModel { AudioExportViewModel(get()) }
     viewModel { VideoConvertViewModel(get()) }
+    viewModel { AudioReplaceViewModel(get()) }
     viewModel { AudioConvertViewModel(get()) }
     viewModel { PlayerViewModel(get()) }
     viewModel { CropViewModel(get()) }

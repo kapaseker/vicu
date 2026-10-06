@@ -10,6 +10,8 @@ data class MediaItem(
     val name: String,
     val kind: MediaKind,
     val dateAdded: Long,
+    /** 媒体时长（毫秒）；图片或未知时为 0。 */
+    val durationMs: Long = 0,
 )
 
 @Serializable

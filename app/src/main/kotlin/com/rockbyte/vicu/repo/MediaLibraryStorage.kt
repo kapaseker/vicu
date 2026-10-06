@@ -15,18 +15,22 @@ internal class MediaLibraryStorage(context: Context) : MediaLibraryStore {
             MediaStore.MediaColumns._ID,
             MediaStore.MediaColumns.DISPLAY_NAME,
             MediaStore.MediaColumns.DATE_ADDED,
+            MediaStore.MediaColumns.DURATION,
         )
         val items = mutableListOf<MediaItem>()
         resolver.query(collection, projection, null, null, null)?.use { cursor ->
             val idIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
             val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
             val dateIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)
+            // 图片行可能没有 DURATION 列，缺失视为时长未知（0）
+            val durationIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DURATION)
             while (cursor.moveToNext()) {
                 items += MediaItem(
                     uri = ContentUris.withAppendedId(collection, cursor.getLong(idIndex)),
                     name = cursor.getString(nameIndex).orEmpty(),
                     kind = kind,
                     dateAdded = cursor.getLong(dateIndex).normalizeDateAdded(),
+                    durationMs = if (durationIndex >= 0) cursor.getLong(durationIndex) else 0L,
                 )
             }
         }

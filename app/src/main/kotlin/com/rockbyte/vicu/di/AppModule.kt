@@ -11,6 +11,7 @@ import com.rockbyte.vicu.repo.ImageCropStorage
 import com.rockbyte.vicu.repo.ImageScaleRepo
 import com.rockbyte.vicu.repo.ImageScaleRepository
 import com.rockbyte.vicu.page.HomeViewModel
+import com.rockbyte.vicu.page.MediaPickerViewModel
 import com.rockbyte.vicu.page.VideoConvertViewModel
 import com.rockbyte.vicu.page.AudioReplaceViewModel
 import com.rockbyte.vicu.page.crop.CropViewModel
@@ -86,6 +87,7 @@ val appModule = module {
     single<AudioReplaceRepo> { AudioReplaceRepository(get(), get(), get()) }
     single<PlayerRepo> { PlayerRepository(androidContext()) }
     viewModel { HomeViewModel(androidContext(), get()) }
+    viewModel { MediaPickerViewModel(androidContext(), get()) }
     viewModel { AudioExportViewModel(get()) }
     viewModel { VideoConvertViewModel(get()) }
     viewModel { AudioReplaceViewModel(get()) }

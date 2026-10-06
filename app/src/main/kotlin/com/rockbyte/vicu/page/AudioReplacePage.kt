@@ -1,11 +1,6 @@
 package com.rockbyte.vicu.page
 
-import android.content.Context
-import android.net.Uri
-import android.provider.OpenableColumns
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,9 +18,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.net.toUri
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.repo.AudioReplaceError
 import com.rockbyte.vicu.repo.AudioReplaceMode
@@ -38,41 +33,35 @@ import com.rockbyte.vicu.ui.component.StatusRow
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.theme.VicuTheme
 import org.koin.androidx.compose.koinViewModel
-import java.util.Locale
 
 /**
- * 替换音轨页：从功能列表带入视频，先选背景音乐，再选时长适配策略
- * （截断 / 伸缩视频 / 伸缩音频）后替换；替换过程中锁定全部操作并拦截系统返回。
+ * 替换音轨页：从功能列表带入视频，先选背景音乐（自建媒体选择页，见 [MediaPickerPage]），
+ * 再选时长适配策略（截断 / 伸缩视频 / 伸缩音频）后替换；替换过程中锁定全部操作并拦截系统返回。
  */
 @Composable
-fun AudioReplacePage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Unit) {
+fun AudioReplacePage(media: SelectedMedia, onPickMusic: () -> Unit, onBack: () -> Unit, onGoHome: () -> Unit) {
     val viewModel = koinViewModel<AudioReplaceViewModel>()
     LaunchedEffect(media) { viewModel.bind(media) }
-    val state by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
-    val pickMusic = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            viewModel.selectMusic(uri, queryDisplayName(context, uri) ?: uri.lastPathSegment.orEmpty())
+    // 消费选择页回传的选中音乐；消费后立即清空，避免下次进入其他功能的 picker 读到脏数据
+    val pickerViewModel = koinViewModel<MediaPickerViewModel>()
+    val pickedMusic by pickerViewModel.selected.collectAsState()
+    LaunchedEffect(pickedMusic) {
+        pickedMusic?.let { music ->
+            viewModel.selectMusic(music.uri.toUri(), music.name)
+            pickerViewModel.consume()
         }
     }
+    val state by viewModel.uiState.collectAsState()
 
     AudioReplaceContent(
         state = state,
-        onPickMusic = { pickMusic.launch(arrayOf("audio/*")) },
+        onPickMusic = onPickMusic,
         onSelectMode = viewModel::selectMode,
         onReplace = viewModel::replace,
         onBack = onBack,
         onGoHome = onGoHome,
     )
 }
-
-/** SAF 选中音乐后取展示名；查询失败回退 lastPathSegment。 */
-private fun queryDisplayName(context: Context, uri: Uri): String? =
-    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-        ?.use { cursor ->
-            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
-        }
 
 @Composable
 private fun AudioReplaceContent(
@@ -230,20 +219,8 @@ private fun MusicSection(
 
 @Composable
 private fun durationText(durationMs: Long?): String =
-    durationMs?.takeIf { it > 0 }?.let { formatClock(it / 1000) }
+    durationMs?.takeIf { it > 0 }?.let { formatMediaClock(it / 1000) }
         ?: stringResource(R.string.replace_audio_duration_unknown)
-
-/** 超过 1 小时按 h:mm:ss，否则 m:ss（与播放页时钟格式一致）。 */
-private fun formatClock(totalSeconds: Long): String {
-    val hours = totalSeconds / 3600
-    val minutes = totalSeconds % 3600 / 60
-    val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        String.format(Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
-    } else {
-        String.format(Locale.US, "%d:%02d", minutes, seconds)
-    }
-}
 
 private val AudioReplaceMode.labelRes: Int
     get() = when (this) {

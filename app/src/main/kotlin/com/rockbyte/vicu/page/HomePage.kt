@@ -182,42 +182,6 @@ private fun MediaGrid(
     }
 }
 
-internal data class MediaDateGroup(val date: LocalDate, val items: List<MediaItem>)
-
-internal fun groupMediaByDate(
-    items: List<MediaItem>,
-    zoneId: ZoneId,
-): List<MediaDateGroup> = items
-    .groupBy { Instant.ofEpochSecond(it.dateAdded).atZone(zoneId).toLocalDate() }
-    .map { (date, dateItems) -> MediaDateGroup(date, dateItems) }
-
-internal sealed interface MediaDateLabel {
-    data object Today : MediaDateLabel
-    data object Yesterday : MediaDateLabel
-    data class MonthDay(val month: Int, val day: Int) : MediaDateLabel
-    data class YearMonthDay(val year: Int, val month: Int, val day: Int) : MediaDateLabel
-}
-
-internal fun mediaDateLabel(date: LocalDate, today: LocalDate): MediaDateLabel = when {
-    date == today -> MediaDateLabel.Today
-    date == today.minusDays(1) -> MediaDateLabel.Yesterday
-    date.year == today.year -> MediaDateLabel.MonthDay(date.monthValue, date.dayOfMonth)
-    else -> MediaDateLabel.YearMonthDay(date.year, date.monthValue, date.dayOfMonth)
-}
-
-@Composable
-private fun MediaDateGroup.label(today: LocalDate): String = when (val label = mediaDateLabel(date, today)) {
-    MediaDateLabel.Today -> stringResource(R.string.media_date_today)
-    MediaDateLabel.Yesterday -> stringResource(R.string.media_date_yesterday)
-    is MediaDateLabel.MonthDay -> stringResource(R.string.media_date_month_day, label.month, label.day)
-    is MediaDateLabel.YearMonthDay -> stringResource(
-        R.string.media_date_year_month_day,
-        label.year,
-        label.month,
-        label.day,
-    )
-}
-
 @Composable
 private fun MediaTile(
     item: MediaItem,

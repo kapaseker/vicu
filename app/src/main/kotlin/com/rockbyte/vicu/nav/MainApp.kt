@@ -8,6 +8,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.rockbyte.vicu.page.AudioConvertPage
 import com.rockbyte.vicu.page.AudioExportPage
 import com.rockbyte.vicu.page.AudioReplacePage
+import com.rockbyte.vicu.page.MediaPickerPage
 import com.rockbyte.vicu.page.HomePage
 import com.rockbyte.vicu.page.MediaFunctionsPage
 import com.rockbyte.vicu.page.VideoConvertPage
@@ -17,6 +18,7 @@ import com.rockbyte.vicu.page.crop.CropPage
 import com.rockbyte.vicu.page.trim.TrimPage
 import com.rockbyte.vicu.page.audiotrim.AudioTrimPage
 import com.rockbyte.vicu.page.player.PlayerPage
+import com.rockbyte.vicu.repo.MediaKind
 import com.rockbyte.vicu.repo.SelectedMedia
 import kotlinx.serialization.Serializable
 
@@ -74,6 +76,10 @@ data class TrimRoute(val media: SelectedMedia) : NavKey
 /** 替换音轨目的地；携带所选视频。 */
 @Serializable
 data class AudioReplaceRoute(val media: SelectedMedia) : NavKey
+
+/** 应用内媒体选择目的地；kinds 决定可选的媒体类型（如仅音乐）。 */
+@Serializable
+data class MediaPickerRoute(val kinds: Set<MediaKind>) : NavKey
 
 /** 音频截取目的地。 */
 @Serializable
@@ -162,11 +168,19 @@ fun MainApp() {
             entry<AudioReplaceRoute> { route ->
                 AudioReplacePage(
                     media = route.media,
+                    onPickMusic = { backStack.add(MediaPickerRoute(setOf(MediaKind.AUDIO))) },
                     onBack = { backStack.removeLastOrNull() },
                     onGoHome = {
                         backStack.clear()
                         backStack.add(HomeRoute)
                     },
+                )
+            }
+            entry<MediaPickerRoute> { route ->
+                MediaPickerPage(
+                    kinds = route.kinds,
+                    onDone = { backStack.removeLastOrNull() },
+                    onBack = { backStack.removeLastOrNull() },
                 )
             }
             entry<AudioTrimRoute> { route ->

@@ -48,7 +48,7 @@ class ImageCropStorageTest : AndroidTestCase() {
     private fun save(file: File, region: ImageCropRegion): Uri {
         val image = store.decodeCrop(Uri.fromFile(file), region, 0)
         val format = imageCropFormat(image.info.mime)
-        val output = store.create("device-test.image", format)
+        val output = store.create("device-test.image", "_crop", format)
         outputs += output
         try { store.write(output, image.bitmap, format) } finally { image.bitmap.recycle() }
         store.publish(output)

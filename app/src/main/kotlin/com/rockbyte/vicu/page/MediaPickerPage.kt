@@ -3,26 +3,17 @@ package com.rockbyte.vicu.page
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -30,17 +21,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.repo.MediaItem
 import com.rockbyte.vicu.repo.MediaKind
+import com.rockbyte.vicu.ui.component.MediaGrid
 import com.rockbyte.vicu.ui.component.PrimaryButton
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.theme.VicuTheme
 import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
 import org.koin.androidx.compose.koinViewModel
 
 /**
  * 自建媒体选择页：替代 SAF 文件夹选择，展示 [MediaRepo] 媒体库中 [kinds] 类型的条目
- * （参考首页 UI：日期分组 + 列表行）；单选即点即回，选中结果经 [MediaPickerViewModel] 回传调用页。
+ * （参考首页 UI：日期分组 + Grid Card）；单选即点即回，选中结果经 [MediaPickerViewModel] 回传调用页。
  */
 @Composable
 fun MediaPickerPage(kinds: Set<MediaKind>, onDone: () -> Unit, onBack: () -> Unit) {
@@ -72,71 +62,9 @@ private fun MediaPickerContent(
 
     VicuScaffold(title = stringResource(R.string.select_music), onBack = onBack) {
         when (state.hasAccess) {
-            true -> MediaList(state.items, onPick)
+            true -> MediaGrid(state.items, state.loading, onPick)
             false -> PermissionPrompt(state.permissionsToRequest, permissionLauncher::launch)
             null -> Unit
-        }
-    }
-}
-
-@Composable
-private fun MediaList(items: List<MediaItem>, onPick: (MediaItem) -> Unit) {
-    if (items.isEmpty()) {
-        Box(Modifier.fillMaxSize()) {
-            BasicText(
-                text = stringResource(R.string.media_empty),
-                style = VicuTheme.typography.bodySm.copy(color = VicuTheme.colors.onSurfaceVariant),
-                modifier = Modifier.align(Alignment.Center),
-            )
-        }
-        return
-    }
-    val zoneId by remember { mutableStateOf(ZoneId.systemDefault()) }
-    val groups = remember(items, zoneId) { groupMediaByDate(items, zoneId) }
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .navigationBarsPadding(),
-        contentPadding = PaddingValues(
-            horizontal = VicuTheme.dimensions.screenGutter,
-            vertical = VicuTheme.dimensions.screenGutter,
-        ),
-    ) {
-        for (group in groups) {
-            item(key = "date-${group.date}") {
-                BasicText(
-                    text = group.label(LocalDate.now(zoneId)),
-                    style = VicuTheme.typography.bodyLg.copy(color = VicuTheme.colors.onSurface),
-                    modifier = Modifier.padding(top = VicuTheme.dimensions.spacingUnit),
-                )
-            }
-            items(group.items, key = { it.uri }) { item ->
-                MediaRow(item, onPick)
-            }
-        }
-    }
-}
-
-/** 媒体行：名称 + 时长（未知时不显示），点击即选中返回。 */
-@Composable
-private fun MediaRow(item: MediaItem, onPick: (MediaItem) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onPick(item) }
-            .padding(vertical = VicuTheme.dimensions.spacingUnit),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BasicText(
-            text = abbreviateMediaFileName(item.name),
-            style = VicuTheme.typography.bodyLg.copy(color = VicuTheme.colors.onSurface),
-        )
-        if (item.durationMs > 0) {
-            BasicText(
-                text = formatMediaClock(item.durationMs / 1000),
-                style = VicuTheme.typography.bodySm.copy(color = VicuTheme.colors.onSurfaceVariant),
-            )
         }
     }
 }

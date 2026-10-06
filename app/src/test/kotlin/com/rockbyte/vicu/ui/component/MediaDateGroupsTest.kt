@@ -1,4 +1,4 @@
-package com.rockbyte.vicu.page
+package com.rockbyte.vicu.ui.component
 
 import android.net.Uri
 import com.rockbyte.vicu.repo.MediaItem

@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.rockbyte.vicu.ui.component.abbreviateMediaFileName
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.repo.MediaKind
 import com.rockbyte.vicu.repo.SelectedMedia
@@ -67,16 +68,6 @@ fun MediaFunctionsPage(
             }
         }
     }
-}
-
-/**
- * 文件名超长省略：按名称（不含扩展名）计数，超过 10 字符 → 前 5 + "***" + 后 5，再补回扩展名。
- */
-internal fun abbreviateMediaFileName(name: String): String {
-    val stem = name.substringBeforeLast('.')
-    val shown = if (stem.length <= 10) stem else stem.take(5) + "***" + stem.takeLast(5)
-    val ext = name.substringAfterLast('.', "")
-    return if (ext.isEmpty()) shown else "$shown.$ext"
 }
 
 private fun MediaKind.functionTitleRes(): Int = when (this) {

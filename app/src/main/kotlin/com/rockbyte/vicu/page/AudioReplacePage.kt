@@ -21,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.net.toUri
+import com.rockbyte.vicu.ui.component.abbreviateMediaFileName
+import com.rockbyte.vicu.ui.component.formatMediaClock
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.repo.AudioReplaceError
 import com.rockbyte.vicu.repo.AudioReplaceMode

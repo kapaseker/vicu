@@ -1,4 +1,4 @@
-package com.rockbyte.vicu.page
+package com.rockbyte.vicu.ui.component
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
@@ -55,4 +55,14 @@ internal fun formatMediaClock(totalSeconds: Long): String {
     } else {
         String.format(Locale.US, "%d:%02d", minutes, seconds)
     }
+}
+
+/**
+ * 文件名超长省略：按名称（不含扩展名）计数，超过 10 字符 → 前 5 + "***" + 后 5，再补回扩展名。
+ */
+internal fun abbreviateMediaFileName(name: String): String {
+    val stem = name.substringBeforeLast('.')
+    val shown = if (stem.length <= 10) stem else stem.take(5) + "***" + stem.takeLast(5)
+    val ext = name.substringAfterLast('.', "")
+    return if (ext.isEmpty()) shown else "$shown.$ext"
 }

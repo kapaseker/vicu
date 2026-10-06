@@ -5,95 +5,82 @@ import androidx.compose.ui.unit.IntSize
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** 缩放框几何：等比角点缩放（对角固定）、模式切换收敛与输出尺寸换算。 */
+/** 居中缩放、模式切换与输出尺寸换算。 */
 class ScaleMarqueeTest {
-
     @Test
-    fun bottomRightCornerAnchorsTopLeft() {
-        val rect = CropRectF(0.2f, 0.1f, 0.8f, 0.7f)
-
-        // 斜向内拖：增量沿锚点→角点对角线投影，Δs = (dx+dy)/2 = -0.25，左上角不动
-        val moved = rect.moveCornerUniform(ScaleCorner.BOTTOM_RIGHT, dx = -0.2f, dy = -0.3f)
-
-        assertRect(0.2f, 0.1f, 0.55f, 0.45f, moved)
+    fun allCornersResizeAroundCenter() {
+        val rect = CropRectF(0.2f, 0.2f, 0.8f, 0.8f)
+        val drags = listOf(
+            Triple(ScaleCorner.TOP_LEFT, 0.1f, 0.1f),
+            Triple(ScaleCorner.TOP_RIGHT, -0.1f, 0.1f),
+            Triple(ScaleCorner.BOTTOM_LEFT, 0.1f, -0.1f),
+            Triple(ScaleCorner.BOTTOM_RIGHT, -0.1f, -0.1f),
+        )
+        drags.forEach { (corner, dx, dy) ->
+            assertRect(0.3f, 0.3f, 0.7f, 0.7f, rect.moveCornerUniform(corner, dx, dy))
+        }
     }
 
     @Test
-    fun topLeftCornerAnchorsBottomRight() {
-        val rect = CropRectF(0.2f, 0.1f, 0.8f, 0.7f)
-
-        // 左上角向内拖：Δs = -(dx+dy)/2 = -0.25，对角 (0.8, 0.7) 固定
-        val moved = rect.moveCornerUniform(ScaleCorner.TOP_LEFT, dx = 0.2f, dy = 0.3f)
-
-        assertRect(0.45f, 0.35f, 0.8f, 0.7f, moved)
+    fun singleAxisDragRespondsAndPerpendicularDragKeepsSize() {
+        val rect = CropRectF(0.2f, 0.2f, 0.8f, 0.8f)
+        assertRect(0.3f, 0.3f, 0.7f, 0.7f,
+            rect.moveCornerUniform(ScaleCorner.BOTTOM_RIGHT, -0.2f, 0f))
+        assertRect(0.2f, 0.2f, 0.8f, 0.8f,
+            rect.moveCornerUniform(ScaleCorner.BOTTOM_RIGHT, -0.2f, 0.2f))
     }
 
     @Test
-    fun topRightAndBottomLeftCornersAnchorOppositeCorner() {
-        val rect = CropRectF(0.2f, 0.1f, 0.8f, 0.7f)
-
-        // 右上角向内拖（dx<0, dy>0）：Δs = (dx-dy)/2 = -0.1，左下角固定
-        val topRight = rect.moveCornerUniform(ScaleCorner.TOP_RIGHT, dx = -0.1f, dy = 0.1f)
-        assertRect(0.2f, 0.2f, 0.7f, 0.7f, topRight)
-
-        // 左下角向内拖（dx>0, dy<0）：Δs = (dy-dx)/2 = -0.1，右上角固定
-        val bottomLeft = rect.moveCornerUniform(ScaleCorner.BOTTOM_LEFT, dx = 0.1f, dy = -0.1f)
-        assertRect(0.3f, 0.1f, 0.8f, 0.6f, bottomLeft)
+    fun everyCornerClampsToCenteredLimits() {
+        ScaleCorner.entries.forEach { corner ->
+            val x = if (corner == ScaleCorner.TOP_LEFT || corner == ScaleCorner.BOTTOM_LEFT) -1f else 1f
+            val y = if (corner == ScaleCorner.TOP_LEFT || corner == ScaleCorner.TOP_RIGHT) -1f else 1f
+            val rect = CropRectF(0.2f, 0.2f, 0.8f, 0.8f)
+            assertRect(0f, 0f, 1f, 1f, rect.moveCornerUniform(corner, x, y))
+            assertRect(0.475f, 0.475f, 0.525f, 0.525f, rect.moveCornerUniform(corner, -x, -y))
+        }
     }
 
     @Test
-    fun singleAxisDragRespondsInstantly() {
-        // 回归：只沿一个轴拖（最常见的抓取方式）也必须立即响应，不得出现 min 死区
-        val rect = CropRectF(0.2f, 0.1f, 0.8f, 0.7f)
-
-        val inward = rect.moveCornerUniform(ScaleCorner.BOTTOM_RIGHT, dx = -0.2f, dy = 0f)
-        assertRect(0.2f, 0.1f, 0.7f, 0.6f, inward)
-
-        val outward = rect.moveCornerUniform(ScaleCorner.BOTTOM_RIGHT, dx = 0.1f, dy = 0f)
-        assertRect(0.2f, 0.1f, 0.85f, 0.75f, outward)
+    fun snapToUniformUsesSmallerScaleAndCenters() {
+        assertRect(0.35f, 0.35f, 0.65f, 0.65f,
+            CropRectF(0.35f, 0.2f, 0.65f, 0.8f).snapToUniform())
+        assertRect(0f, 0f, 1f, 1f, CropRectF(0f, 0f, 1f, 1f).snapToUniform())
     }
 
     @Test
-    fun perpendicularDragKeepsSideLength() {
-        // 垂直于对角线方向的拖拽不改变边长（角点绕对角点做圆周运动的等价语义）
-        val rect = CropRectF(0.2f, 0.1f, 0.8f, 0.7f)
-
-        val moved = rect.moveCornerUniform(ScaleCorner.BOTTOM_RIGHT, dx = -0.2f, dy = 0.2f)
-
-        assertRect(0.2f, 0.1f, 0.8f, 0.7f, moved)
+    fun freeEdgesMirrorOppositeEdgeAndKeepOtherAxis() {
+        val rect = CropRectF(0.2f, 0.3f, 0.8f, 0.7f)
+        assertRect(0.3f, 0.3f, 0.7f, 0.7f, rect.moveScaleEdge(CropEdge.LEFT, 0.1f, 0.5f))
+        assertRect(0.3f, 0.3f, 0.7f, 0.7f, rect.moveScaleEdge(CropEdge.RIGHT, -0.1f, 0.5f))
+        assertRect(0.2f, 0.4f, 0.8f, 0.6f, rect.moveScaleEdge(CropEdge.TOP, 0.5f, 0.1f))
+        assertRect(0.2f, 0.4f, 0.8f, 0.6f, rect.moveScaleEdge(CropEdge.BOTTOM, 0.5f, -0.1f))
     }
 
     @Test
-    fun cornerDragClampsToPictureBounds() {
-        val rect = CropRectF(0.2f, 0.1f, 0.8f, 0.7f)
-
-        // 向外拖得太猛：Δs = 1 > 1 - left，钳到 0.8
-        val grown = rect.moveCornerUniform(ScaleCorner.BOTTOM_RIGHT, dx = 1f, dy = 1f)
-        assertRect(0.2f, 0.1f, 1f, 0.9f, grown)
-
-        // 向内拖得太猛：钳到 minSize
-        val shrunk = rect.moveCornerUniform(ScaleCorner.BOTTOM_RIGHT, dx = -2f, dy = -2f)
-        assertRect(0.2f, 0.1f, 0.25f, 0.15f, shrunk)
-
-        // 框贴右下：上界 = 1 - left / 1 - top，不会越出画面
-        val pinned = CropRectF(0.9f, 0.85f, 1f, 1f)
-            .moveCornerUniform(ScaleCorner.BOTTOM_RIGHT, dx = 1f, dy = 1f)
-        assertRect(0.9f, 0.85f, 1f, 0.95f, pinned)
+    fun freeEdgesClampToCenteredLimits() {
+        val rect = CropRectF(0.2f, 0.3f, 0.8f, 0.7f)
+        CropEdge.entries.forEach { edge ->
+            val direction = if (edge == CropEdge.LEFT || edge == CropEdge.TOP) -1f else 1f
+            val grown = rect.moveScaleEdge(edge, direction, direction)
+            val shrunk = rect.moveScaleEdge(edge, -direction, -direction)
+            if (edge.isHorizontal) {
+                assertRect(0f, 0.3f, 1f, 0.7f, grown)
+                assertRect(0.475f, 0.3f, 0.525f, 0.7f, shrunk)
+            } else {
+                assertRect(0.2f, 0f, 0.8f, 1f, grown)
+                assertRect(0.2f, 0.475f, 0.8f, 0.525f, shrunk)
+            }
+        }
     }
 
     @Test
-    fun snapToUniformTakesSmallerSideAnchoredTopLeft() {
-        // 取较小的高：s = 0.3，左上角锚定
-        assertRect(0.1f, 0.2f, 0.4f, 0.5f, CropRectF(0.1f, 0.2f, 0.4f, 0.6f).snapToUniform())
-        // 已等比时不变
-        assertRect(0.2f, 0.1f, 0.8f, 0.7f, CropRectF(0.2f, 0.1f, 0.8f, 0.7f).snapToUniform())
-    }
-
-    @Test
-    fun snapToUniformDoesNotExceedPictureBounds() {
-        // 左上锚定 + 边长不超过 1，框始终在画面内
-        val snapped = CropRectF(0f, 0f, 1f, 1f).snapToUniform()
-        assertRect(0f, 0f, 1f, 1f, snapped)
+    fun landscapeAndPortraitOutputKeepOriginalAspectRatio() {
+        val rect = CropRectF(0f, 0f, 1f, 1f)
+            .moveCornerUniform(ScaleCorner.BOTTOM_RIGHT, -0.25f, -0.25f)
+        assertEquals(ScaleOutputSize(800, 450), scaleOutputSize(rect, 1600, 900))
+        assertEquals(ScaleOutputSize(450, 800), scaleOutputSize(rect, 900, 1600))
+        assertRect(0.25f, 0.25f, 0.75f, 0.75f, rect)
     }
 
     @Test

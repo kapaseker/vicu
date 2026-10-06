@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -92,7 +94,10 @@ fun ImageScalePage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Uni
                     Box(Modifier.align(Alignment.CenterHorizontally)
                         .width(videoPreviewWidth(availableWidth, availableHeight, aspect)).aspectRatio(aspect)) {
                         Image(image, contentDescription = stringResource(R.string.image_scale_preview),
-                            contentScale = ContentScale.FillBounds, modifier = Modifier.matchParentSize())
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier.align(Alignment.Center)
+                                .fillMaxWidth(scaleRect.right - scaleRect.left)
+                                .fillMaxHeight(scaleRect.bottom - scaleRect.top))
                         ScaleMarquee(
                             rect = scaleRect,
                             uniform = uniform,

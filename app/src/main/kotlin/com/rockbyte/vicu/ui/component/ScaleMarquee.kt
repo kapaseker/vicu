@@ -15,14 +15,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.ClipOp
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -39,43 +34,41 @@ import kotlin.math.roundToInt
 /** 缩放框的四个角。 */
 internal enum class ScaleCorner { TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT }
 
-/**
- * 等比缩放：拖 [corner] 时对角固定，两轴同时改为同一边长。
- * 增量沿「锚点 → 角点」的对角线投影成边长变化（等价于角点绕对角点做圆周运动）：
- * 任意方向都有即时、成比例的响应。此前取 min(两轴提议) 的做法有死区——
- * 等比框宽高恒相等，单轴向外拖时另一轴提议不变，min 永远选中不动的轴，框完全不动。
- * 结果 clamp 到 [minSize, 1] 与对角可达范围内。
- */
+/** 以图片中心等比缩放；两轴拖动投影到角点方向，对边同步移动。 */
 internal fun CropRectF.moveCornerUniform(
     corner: ScaleCorner, dx: Float, dy: Float, minSize: Float = 0.05f,
 ): CropRectF {
-    val projection = when (corner) {
-        ScaleCorner.BOTTOM_RIGHT -> (dx + dy) / 2f
-        ScaleCorner.TOP_LEFT -> -(dx + dy) / 2f
-        ScaleCorner.TOP_RIGHT -> (dx - dy) / 2f
-        ScaleCorner.BOTTOM_LEFT -> (dy - dx) / 2f
+    val delta = when (corner) {
+        ScaleCorner.BOTTOM_RIGHT -> dx + dy
+        ScaleCorner.TOP_LEFT -> -(dx + dy)
+        ScaleCorner.TOP_RIGHT -> dx - dy
+        ScaleCorner.BOTTOM_LEFT -> dy - dx
     }
-    val sizeMax = when (corner) {
-        ScaleCorner.TOP_LEFT -> minOf(right, bottom)
-        ScaleCorner.TOP_RIGHT -> minOf(1f - left, bottom)
-        ScaleCorner.BOTTOM_LEFT -> minOf(right, 1f - top)
-        ScaleCorner.BOTTOM_RIGHT -> minOf(1f - left, 1f - top)
-    }
-    val side = (right - left + projection).coerceIn(minSize, sizeMax.coerceAtLeast(minSize))
-    return when (corner) {
-        ScaleCorner.TOP_LEFT -> copy(left = right - side, top = bottom - side)
-        ScaleCorner.TOP_RIGHT -> copy(right = left + side, top = bottom - side)
-        ScaleCorner.BOTTOM_LEFT -> copy(left = right - side, bottom = top + side)
-        ScaleCorner.BOTTOM_RIGHT -> copy(right = left + side, bottom = top + side)
+    val side = (right - left + delta).coerceIn(minSize, 1f)
+    return centeredScaleRect(side, side)
+}
+
+/** 非等比缩放只改变拖动轴，对边镜像移动。 */
+internal fun CropRectF.moveScaleEdge(
+    edge: CropEdge, dx: Float, dy: Float, minSize: Float = 0.05f,
+): CropRectF {
+    val width = right - left
+    val height = bottom - top
+    return when (edge) {
+        CropEdge.LEFT -> centeredScaleRect((width - 2f * dx).coerceIn(minSize, 1f), height)
+        CropEdge.RIGHT -> centeredScaleRect((width + 2f * dx).coerceIn(minSize, 1f), height)
+        CropEdge.TOP -> centeredScaleRect(width, (height - 2f * dy).coerceIn(minSize, 1f))
+        CropEdge.BOTTOM -> centeredScaleRect(width, (height + 2f * dy).coerceIn(minSize, 1f))
     }
 }
 
-/**
- * 切到等比模式：取宽高占比较小者作为新边长（不放大已缩小的部分），左上角锚定。
- */
+private fun centeredScaleRect(width: Float, height: Float): CropRectF =
+    CropRectF((1f - width) / 2f, (1f - height) / 2f, (1f + width) / 2f, (1f + height) / 2f)
+
+/** 切回等比模式时取较小缩放比例，保持图片居中。 */
 internal fun CropRectF.snapToUniform(minSize: Float = 0.05f): CropRectF {
     val side = minOf(right - left, bottom - top).coerceIn(minSize, 1f)
-    return CropRectF(left, top, left + side, top + side)
+    return centeredScaleRect(side, side)
 }
 
 /** 输出像素尺寸：框宽高占比 × 原图，逐轴 round 后夹在 [1, 原图]。 */
@@ -96,13 +89,7 @@ internal fun cornerCenterPx(corner: ScaleCorner, rect: CropRectF, size: IntSize)
     return Offset(x, y)
 }
 
-/**
- * 缩放框覆盖层：Canvas 画虚线边框 + 框外 30% 黑遮罩，输出像素 = 框宽高占比 × 原图。
- * 等比模式四个圆点画在四角，拖任意角点对角固定等比缩放；
- * 非等比模式圆点画在四条边中点，交互与 CropMarquee 一致（各边只动单轴，可拉伸变形）。
- * 手势结构照搬 CropMarquee：手柄是独立节点（先平移区后手柄的节点序问题此处不存在，
- * 没有框内平移区），增量语义防跳变，触区 coerce 在覆盖层内防越界。
- */
+/** 缩放边框与手柄：等比模式拖四角，非等比模式拖边中点；均以图片中心缩放。 */
 @Composable
 internal fun ScaleMarquee(
     rect: CropRectF,
@@ -114,7 +101,6 @@ internal fun ScaleMarquee(
     var overlaySize by remember { mutableStateOf(IntSize.Zero) }
     val borderColor = VicuTheme.colors.onSurface
     val handleColor = VicuTheme.colors.primary
-    val dimColor = Color.Black.copy(alpha = VicuTheme.alpha.cropDim)
     val handleSize = VicuTheme.dimensions.cropHandleSize
     val borderWidth = VicuTheme.dimensions.cropBorderWidth
     val dashLength = VicuTheme.dimensions.cropDashLength
@@ -133,11 +119,6 @@ internal fun ScaleMarquee(
             val top = rect.top * size.height
             val right = rect.right * size.width
             val bottom = rect.bottom * size.height
-            // 框外 30% 黑遮罩：整屏半透明黑 + 差集挖空框内
-            val hole = Path().apply { addRect(Rect(left, top, right, bottom)) }
-            clipPath(hole, ClipOp.Difference) {
-                drawRect(color = dimColor, topLeft = Offset.Zero, size = size)
-            }
             drawRect(
                 color = borderColor,
                 topLeft = Offset(left, top),
@@ -219,7 +200,7 @@ internal fun ScaleMarquee(
                             val w = size.width.toFloat()
                             val h = size.height.toFloat()
                             if (w > 0f && h > 0f) {
-                                latestOnRectChange(latestRect.moveEdge(edge, dx / w, dy / h))
+                                latestOnRectChange(latestRect.moveScaleEdge(edge, dx / w, dy / h))
                             }
                         },
                     )
@@ -230,7 +211,7 @@ internal fun ScaleMarquee(
 }
 
 /**
- * 等比模式的角点手柄：透明触区 Box，接收 2D 增量（横竖都吃，由 moveCornerUniform 取小轴定边长）。
+ * 等比模式的角点手柄：透明触区 Box，接收 2D 增量（横竖都吃，由 moveCornerUniform 投影计算缩放比例）。
  * 角点既有横向也有纵向增量，同样排除系统手势区。
  */
 @Composable

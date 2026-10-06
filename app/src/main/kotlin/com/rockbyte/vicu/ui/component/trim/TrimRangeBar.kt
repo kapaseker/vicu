@@ -89,7 +89,7 @@ internal fun TrimRangeBar(
         }
         for (start in listOf(true, false)) {
             val time = if (start) range.startMs else range.endMs
-            val label = stringResource(if (start) R.string.trim_start else R.string.trim_end)
+            val label = stringResource(if (start) R.string.start_time_seconds else R.string.end_time_seconds)
             Box(Modifier.align(Alignment.CenterStart)
                 .offset { IntOffset((xAt(time) - radius).roundToInt(), 0) }.size(touchSize)
                 .semantics {

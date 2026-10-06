@@ -89,9 +89,9 @@ private fun WaveformPlayer(
                 style = VicuTheme.typography.caption.copy(color = VicuTheme.colors.onSurfaceVariant))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit)) {
-            OutlineButton(stringResource(R.string.waveform_show_all), { viewport = WaveformViewport.full(extentMs) },
+            OutlineButton(stringResource(R.string.show_all), { viewport = WaveformViewport.full(extentMs) },
                 Modifier.weight(1f), enabled)
-            OutlineButton(stringResource(R.string.waveform_locate), { viewport = viewport.locate(positionMs, extentMs) },
+            OutlineButton(stringResource(R.string.locate_playback), { viewport = viewport.locate(positionMs, extentMs) },
                 Modifier.weight(1f), enabled)
         }
         BasicText(stringResource(R.string.waveform_gestures),
@@ -138,8 +138,8 @@ private fun WaveformCanvas(
         formatTrimTime(viewport.startMs.toLong()), formatTrimTime(viewport.endMs.toLong()))
     val zoomIn = stringResource(R.string.waveform_zoom_in)
     val zoomOut = stringResource(R.string.waveform_zoom_out)
-    val earlier = stringResource(R.string.waveform_earlier)
-    val later = stringResource(R.string.waveform_later)
+    val earlier = stringResource(R.string.view_previous_segment)
+    val later = stringResource(R.string.view_next_segment)
     Box(Modifier.fillMaxWidth().height(dimensions.spacingUnit * 20)
         .onSizeChanged { width = it.width }
         .clip(VicuTheme.shapes.xl).background(colors.surfaceContainerLow)
@@ -237,7 +237,7 @@ private fun WaveformCanvas(
             val time = if (start) range.startMs else range.endMs
             val x = xAt(time)
             if (x !in radius..(width - radius)) continue
-            val label = stringResource(if (start) R.string.trim_start else R.string.trim_end)
+            val label = stringResource(if (start) R.string.start_time_seconds else R.string.end_time_seconds)
             // Distinct vertical regions keep both virtual controls accessible when endpoints overlap.
             Box(Modifier.align(if (start) Alignment.TopStart else Alignment.BottomStart)
                 .offset { IntOffset((x - radius).roundToInt(), 0) }.width(touchSize).height(dimensions.spacingUnit * 10)

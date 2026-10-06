@@ -130,7 +130,7 @@ fun ImageCropPage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Unit
                 }
                 when (val load = state.loadState) {
                     ImageCropLoadState.Loading -> StatusRow(VicuTheme.colors.secondary,
-                        stringResource(R.string.image_crop_loading), pulsing = true)
+                        stringResource(R.string.loading_image), pulsing = true)
                     is ImageCropLoadState.Failed -> ImageCropErrorRow(load.error)
                     is ImageCropLoadState.Ready -> Unit
                 }
@@ -138,7 +138,7 @@ fun ImageCropPage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Unit
                     ImageCropSaveState.Saving -> StatusRow(VicuTheme.colors.secondary,
                         stringResource(R.string.image_crop_saving), pulsing = true)
                     ImageCropSaveState.Complete -> StatusRow(VicuTheme.colors.onSurfaceVariant,
-                        stringResource(R.string.image_crop_complete))
+                        stringResource(R.string.saved_to_pictures_folder))
                     is ImageCropSaveState.Failed -> ImageCropErrorRow(save.error)
                     ImageCropSaveState.Idle -> Unit
                 }
@@ -151,11 +151,11 @@ fun ImageCropPage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Unit
 private fun ImageCropErrorRow(error: ImageCropError) {
     StatusRow(dotColor = VicuTheme.colors.error, textColor = VicuTheme.colors.error,
         text = stringResource(when (error) {
-            ImageCropError.LoadFailed -> R.string.image_crop_error_load
+            ImageCropError.LoadFailed -> R.string.image_load_failed_reselect
             ImageCropError.AnimatedUnsupported -> R.string.image_crop_error_animation
             ImageCropError.ImageTooLarge -> R.string.image_crop_error_large
             ImageCropError.CropFailed -> R.string.image_crop_error_crop
-            ImageCropError.SaveFailed -> R.string.image_crop_error_save
+            ImageCropError.SaveFailed -> R.string.image_save_failed_retry
         }))
 }
 

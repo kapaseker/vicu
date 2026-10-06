@@ -9,9 +9,9 @@ class AudioConvertErrorResourceTest {
 
     @Test
     fun `each convert error maps to its UI string resource`() {
-        assertEquals(R.string.audio_convert_error_transcode, AudioConvertError.TranscodeFailed.messageRes)
-        assertEquals(R.string.audio_convert_error_output_creation, AudioConvertError.OutputCreationFailed.messageRes)
-        assertEquals(R.string.audio_convert_error_unknown, AudioConvertError.Unknown.messageRes)
+        assertEquals(R.string.audio_transcode_failed, AudioConvertError.TranscodeFailed.messageRes)
+        assertEquals(R.string.cannot_create_conversion_file, AudioConvertError.OutputCreationFailed.messageRes)
+        assertEquals(R.string.unknown_error, AudioConvertError.Unknown.messageRes)
     }
 
 }

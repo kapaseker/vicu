@@ -74,7 +74,7 @@ private fun VideoConvertContent(
         ) {
             item {
                 RadioOptionGroup(
-                    label = stringResource(R.string.export_format_label),
+                    label = stringResource(R.string.format),
                     options = VideoConvertFormat.entries,
                     selected = state.format,
                     enabled = !converting,
@@ -84,7 +84,7 @@ private fun VideoConvertContent(
             }
             item {
                 RadioOptionGroup(
-                    label = stringResource(R.string.export_quality_label),
+                    label = stringResource(R.string.quality),
                     options = VideoConvertQuality.entries,
                     selected = state.quality,
                     enabled = !converting,
@@ -131,7 +131,7 @@ private fun VideoConvertContent(
                 ConvertPhase.Complete -> item {
                     StatusRow(
                         dotColor = VicuTheme.colors.onSurfaceVariant,
-                        text = stringResource(R.string.convert_complete),
+                        text = stringResource(R.string.saved_to_movies_folder),
                     )
                 }
                 is ConvertPhase.Failed -> item {
@@ -152,26 +152,26 @@ private fun VideoConvertContent(
 
 private val VideoConvertFormat.labelRes: Int
     get() = when (this) {
-        VideoConvertFormat.MP4 -> R.string.format_mp4
-        VideoConvertFormat.MKV -> R.string.format_mkv
-        VideoConvertFormat.WEBM -> R.string.format_webm
-        VideoConvertFormat.AVI -> R.string.format_avi
-        VideoConvertFormat.MOV -> R.string.format_mov
+        VideoConvertFormat.MP4 -> R.string.mp4
+        VideoConvertFormat.MKV -> R.string.mkv
+        VideoConvertFormat.WEBM -> R.string.webm
+        VideoConvertFormat.AVI -> R.string.avi
+        VideoConvertFormat.MOV -> R.string.mov
     }
 
 private val VideoConvertQuality.labelRes: Int
     get() = when (this) {
-        VideoConvertQuality.BEST_QUALITY -> R.string.quality_finest
-        VideoConvertQuality.BALANCED -> R.string.quality_balanced
-        VideoConvertQuality.SMALLEST -> R.string.quality_smallest
-        VideoConvertQuality.SUITABLE -> R.string.quality_suitable
+        VideoConvertQuality.BEST_QUALITY -> R.string.best_quality
+        VideoConvertQuality.BALANCED -> R.string.balanced
+        VideoConvertQuality.SMALLEST -> R.string.smallest_size
+        VideoConvertQuality.SUITABLE -> R.string.most_suitable
     }
 
 internal val VideoConvertError.messageRes: Int
     get() = when (this) {
         VideoConvertError.TranscodeFailed -> R.string.convert_error_transcode
-        VideoConvertError.OutputCreationFailed -> R.string.convert_error_output_creation
-        VideoConvertError.Unknown -> R.string.convert_error_unknown
+        VideoConvertError.OutputCreationFailed -> R.string.cannot_create_conversion_file
+        VideoConvertError.Unknown -> R.string.unknown_error
     }
 
 @Composable

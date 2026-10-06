@@ -100,7 +100,7 @@ private fun AudioReplaceContent(
             }
             item {
                 RadioOptionGroup(
-                    label = stringResource(R.string.replace_audio_mode_label),
+                    label = stringResource(R.string.duration_matching),
                     options = AudioReplaceMode.entries,
                     selected = state.mode,
                     enabled = !converting && state.musicName != null,
@@ -120,7 +120,7 @@ private fun AudioReplaceContent(
                         ProgressButton(
                             progress = phase.progress,
                             label = phase.progress?.let { stringResource(R.string.progress_percent_format, it * 100) }
-                                ?: stringResource(R.string.replace_audio_running),
+                                ?: stringResource(R.string.replacing),
                             modifier = Modifier.weight(1f),
                         )
                     } else {
@@ -145,21 +145,21 @@ private fun AudioReplaceContent(
                 is ReplacePhase.Converting -> item {
                     StatusRow(
                         dotColor = VicuTheme.colors.secondary,
-                        text = stringResource(R.string.replace_audio_running),
+                        text = stringResource(R.string.replacing),
                         pulsing = true,
                     )
                 }
                 ReplacePhase.Complete -> item {
                     StatusRow(
                         dotColor = VicuTheme.colors.onSurfaceVariant,
-                        text = stringResource(R.string.replace_audio_complete),
+                        text = stringResource(R.string.saved_to_movies_folder),
                     )
                 }
                 is ReplacePhase.Failed -> item {
                     StatusRow(
                         dotColor = VicuTheme.colors.error,
                         text = stringResource(
-                            R.string.replace_audio_failed,
+                            R.string.replace_failed,
                             stringResource(phase.error.messageRes),
                         ),
                         textColor = VicuTheme.colors.error,
@@ -186,13 +186,13 @@ private fun MusicSection(
         verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
     ) {
         BasicText(
-            text = stringResource(R.string.replace_audio_music_label),
+            text = stringResource(R.string.background_music),
             style = VicuTheme.typography.caption,
         )
         val musicName = state.musicName
         if (musicName == null) {
             PrimaryButton(
-                text = stringResource(R.string.replace_audio_pick_music),
+                text = stringResource(R.string.select_music),
                 onClick = onPickMusic,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !converting,
@@ -209,7 +209,7 @@ private fun MusicSection(
                 )
             }
             OutlineButton(
-                text = stringResource(R.string.replace_audio_change_music),
+                text = stringResource(R.string.select_again),
                 onClick = onPickMusic,
                 enabled = !converting,
             )
@@ -220,7 +220,7 @@ private fun MusicSection(
 @Composable
 private fun durationText(durationMs: Long?): String =
     durationMs?.takeIf { it > 0 }?.let { formatMediaClock(it / 1000) }
-        ?: stringResource(R.string.replace_audio_duration_unknown)
+        ?: stringResource(R.string.unknown_duration)
 
 private val AudioReplaceMode.labelRes: Int
     get() = when (this) {
@@ -234,15 +234,15 @@ internal val AudioReplaceError.messageRes: Int
         AudioReplaceError.TranscodeFailed -> R.string.replace_audio_error_transcode
         AudioReplaceError.OutputCreationFailed -> R.string.replace_audio_error_output_creation
         AudioReplaceError.InvalidMedia -> R.string.replace_audio_error_invalid
-        AudioReplaceError.Unknown -> R.string.replace_audio_error_unknown
+        AudioReplaceError.Unknown -> R.string.unknown_error
     }
 
 @Composable
 private fun replaceButtonText(phase: ReplacePhase): String = stringResource(
     when (phase) {
-        is ReplacePhase.Complete -> R.string.replace_audio_success
-        is ReplacePhase.Failed -> R.string.replace_audio_failed_retry
-        is ReplacePhase.Converting -> R.string.replace_audio_running
+        is ReplacePhase.Complete -> R.string.replace_success
+        is ReplacePhase.Failed -> R.string.replace_failed_retry
+        is ReplacePhase.Converting -> R.string.replacing
         else -> R.string.confirm
     }
 )

@@ -82,12 +82,12 @@ private fun AudioTrimContent(
                 .verticalScroll(rememberScrollState()).padding(VicuTheme.dimensions.screenGutter),
             verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit * 2),
         ) {
-            BasicText(stringResource(R.string.audio_trim_file, state.audioName),
+            BasicText(stringResource(R.string.audio_file, state.audioName),
                 style = VicuTheme.typography.bodyLg.copy(color = VicuTheme.colors.onSurface))
             BasicText(stringResource(R.string.audio_trim_position,
                 formatTrimTime(preview.positionMs), formatTrimTime(state.durationMs)), Modifier.fillMaxWidth(),
                 style = VicuTheme.typography.bodySm.copy(color = VicuTheme.colors.onSurfaceVariant, textAlign = TextAlign.Center))
-            OutlineButton(stringResource(if (preview.playing) R.string.player_pause else R.string.player_play),
+            OutlineButton(stringResource(if (preview.playing) R.string.pause else R.string.play),
                 onPlayPause, Modifier.align(Alignment.CenterHorizontally),
                 enabled = state.editable && preview.phase == AudioPreviewPhase.Ready)
             AudioWaveformScreen(waveform, state.range ?: PlayerEffect.Trim(0, 1), state.durationMs,
@@ -98,11 +98,11 @@ private fun AudioTrimContent(
                     if (onRangeChange(range.startMs, range.endMs)) onSeek(position)
                 }, onSeek = onSeek, onRetry = onRetryWaveform)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit * 2)) {
-                TrimTimeInput(stringResource(R.string.trim_start), startText, state.editable,
+                TrimTimeInput(stringResource(R.string.start_time_seconds), startText, state.editable,
                     TextAlign.Start, Modifier.weight(1f),
                     onChange = { startText = it; syncInput() },
                     onFinish = { if (validateTrimInput(startText, endText, state.durationMs) == null) startText = formatTrimTime(parseTrimTime(startText)!!) })
-                TrimTimeInput(stringResource(R.string.trim_end), endText, state.editable,
+                TrimTimeInput(stringResource(R.string.end_time_seconds), endText, state.editable,
                     TextAlign.End, Modifier.weight(1f),
                     onChange = { endText = it; syncInput() },
                     onFinish = { if (validateTrimInput(startText, endText, state.durationMs) == null) endText = formatTrimTime(parseTrimTime(endText)!!) })
@@ -132,14 +132,14 @@ private fun AudioTrimContent(
             when (val phase = state.phase) {
                 AudioTrimPhase.Idle -> Unit
                 is AudioTrimPhase.Trimming -> StatusRow(VicuTheme.colors.secondary, stringResource(R.string.trimming), pulsing = true)
-                AudioTrimPhase.Complete -> StatusRow(VicuTheme.colors.onSurfaceVariant, stringResource(R.string.audio_convert_complete))
+                AudioTrimPhase.Complete -> StatusRow(VicuTheme.colors.onSurfaceVariant, stringResource(R.string.saved_to_music_folder))
                 is AudioTrimPhase.Failed -> StatusRow(VicuTheme.colors.error,
                     stringResource(R.string.trim_failed, stringResource(phase.error.messageRes)), textColor = VicuTheme.colors.error)
             }
-            if (state.loading) StatusRow(VicuTheme.colors.secondary, stringResource(R.string.audio_trim_loading), pulsing = true)
+            if (state.loading) StatusRow(VicuTheme.colors.secondary, stringResource(R.string.reading_audio), pulsing = true)
             state.sourceError?.let { StatusRow(VicuTheme.colors.error, stringResource(it.messageRes), textColor = VicuTheme.colors.error) }
             when (preview.phase) {
-                AudioPreviewPhase.Preparing -> StatusRow(VicuTheme.colors.secondary, stringResource(R.string.player_preparing), pulsing = true)
+                AudioPreviewPhase.Preparing -> StatusRow(VicuTheme.colors.secondary, stringResource(R.string.preparing), pulsing = true)
                 AudioPreviewPhase.Failed -> StatusRow(VicuTheme.colors.error,
                     stringResource(R.string.audio_trim_preview_failed), textColor = VicuTheme.colors.error)
                 else -> Unit

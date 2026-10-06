@@ -74,7 +74,7 @@ private fun AudioExportContent(
         ) {
             item {
                 RadioOptionGroup(
-                    label = stringResource(R.string.export_format_label),
+                    label = stringResource(R.string.format),
                     options = AudioExportFormat.entries,
                     selected = state.format,
                     enabled = !exporting,
@@ -84,7 +84,7 @@ private fun AudioExportContent(
             }
             item {
                 RadioOptionGroup(
-                    label = stringResource(R.string.export_quality_label),
+                    label = stringResource(R.string.quality),
                     options = AudioExportQuality.entries,
                     selected = state.quality,
                     enabled = !exporting,
@@ -131,7 +131,7 @@ private fun AudioExportContent(
                 is ExportPhase.Complete -> item {
                     StatusRow(
                         dotColor = VicuTheme.colors.onSurfaceVariant,
-                        text = stringResource(R.string.export_complete),
+                        text = stringResource(R.string.saved_to_music_folder),
                     )
                 }
                 is ExportPhase.Failed -> item {
@@ -152,24 +152,24 @@ private fun AudioExportContent(
 
 private val AudioExportFormat.labelRes: Int
     get() = when (this) {
-        AudioExportFormat.ORIGINAL -> R.string.format_original
-        AudioExportFormat.MP3 -> R.string.format_mp3
-        AudioExportFormat.M4A -> R.string.format_m4a
+        AudioExportFormat.ORIGINAL -> R.string.original_audio
+        AudioExportFormat.MP3 -> R.string.mp3
+        AudioExportFormat.M4A -> R.string.m4a
     }
 
 private val AudioExportQuality.labelRes: Int
     get() = when (this) {
-        AudioExportQuality.BEST_QUALITY -> R.string.quality_finest
-        AudioExportQuality.BALANCED -> R.string.quality_balanced
-        AudioExportQuality.SMALLEST -> R.string.quality_smallest
-        AudioExportQuality.SUITABLE -> R.string.quality_suitable
+        AudioExportQuality.BEST_QUALITY -> R.string.best_quality
+        AudioExportQuality.BALANCED -> R.string.balanced
+        AudioExportQuality.SMALLEST -> R.string.smallest_size
+        AudioExportQuality.SUITABLE -> R.string.most_suitable
     }
 
 internal val AudioExportError.messageRes: Int
     get() = when (this) {
-        AudioExportError.TranscodeFailed -> R.string.export_error_transcode
+        AudioExportError.TranscodeFailed -> R.string.audio_transcode_failed
         AudioExportError.OutputCreationFailed -> R.string.export_error_output_creation
-        AudioExportError.Unknown -> R.string.export_error_unknown
+        AudioExportError.Unknown -> R.string.unknown_error
     }
 
 @Composable

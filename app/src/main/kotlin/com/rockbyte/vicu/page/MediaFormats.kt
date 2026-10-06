@@ -34,11 +34,11 @@ internal fun mediaDateLabel(date: LocalDate, today: LocalDate): MediaDateLabel =
 
 @Composable
 internal fun MediaDateGroup.label(today: LocalDate): String = when (val label = mediaDateLabel(date, today)) {
-    MediaDateLabel.Today -> stringResource(R.string.media_date_today)
-    MediaDateLabel.Yesterday -> stringResource(R.string.media_date_yesterday)
-    is MediaDateLabel.MonthDay -> stringResource(R.string.media_date_month_day, label.month, label.day)
+    MediaDateLabel.Today -> stringResource(R.string.today)
+    MediaDateLabel.Yesterday -> stringResource(R.string.yesterday)
+    is MediaDateLabel.MonthDay -> stringResource(R.string.date_month_day, label.month, label.day)
     is MediaDateLabel.YearMonthDay -> stringResource(
-        R.string.media_date_year_month_day,
+        R.string.date_year_month_day,
         label.year,
         label.month,
         label.day,

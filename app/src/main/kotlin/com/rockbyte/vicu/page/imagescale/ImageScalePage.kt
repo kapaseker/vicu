@@ -154,7 +154,7 @@ fun ImageScalePage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Uni
                 }
                 when (val load = state.loadState) {
                     ImageScaleLoadState.Loading -> StatusRow(VicuTheme.colors.secondary,
-                        stringResource(R.string.image_scale_loading), pulsing = true)
+                        stringResource(R.string.loading_image), pulsing = true)
                     is ImageScaleLoadState.Failed -> ImageScaleErrorRow(load.error)
                     is ImageScaleLoadState.Ready -> Unit
                 }
@@ -162,7 +162,7 @@ fun ImageScalePage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Uni
                     ImageScaleSaveState.Saving -> StatusRow(VicuTheme.colors.secondary,
                         stringResource(R.string.image_scale_saving), pulsing = true)
                     ImageScaleSaveState.Complete -> StatusRow(VicuTheme.colors.onSurfaceVariant,
-                        stringResource(R.string.image_scale_complete))
+                        stringResource(R.string.saved_to_pictures_folder))
                     is ImageScaleSaveState.Failed -> ImageScaleErrorRow(save.error)
                     ImageScaleSaveState.Idle -> Unit
                 }
@@ -195,11 +195,11 @@ private fun UniformToggleButton(uniform: Boolean, enabled: Boolean, onToggle: ()
 private fun ImageScaleErrorRow(error: ImageCropError) {
     StatusRow(dotColor = VicuTheme.colors.error, textColor = VicuTheme.colors.error,
         text = stringResource(when (error) {
-            ImageCropError.LoadFailed -> R.string.image_crop_error_load
+            ImageCropError.LoadFailed -> R.string.image_load_failed_reselect
             ImageCropError.AnimatedUnsupported -> R.string.image_scale_error_animation
             ImageCropError.ImageTooLarge -> R.string.image_scale_error_large
             ImageCropError.CropFailed -> R.string.image_scale_error_scale
-            ImageCropError.SaveFailed -> R.string.image_crop_error_save
+            ImageCropError.SaveFailed -> R.string.image_save_failed_retry
         }))
 }
 

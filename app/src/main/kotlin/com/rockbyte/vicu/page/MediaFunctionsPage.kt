@@ -80,9 +80,9 @@ internal fun abbreviateMediaFileName(name: String): String {
 }
 
 private fun MediaKind.functionTitleRes(): Int = when (this) {
-    MediaKind.VIDEO -> R.string.functions_title_video
-    MediaKind.IMAGE -> R.string.functions_title_image
-    MediaKind.AUDIO -> R.string.functions_title_audio
+    MediaKind.VIDEO -> R.string.video_functions
+    MediaKind.IMAGE -> R.string.image_functions
+    MediaKind.AUDIO -> R.string.audio_functions
 }
 
 @Composable
@@ -98,8 +98,8 @@ private fun VideoFunctionsContent(
     BasicDescriptionContent(name, R.string.functions_description) {
         FunctionGrid(
             listOf(
-                FunctionEntry(R.drawable.ic_play, R.string.video_play, onPlayVideo),
-                FunctionEntry(R.drawable.ic_crop, R.string.video_crop, onCropVideo),
+                FunctionEntry(R.drawable.ic_play, R.string.play, onPlayVideo),
+                FunctionEntry(R.drawable.ic_crop, R.string.crop, onCropVideo),
                 FunctionEntry(R.drawable.ic_cut, R.string.video_trim, onTrimVideo),
                 FunctionEntry(R.drawable.ic_audio, R.string.export_audio, onExportAudio),
                 FunctionEntry(R.drawable.ic_transfer, R.string.video_convert, onConvertVideo),

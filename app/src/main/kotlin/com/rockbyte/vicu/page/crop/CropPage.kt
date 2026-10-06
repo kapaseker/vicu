@@ -126,7 +126,7 @@ private fun CropContent(
     }
 
     VicuScaffold(
-        title = stringResource(R.string.video_crop),
+        title = stringResource(R.string.crop),
         onBack = onBack,
         backEnabled = !cutting,
     ) {
@@ -216,12 +216,12 @@ private fun CropContent(
                 when (val phase = playerState.phase) {
                     is PlayerPhase.Failed -> StatusRow(
                         dotColor = VicuTheme.colors.error,
-                        text = stringResource(R.string.player_failed, stringResource(phase.error.messageRes)),
+                        text = stringResource(R.string.playback_failed, stringResource(phase.error.messageRes)),
                         textColor = VicuTheme.colors.error,
                     )
                     PlayerPhase.Preparing -> StatusRow(
                         dotColor = VicuTheme.colors.secondary,
-                        text = stringResource(R.string.player_preparing),
+                        text = stringResource(R.string.preparing),
                         pulsing = true,
                     )
                     else -> Unit
@@ -234,7 +234,7 @@ private fun CropContent(
                     )
                     CutPhase.Complete -> StatusRow(
                         dotColor = VicuTheme.colors.onSurfaceVariant,
-                        text = stringResource(R.string.crop_complete),
+                        text = stringResource(R.string.saved_to_movies_folder),
                     )
                     is CutPhase.Failed -> StatusRow(
                         dotColor = VicuTheme.colors.error,
@@ -277,7 +277,7 @@ private fun PlayPauseButton(
         Image(
             painter = painterResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play),
             contentDescription = stringResource(
-                if (playing) R.string.player_pause else R.string.player_play,
+                if (playing) R.string.pause else R.string.play,
             ),
             modifier = Modifier.size(VicuTheme.dimensions.iconMedium),
             colorFilter = ColorFilter.tint(VicuTheme.colors.onSurface),
@@ -307,8 +307,8 @@ private val seekablePhases = setOf(PlayerPhase.Playing, PlayerPhase.Paused, Play
 
 private val PlayerError.messageRes: Int
     get() = when (this) {
-        PlayerError.OpenFailed -> R.string.player_error_open
-        PlayerError.PlaybackFailed -> R.string.player_error_playback
+        PlayerError.OpenFailed -> R.string.cannot_open_video
+        PlayerError.PlaybackFailed -> R.string.playback_error
     }
 
 @Preview(showBackground = true)

@@ -126,7 +126,7 @@ private fun TrimContent(
                         ) {
                             Image(
                                 painterResource(if (playerState.playing) R.drawable.ic_pause else R.drawable.ic_play),
-                                stringResource(if (playerState.playing) R.string.player_pause else R.string.player_play),
+                                stringResource(if (playerState.playing) R.string.pause else R.string.play),
                                 Modifier.size(VicuTheme.dimensions.iconMedium),
                                 colorFilter = ColorFilter.tint(VicuTheme.colors.onSurface),
                             )
@@ -149,12 +149,12 @@ private fun TrimContent(
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit * 2)) {
                     TrimTimeInput(
-                        stringResource(R.string.trim_start), startText, editable, TextAlign.Start, Modifier.weight(1f),
+                        stringResource(R.string.start_time_seconds), startText, editable, TextAlign.Start, Modifier.weight(1f),
                         onChange = { startText = it; syncInput() },
                         onFinish = { if (validateTrimInput(startText, endText, trimState.durationMs) == null) startText = formatTrimTime(parseTrimTime(startText)!!) },
                     )
                     TrimTimeInput(
-                        stringResource(R.string.trim_end), endText, editable, TextAlign.End, Modifier.weight(1f),
+                        stringResource(R.string.end_time_seconds), endText, editable, TextAlign.End, Modifier.weight(1f),
                         onChange = { endText = it; syncInput() },
                         onFinish = { if (validateTrimInput(startText, endText, trimState.durationMs) == null) endText = formatTrimTime(parseTrimTime(endText)!!) },
                     )
@@ -184,15 +184,15 @@ private fun TrimContent(
                 }
                 when (val phase = trimState.phase) {
                     is TrimPhase.Trimming -> StatusRow(VicuTheme.colors.secondary, stringResource(R.string.trimming), pulsing = true)
-                    TrimPhase.Complete -> StatusRow(VicuTheme.colors.onSurfaceVariant, stringResource(R.string.trim_complete))
+                    TrimPhase.Complete -> StatusRow(VicuTheme.colors.onSurfaceVariant, stringResource(R.string.saved_to_movies_folder))
                     is TrimPhase.Failed -> StatusRow(VicuTheme.colors.error,
                         stringResource(R.string.trim_failed, stringResource(phase.error.messageRes)), textColor = VicuTheme.colors.error)
                     TrimPhase.Idle -> Unit
                 }
                 when (val phase = playerState.phase) {
-                    PlayerPhase.Preparing -> StatusRow(VicuTheme.colors.secondary, stringResource(R.string.player_preparing), pulsing = true)
+                    PlayerPhase.Preparing -> StatusRow(VicuTheme.colors.secondary, stringResource(R.string.preparing), pulsing = true)
                     is PlayerPhase.Failed -> StatusRow(VicuTheme.colors.error,
-                        stringResource(R.string.player_failed, stringResource(phase.error.messageRes)), textColor = VicuTheme.colors.error)
+                        stringResource(R.string.playback_failed, stringResource(phase.error.messageRes)), textColor = VicuTheme.colors.error)
                     else -> Unit
                 }
             }
@@ -202,12 +202,12 @@ private fun TrimContent(
 
 private val com.rockbyte.vicu.repo.VideoConvertError.messageRes: Int get() = when (this) {
     com.rockbyte.vicu.repo.VideoConvertError.TranscodeFailed -> R.string.convert_error_transcode
-    com.rockbyte.vicu.repo.VideoConvertError.OutputCreationFailed -> R.string.convert_error_output_creation
-    com.rockbyte.vicu.repo.VideoConvertError.Unknown -> R.string.convert_error_unknown
+    com.rockbyte.vicu.repo.VideoConvertError.OutputCreationFailed -> R.string.cannot_create_conversion_file
+    com.rockbyte.vicu.repo.VideoConvertError.Unknown -> R.string.unknown_error
 }
 private val com.rockbyte.vicu.player.PlayerError.messageRes: Int get() = when (this) {
-    com.rockbyte.vicu.player.PlayerError.OpenFailed -> R.string.player_error_open
-    com.rockbyte.vicu.player.PlayerError.PlaybackFailed -> R.string.player_error_playback
+    com.rockbyte.vicu.player.PlayerError.OpenFailed -> R.string.cannot_open_video
+    com.rockbyte.vicu.player.PlayerError.PlaybackFailed -> R.string.playback_error
 }
 
 @Preview(showBackground = true)

@@ -116,7 +116,7 @@ private fun PlayerContent(
                 StatusRow(
                     dotColor = VicuTheme.colors.error,
                     text = stringResource(
-                        R.string.player_failed, stringResource(phase.error.messageRes)
+                        R.string.playback_failed, stringResource(phase.error.messageRes)
                     ),
                     textColor = VicuTheme.colors.error,
                 )
@@ -124,7 +124,7 @@ private fun PlayerContent(
             PlayerPhase.Preparing -> Box(Modifier.align(Alignment.Center)) {
                 StatusRow(
                     dotColor = VicuTheme.colors.secondary,
-                    text = stringResource(R.string.player_preparing),
+                    text = stringResource(R.string.preparing),
                     pulsing = true,
                     textColor = Color.White,
                 )
@@ -222,8 +222,8 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 
 private val PlayerError.messageRes: Int
     get() = when (this) {
-        PlayerError.OpenFailed -> R.string.player_error_open
-        PlayerError.PlaybackFailed -> R.string.player_error_playback
+        PlayerError.OpenFailed -> R.string.cannot_open_video
+        PlayerError.PlaybackFailed -> R.string.playback_error
     }
 
 /** 位置 / 总时长（超过 1 小时按 h:mm:ss，否则 m:ss）。 */

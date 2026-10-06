@@ -159,7 +159,7 @@ private fun PlayPauseButton(
         Image(
             painter = painterResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play),
             contentDescription = stringResource(
-                if (playing) R.string.player_pause else R.string.player_play
+                if (playing) R.string.pause else R.string.play
             ),
             modifier = Modifier.size(VicuTheme.dimensions.iconMedium),
             colorFilter = ColorFilter.tint(Color.White),

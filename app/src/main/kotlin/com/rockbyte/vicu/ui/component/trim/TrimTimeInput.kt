@@ -46,8 +46,8 @@ internal fun TrimTimeInput(
 }
 
 internal val TrimInputError.messageRes: Int get() = when (this) {
-    TrimInputError.EMPTY -> R.string.trim_error_empty
-    TrimInputError.FORMAT -> R.string.trim_error_format
+    TrimInputError.EMPTY -> R.string.enter_start_and_end_time
+    TrimInputError.FORMAT -> R.string.enter_seconds_up_to_three_decimals
     TrimInputError.OUT_OF_BOUNDS -> R.string.trim_error_bounds
-    TrimInputError.ORDER -> R.string.trim_error_order
+    TrimInputError.ORDER -> R.string.start_time_must_precede_end_time
 }

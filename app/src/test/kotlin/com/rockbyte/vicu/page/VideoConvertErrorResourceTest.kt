@@ -10,8 +10,8 @@ class VideoConvertErrorResourceTest {
     @Test
     fun `each convert error maps to its UI string resource`() {
         assertEquals(R.string.convert_error_transcode, VideoConvertError.TranscodeFailed.messageRes)
-        assertEquals(R.string.convert_error_output_creation, VideoConvertError.OutputCreationFailed.messageRes)
-        assertEquals(R.string.convert_error_unknown, VideoConvertError.Unknown.messageRes)
+        assertEquals(R.string.cannot_create_conversion_file, VideoConvertError.OutputCreationFailed.messageRes)
+        assertEquals(R.string.unknown_error, VideoConvertError.Unknown.messageRes)
     }
 
 }

@@ -74,7 +74,7 @@ private fun AudioConvertContent(
         ) {
             item {
                 RadioOptionGroup(
-                    label = stringResource(R.string.export_format_label),
+                    label = stringResource(R.string.format),
                     options = AudioConvertFormat.entries,
                     selected = state.format,
                     enabled = !converting,
@@ -84,7 +84,7 @@ private fun AudioConvertContent(
             }
             item {
                 RadioOptionGroup(
-                    label = stringResource(R.string.export_quality_label),
+                    label = stringResource(R.string.quality),
                     options = AudioConvertQuality.entries,
                     selected = state.quality,
                     enabled = !converting && !state.format.lossless,
@@ -131,7 +131,7 @@ private fun AudioConvertContent(
                 AudioConvertPhase.Complete -> item {
                     StatusRow(
                         dotColor = VicuTheme.colors.onSurfaceVariant,
-                        text = stringResource(R.string.audio_convert_complete),
+                        text = stringResource(R.string.saved_to_music_folder),
                     )
                 }
                 is AudioConvertPhase.Failed -> item {
@@ -152,26 +152,26 @@ private fun AudioConvertContent(
 
 private val AudioConvertFormat.labelRes: Int
     get() = when (this) {
-        AudioConvertFormat.MP3 -> R.string.format_mp3
-        AudioConvertFormat.M4A -> R.string.format_m4a
-        AudioConvertFormat.WAV -> R.string.format_wav
-        AudioConvertFormat.FLAC -> R.string.format_flac
-        AudioConvertFormat.OGG -> R.string.format_ogg
+        AudioConvertFormat.MP3 -> R.string.mp3
+        AudioConvertFormat.M4A -> R.string.m4a
+        AudioConvertFormat.WAV -> R.string.wav
+        AudioConvertFormat.FLAC -> R.string.flac
+        AudioConvertFormat.OGG -> R.string.ogg
     }
 
 private val AudioConvertQuality.labelRes: Int
     get() = when (this) {
-        AudioConvertQuality.BEST_QUALITY -> R.string.quality_finest
-        AudioConvertQuality.BALANCED -> R.string.quality_balanced
-        AudioConvertQuality.SMALLEST -> R.string.quality_smallest
-        AudioConvertQuality.SUITABLE -> R.string.quality_suitable
+        AudioConvertQuality.BEST_QUALITY -> R.string.best_quality
+        AudioConvertQuality.BALANCED -> R.string.balanced
+        AudioConvertQuality.SMALLEST -> R.string.smallest_size
+        AudioConvertQuality.SUITABLE -> R.string.most_suitable
     }
 
 internal val AudioConvertError.messageRes: Int
     get() = when (this) {
-        AudioConvertError.TranscodeFailed -> R.string.audio_convert_error_transcode
-        AudioConvertError.OutputCreationFailed -> R.string.audio_convert_error_output_creation
-        AudioConvertError.Unknown -> R.string.audio_convert_error_unknown
+        AudioConvertError.TranscodeFailed -> R.string.audio_transcode_failed
+        AudioConvertError.OutputCreationFailed -> R.string.cannot_create_conversion_file
+        AudioConvertError.Unknown -> R.string.unknown_error
     }
 
 @Composable

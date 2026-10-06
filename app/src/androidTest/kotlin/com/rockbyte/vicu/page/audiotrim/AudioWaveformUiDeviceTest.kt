@@ -41,7 +41,7 @@ class AudioWaveformUiDeviceTest : InstrumentationTestCase() {
         drag(wave.centerX().toFloat(), wave.centerY().toFloat(), wave.centerX() - wave.width() / 6f, wave.centerY().toFloat())
         awaitCondition { windowDescription() != zoomed }
         assertTrue("background panning changed selection", texts().contains("0.000") && texts().contains("45.000"))
-        tapText(R.string.waveform_show_all)
+        tapText(R.string.show_all)
         awaitCondition { windowDescription() == initial }
         val inset = wave.width() * 0.03f
         drag(wave.left + inset, wave.centerY().toFloat(), wave.left + wave.width() * 0.25f, wave.centerY().toFloat())
@@ -49,17 +49,17 @@ class AudioWaveformUiDeviceTest : InstrumentationTestCase() {
         val beforeSeek = texts().first { it.contains(" / ") }
         tap(wave.centerX().toFloat(), wave.centerY().toFloat())
         awaitCondition { texts().any { it.contains(" / ") && it != beforeSeek } }
-        tapText(R.string.player_play)
-        awaitCondition { texts().contains(instrumentation.targetContext.getString(R.string.player_pause)) }
-        tapText(R.string.player_pause)
-        setEndpoint(R.string.trim_start, 20000f)
-        setEndpoint(R.string.trim_end, 20001f)
-        val handle = endpoint(R.string.trim_start)
+        tapText(R.string.play)
+        awaitCondition { texts().contains(instrumentation.targetContext.getString(R.string.pause)) }
+        tapText(R.string.pause)
+        setEndpoint(R.string.start_time_seconds, 20000f)
+        setEndpoint(R.string.end_time_seconds, 20001f)
+        val handle = endpoint(R.string.start_time_seconds)
         val handleBounds = Rect().also { handle.getBoundsInScreen(it) }
         drag(handleBounds.exactCenterX() - 1f, wave.exactCenterY(),
             handleBounds.exactCenterX() - wave.width() / 10f, wave.exactCenterY())
-        awaitCondition { endpoint(R.string.trim_start).rangeInfo.current < 20000f }
-        assertEquals(20001f, endpoint(R.string.trim_end).rangeInfo.current, 0.1f)
+        awaitCondition { endpoint(R.string.start_time_seconds).rangeInfo.current < 20000f }
+        assertEquals(20001f, endpoint(R.string.end_time_seconds).rangeInfo.current, 0.1f)
     }
 
     fun testShortSilenceSupportsPinchWithoutInvalidViewport() {
@@ -128,7 +128,7 @@ class AudioWaveformUiDeviceTest : InstrumentationTestCase() {
     private fun waveformBounds(): Rect = Rect().also { waveformNode().getBoundsInScreen(it) }
     private fun windowDescription(): String {
         val bottom = waveformBounds().bottom
-        val label = instrumentation.targetContext.getString(R.string.waveform_show_all)
+        val label = instrumentation.targetContext.getString(R.string.show_all)
         val current = nodes()
         val button = Rect().also { rect -> current.first { it.text?.toString() == label }.getBoundsInScreen(rect) }
         return current.filter { node ->

@@ -70,7 +70,7 @@ private fun MediaPickerContent(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { onGrant() }
 
-    VicuScaffold(title = stringResource(R.string.media_picker_title), onBack = onBack) {
+    VicuScaffold(title = stringResource(R.string.select_music), onBack = onBack) {
         when (state.hasAccess) {
             true -> MediaList(state.items, onPick)
             false -> PermissionPrompt(state.permissionsToRequest, permissionLauncher::launch)

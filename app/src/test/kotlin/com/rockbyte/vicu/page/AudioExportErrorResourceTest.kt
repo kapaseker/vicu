@@ -9,9 +9,9 @@ class AudioExportErrorResourceTest {
 
     @Test
     fun `each export error maps to its UI string resource`() {
-        assertEquals(R.string.export_error_transcode, AudioExportError.TranscodeFailed.messageRes)
+        assertEquals(R.string.audio_transcode_failed, AudioExportError.TranscodeFailed.messageRes)
         assertEquals(R.string.export_error_output_creation, AudioExportError.OutputCreationFailed.messageRes)
-        assertEquals(R.string.export_error_unknown, AudioExportError.Unknown.messageRes)
+        assertEquals(R.string.unknown_error, AudioExportError.Unknown.messageRes)
     }
 
 }

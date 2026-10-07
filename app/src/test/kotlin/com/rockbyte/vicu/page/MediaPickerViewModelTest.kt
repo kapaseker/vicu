@@ -6,6 +6,9 @@ import android.Manifest
 import android.net.Uri
 import com.rockbyte.vicu.repo.MediaItem
 import com.rockbyte.vicu.repo.MediaKind
+import com.rockbyte.vicu.repo.WorksRepo
+import com.rockbyte.vicu.repo.WorksLibraryState
+import kotlinx.coroutines.flow.MutableStateFlow
 import com.rockbyte.vicu.repo.MediaRepo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -38,6 +41,12 @@ class MediaPickerViewModelTest {
         }
     }
 
+    private val works = object : WorksRepo {
+        override val library = MutableStateFlow(WorksLibraryState())
+        var refreshCount = 0
+        override fun refresh() { refreshCount++ }
+    }
+
     private val dispatcher = StandardTestDispatcher()
     private val repo = FakeMediaRepo()
     private val context = mock(Context::class.java)
@@ -56,7 +65,7 @@ class MediaPickerViewModelTest {
     }
 
     private fun viewModel(granted: Boolean = true): MediaPickerViewModel {
-        val viewModel = MediaPickerViewModel(context, repo)
+        val viewModel = MediaPickerViewModel(context, repo, works)
         `when`(context.checkSelfPermission(org.mockito.ArgumentMatchers.anyString()))
             .thenReturn(if (granted) PackageManager.PERMISSION_GRANTED else PackageManager.PERMISSION_DENIED)
         return viewModel
@@ -120,5 +129,33 @@ class MediaPickerViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, repo.refreshCount)
+        assertEquals(1, works.refreshCount)
     }
+    @Test
+    fun worksRemainAccessibleAndFilterAudioWhileSystemPermissionDenied() = runTest(dispatcher) {
+        val viewModel = viewModel(granted = false)
+        viewModel.bind(setOf(MediaKind.AUDIO))
+        works.library.value = WorksLibraryState(listOf(audio, video), loading = false)
+        repo.flow.tryEmit(emptyList())
+        advanceUntilIdle()
+        assertEquals(listOf(audio), viewModel.worksState.value.items)
+        assertFalse(viewModel.worksState.value.loading)
+        assertFalse(viewModel.uiState.value.hasAccess!!)
+        viewModel.bind(setOf(MediaKind.VIDEO))
+        assertEquals(listOf(video), viewModel.worksState.value.items)
+    }
+
+    @Test
+    fun loadingOfSystemAndWorksIsIndependent() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        viewModel.bind(setOf(MediaKind.AUDIO))
+        works.library.value = WorksLibraryState(listOf(audio), loading = false)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.loading)
+        assertFalse(viewModel.worksState.value.loading)
+        repo.flow.tryEmit(listOf(audio))
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.loading)
+    }
+
 }

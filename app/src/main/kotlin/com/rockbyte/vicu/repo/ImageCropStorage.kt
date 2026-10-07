@@ -1,19 +1,16 @@
 package com.rockbyte.vicu.repo
 
 import android.content.ContentResolver
-import android.content.ContentValues
 import android.graphics.Bitmap
 import android.graphics.ColorSpace
 import android.graphics.ImageDecoder
 import android.graphics.Rect
 import android.net.Uri
-import android.os.Environment
-import android.provider.MediaStore
 import kotlin.math.roundToInt
 
 internal class ImageCropStorage(
     private val resolver: ContentResolver,
-    private val currentTimeMillis: () -> Long,
+    private val worksStore: WorksStore,
     private val maxHeapBytes: () -> Long,
 ) : ImageCropStore {
     override fun load(uri: Uri): ImageCropPreview = decode(uri, null, 0, null)
@@ -76,19 +73,8 @@ internal class ImageCropStorage(
         }
     }
 
-    override fun create(displayName: String, suffix: String, format: ImageCropFormat): Uri {
-        val stem = displayName.substringBeforeLast('.', displayName)
-            .replace(Regex("[^\\p{L}\\p{N}._-]"), "_").trim('_').ifBlank { "image" }
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, "${stem}${suffix}_${currentTimeMillis()}.${format.extension}")
-            put(MediaStore.MediaColumns.MIME_TYPE, format.mime)
-            put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/Vicu")
-            put(MediaStore.MediaColumns.IS_PENDING, 1)
-        }
-        return checkNotNull(resolver.insert(
-            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), values,
-        )) { "Image output creation failed" }
-    }
+    override fun create(displayName: String, suffix: String, format: ImageCropFormat): Uri =
+        worksStore.create(displayName, suffix, format.extension, MediaKind.IMAGE)
 
     override fun write(uri: Uri, bitmap: Bitmap, format: ImageCropFormat) {
         checkNotNull(resolver.openOutputStream(uri, "w")).use { output ->
@@ -101,13 +87,6 @@ internal class ImageCropStorage(
         }
     }
 
-    override fun publish(uri: Uri) {
-        check(resolver.update(uri, ContentValues().apply {
-            put(MediaStore.MediaColumns.IS_PENDING, 0)
-        }, null, null) > 0) { "Image output publication failed" }
-    }
-
-    override fun delete(uri: Uri) {
-        resolver.delete(uri, null, null)
-    }
+    override fun publish(uri: Uri) = worksStore.publish(uri)
+    override fun delete(uri: Uri) = worksStore.delete(uri)
 }

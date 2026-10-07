@@ -30,6 +30,6 @@ interface AudioReplaceRepo {
     suspend fun probeVideoDurationMs(uri: Uri): Long?
     /** 探测音乐时长（毫秒）；失败或未知返回 null。 */
     suspend fun probeMusicDurationMs(uri: Uri): Long?
-    /** 用音乐替换视频音轨并发布到媒体库；取消时回滚并传播取消信号。[onProgress] 在替换期间以 0..1 进度回调（FFmpeg 线程）。 */
+    /** 用音乐替换视频音轨并保存到作品库；取消时回滚并传播取消信号。[onProgress] 在替换期间以 0..1 进度回调（FFmpeg 线程）。 */
     suspend fun replace(request: AudioReplaceRequest, onProgress: (Float) -> Unit = {}): AudioReplaceResult
 }

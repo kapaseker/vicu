@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -56,11 +58,13 @@ internal fun MediaGrid(
     items: List<MediaItem>,
     loading: Boolean,
     onMediaClick: (MediaItem) -> Unit,
+    emptyText: String = stringResource(R.string.media_empty),
+    gridState: LazyGridState = rememberLazyGridState(),
 ) {
     if (!loading && items.isEmpty()) {
         Box(Modifier.fillMaxSize()) {
             BasicText(
-                text = stringResource(R.string.media_empty),
+                text = emptyText,
                 style = VicuTheme.typography.bodySm.copy(color = VicuTheme.colors.onSurfaceVariant),
                 modifier = Modifier.align(Alignment.Center),
             )
@@ -96,6 +100,7 @@ internal fun MediaGrid(
     }
     val groups = remember(items, zoneId) { groupMediaByDate(items, zoneId) }
     LazyVerticalGrid(
+        state = gridState,
         columns = GridCells.Adaptive(minSize = VicuTheme.dimensions.homeMediaGridMinSize),
         modifier = Modifier
             .fillMaxSize()

@@ -18,8 +18,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.repo.MediaItem
+import com.rockbyte.vicu.repo.MediaSource
+import com.rockbyte.vicu.repo.WorksLibraryState
+import com.rockbyte.vicu.ui.component.MediaSourcePager
 import com.rockbyte.vicu.repo.MediaKind
-import com.rockbyte.vicu.ui.component.MediaGrid
 import com.rockbyte.vicu.ui.component.PrimaryButton
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.theme.VicuTheme
@@ -27,23 +29,28 @@ import java.time.Instant
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * 首页：MediaStore 聚合的媒体库 grid（图片/视频/音频），
- * 每格左上角类型角标区分多媒体类型；点击进入功能列表；未授权时展示权限提示。
+ * 首页：系统素材与作品库共用日期分组网格，点击进入功能列表。
+ * 系统素材需要媒体权限，作品库独立于系统授权。
  */
 @Composable
-fun HomePage(onMediaClick: (MediaItem) -> Unit) {
+fun HomePage(initialSource: MediaSource = MediaSource.SYSTEM, onMediaClick: (MediaItem) -> Unit) {
     val viewModel = koinViewModel<HomeViewModel>()
     val state by viewModel.uiState.collectAsState()
+    val works by viewModel.worksState.collectAsState()
     HomePageContent(
         state = state,
+        works = works,
+        initialSource = initialSource,
         onRefresh = viewModel::refresh,
         onMediaClick = onMediaClick,
     )
 }
 
 @Composable
-private fun HomePageContent(
+internal fun HomePageContent(
     state: MediaLibraryUiState,
+    works: WorksLibraryState = WorksLibraryState(),
+    initialSource: MediaSource = MediaSource.SYSTEM,
     onRefresh: () -> Unit,
     onMediaClick: (MediaItem) -> Unit,
 ) {
@@ -53,6 +60,9 @@ private fun HomePageContent(
 
     HomePageBody(
         state = state,
+        works = works,
+        initialSource = initialSource,
+        onRefresh = onRefresh,
         onRequestPermission = {
             permissionLauncher.launch(state.permissionsToRequest.toTypedArray())
         },
@@ -63,15 +73,16 @@ private fun HomePageContent(
 @Composable
 private fun HomePageBody(
     state: MediaLibraryUiState,
+    works: WorksLibraryState = WorksLibraryState(),
+    initialSource: MediaSource = MediaSource.SYSTEM,
     onRequestPermission: () -> Unit,
+    onRefresh: () -> Unit = {},
     onMediaClick: (MediaItem) -> Unit,
 ) {
     VicuScaffold(title = stringResource(R.string.app_name)) {
-        when (state.hasAccess) {
-            true -> MediaGrid(state.items, state.loading, onMediaClick)
-            false -> PermissionPrompt(onRequest = onRequestPermission)
-            null -> Unit
-        }
+        MediaSourcePager(state.items, state.loading, state.hasAccess, works,
+            onMediaClick, onRefresh, initialSource,
+            permissionPrompt = { PermissionPrompt(onRequest = onRequestPermission) })
     }
 }
 

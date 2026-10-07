@@ -54,14 +54,20 @@ import com.rockbyte.vicu.repo.VideoConvertRepo
 import com.rockbyte.vicu.repo.VideoConvertRepository
 import com.rockbyte.vicu.repo.VideoOutputStore
 import com.rockbyte.vicu.repo.VideoOutputStorage
+import com.rockbyte.vicu.repo.WorksRepo
+import com.rockbyte.vicu.repo.WorksRepository
+import com.rockbyte.vicu.repo.WorksStore
+import com.rockbyte.vicu.repo.WorksStorage
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val appModule = module {
+    single<WorksStore> { WorksStorage(androidContext(), System::currentTimeMillis) }
+    single<WorksRepo> { WorksRepository(get()) }
     single<MediaLibraryStore> { MediaLibraryStorage(androidContext()) }
     single<ImageCropStore> {
-        ImageCropStorage(androidContext().contentResolver, System::currentTimeMillis) { Runtime.getRuntime().maxMemory() }
+        ImageCropStorage(androidContext().contentResolver, get()) { Runtime.getRuntime().maxMemory() }
     }
     single<ImageCropRepo> { ImageCropRepository(get()) }
     viewModel { ImageCropViewModel(get()) }
@@ -69,11 +75,11 @@ val appModule = module {
     viewModel { ImageScaleViewModel(get()) }
     single<MediaRepo> { MediaRepository(androidContext().contentResolver, get()) }
     single<AudioEncoder> { FFmpegAudioEncoder(androidContext()) }
-    single<AudioOutputStore> { AudioOutputStorage(androidContext().contentResolver, System::currentTimeMillis) }
+    single<AudioOutputStore> { AudioOutputStorage(get()) }
     single<AudioExportRepo> { AudioExportRepository(get(), get()) }
-    single<AudioConvertStore> { AudioConvertStorage(androidContext().contentResolver, System::currentTimeMillis) }
+    single<AudioConvertStore> { AudioConvertStorage(get()) }
     single<AudioConvertRepo> { AudioConvertRepository(get(), get()) }
-    single<AudioTrimStore> { AudioTrimStorage(androidContext(), System::currentTimeMillis) }
+    single<AudioTrimStore> { AudioTrimStorage(androidContext(), get()) }
     single<AudioTrimRepo> { AudioTrimRepository(get(), get()) }
     // Playback sessions belong to one page; sharing them would mix ranges across back-stack entries.
     factory<AudioPreviewStore> { AudioPreviewStorage(androidContext()) }
@@ -82,12 +88,12 @@ val appModule = module {
     single<AudioWaveformRepo> { AudioWaveformRepository(get()) }
     viewModel { AudioTrimViewModel(get(), get(), get()) }
     single<VideoConverter> { FFmpegVideoConverter(androidContext()) }
-    single<VideoOutputStore> { VideoOutputStorage(androidContext().contentResolver, System::currentTimeMillis) }
+    single<VideoOutputStore> { VideoOutputStorage(get()) }
     single<VideoConvertRepo> { VideoConvertRepository(get(), get()) }
     single<AudioReplaceRepo> { AudioReplaceRepository(get(), get(), get()) }
     single<PlayerRepo> { PlayerRepository(androidContext()) }
-    viewModel { HomeViewModel(androidContext(), get()) }
-    viewModel { MediaPickerViewModel(androidContext(), get()) }
+    viewModel { HomeViewModel(androidContext(), get(), get()) }
+    viewModel { MediaPickerViewModel(androidContext(), get(), get()) }
     viewModel { AudioExportViewModel(get()) }
     viewModel { VideoConvertViewModel(get()) }
     viewModel { AudioReplaceViewModel(get()) }

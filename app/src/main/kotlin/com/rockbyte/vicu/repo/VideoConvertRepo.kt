@@ -37,6 +37,6 @@ sealed interface VideoConvertResult {
 }
 
 interface VideoConvertRepo {
-    /** 转码视频或所选段落并发布到媒体库；取消时回滚并传播取消信号。[onProgress] 在转码期间以 0..1 进度回调（FFmpeg 线程）。 */
+    /** 转码视频或所选段落并保存到作品库；取消时回滚并传播取消信号。[onProgress] 在转码期间以 0..1 进度回调（FFmpeg 线程）。 */
     suspend fun convert(request: VideoConvertRequest, onProgress: (Float) -> Unit = {}): VideoConvertResult
 }

@@ -1,6 +1,8 @@
 package com.rockbyte.vicu.nav
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
+import java.util.UUID
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
@@ -10,7 +12,9 @@ import com.rockbyte.vicu.page.AudioExportPage
 import com.rockbyte.vicu.page.AudioReplacePage
 import com.rockbyte.vicu.page.MediaPickerPage
 import com.rockbyte.vicu.page.HomePage
-import com.rockbyte.vicu.page.MediaFunctionsPage
+import com.rockbyte.vicu.page.VideoFunctionsPage
+import com.rockbyte.vicu.page.AudioFunctionsPage
+import com.rockbyte.vicu.page.ImageFunctionsPage
 import com.rockbyte.vicu.page.VideoConvertPage
 import com.rockbyte.vicu.page.imagecrop.ImageCropPage
 import com.rockbyte.vicu.page.imagescale.ImageScalePage
@@ -18,18 +22,25 @@ import com.rockbyte.vicu.page.crop.CropPage
 import com.rockbyte.vicu.page.trim.TrimPage
 import com.rockbyte.vicu.page.audiotrim.AudioTrimPage
 import com.rockbyte.vicu.page.player.PlayerPage
+import com.rockbyte.vicu.repo.MediaSource
 import com.rockbyte.vicu.repo.MediaKind
 import com.rockbyte.vicu.repo.SelectedMedia
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object HomeRoute : NavKey
-
-/** 功能列表目的地；kind 决定可用功能集。 */
-@Serializable
-data class MediaFunctionsRoute(
-    val media: SelectedMedia,
+data class HomeRoute(
+    val initialSource: MediaSource = MediaSource.SYSTEM,
+    val entryId: String = UUID.randomUUID().toString(),
 ) : NavKey
+
+@Serializable
+data class VideoFunctionsRoute(val media: SelectedMedia) : NavKey
+
+@Serializable
+data class AudioFunctionsRoute(val media: SelectedMedia) : NavKey
+
+@Serializable
+data class ImageFunctionsRoute(val media: SelectedMedia) : NavKey
 
 /** 导出音频目的地；携带所选视频。 */
 @Serializable
@@ -88,34 +99,49 @@ data class AudioTrimRoute(val media: SelectedMedia) : NavKey
 /** Navigation 3 路由与目的地集中注册（AGENTS.md）。 */
 @Composable
 fun MainApp() {
-    val backStack = rememberNavBackStack(HomeRoute)
+    val backStack = rememberNavBackStack(HomeRoute())
     NavDisplay(
         backStack = backStack,
         entryProvider = entryProvider {
-            entry<HomeRoute> {
-                HomePage(
+            entry<HomeRoute> { route ->
+                // A save starts a fresh library entry; ordinary back keeps its existing pager state.
+                key(route.entryId) { HomePage(
+                    initialSource = route.initialSource,
                     onMediaClick = { item ->
-                        backStack.add(
-                            MediaFunctionsRoute(
-                                SelectedMedia(item.uri.toString(), item.name, item.kind),
-                            )
-                        )
+                        val media = SelectedMedia(item.uri.toString(), item.name, item.kind)
+                        backStack.add(when (item.kind) {
+                            MediaKind.VIDEO -> VideoFunctionsRoute(media)
+                            MediaKind.AUDIO -> AudioFunctionsRoute(media)
+                            MediaKind.IMAGE -> ImageFunctionsRoute(media)
+                        })
                     }
-                )
+                ) }
             }
-            entry<MediaFunctionsRoute> { route ->
-                MediaFunctionsPage(
+            entry<VideoFunctionsRoute> { route ->
+                VideoFunctionsPage(
                     media = route.media,
-                    onExportAudio = { backStack.add(AudioExportRoute(route.media)) },
-                    onConvertVideo = { backStack.add(VideoConvertRoute(route.media)) },
-                    onConvertAudio = { backStack.add(AudioConvertRoute(route.media)) },
                     onPlayVideo = { backStack.add(PlayerRoute(route.media)) },
                     onCropVideo = { backStack.add(CropRoute(route.media)) },
                     onTrimVideo = { backStack.add(TrimRoute(route.media)) },
+                    onExportAudio = { backStack.add(AudioExportRoute(route.media)) },
+                    onConvertVideo = { backStack.add(VideoConvertRoute(route.media)) },
+                    onReplaceAudio = { backStack.add(AudioReplaceRoute(route.media)) },
+                    onBack = { backStack.removeLastOrNull() },
+                )
+            }
+            entry<AudioFunctionsRoute> { route ->
+                AudioFunctionsPage(
+                    media = route.media,
                     onTrimAudio = { backStack.add(AudioTrimRoute(route.media)) },
+                    onConvertAudio = { backStack.add(AudioConvertRoute(route.media)) },
+                    onBack = { backStack.removeLastOrNull() },
+                )
+            }
+            entry<ImageFunctionsRoute> { route ->
+                ImageFunctionsPage(
+                    media = route.media,
                     onCropImage = { backStack.add(ImageCropRoute(route.media)) },
                     onScaleImage = { backStack.add(ImageScaleRoute(route.media)) },
-                    onReplaceAudio = { backStack.add(AudioReplaceRoute(route.media)) },
                     onBack = { backStack.removeLastOrNull() },
                 )
             }
@@ -125,7 +151,7 @@ fun MainApp() {
                     onBack = { backStack.removeLastOrNull() },
                     onGoHome = {
                         backStack.clear()
-                        backStack.add(HomeRoute)
+                        backStack.add(HomeRoute(MediaSource.WORKS))
                     },
                 )
             }
@@ -135,7 +161,7 @@ fun MainApp() {
                     onBack = { backStack.removeLastOrNull() },
                     onGoHome = {
                         backStack.clear()
-                        backStack.add(HomeRoute)
+                        backStack.add(HomeRoute(MediaSource.WORKS))
                     },
                 )
             }
@@ -145,7 +171,7 @@ fun MainApp() {
                     onBack = { backStack.removeLastOrNull() },
                     onGoHome = {
                         backStack.clear()
-                        backStack.add(HomeRoute)
+                        backStack.add(HomeRoute(MediaSource.WORKS))
                     },
                 )
             }
@@ -161,7 +187,7 @@ fun MainApp() {
                     onBack = { backStack.removeLastOrNull() },
                     onGoHome = {
                         backStack.clear()
-                        backStack.add(HomeRoute)
+                        backStack.add(HomeRoute(MediaSource.WORKS))
                     },
                 )
             }
@@ -172,7 +198,7 @@ fun MainApp() {
                     onBack = { backStack.removeLastOrNull() },
                     onGoHome = {
                         backStack.clear()
-                        backStack.add(HomeRoute)
+                        backStack.add(HomeRoute(MediaSource.WORKS))
                     },
                 )
             }
@@ -186,7 +212,7 @@ fun MainApp() {
             entry<AudioTrimRoute> { route ->
                 AudioTrimPage(route.media,
                     onBack = { backStack.removeLastOrNull() },
-                    onGoHome = { backStack.clear(); backStack.add(HomeRoute) },
+                    onGoHome = { backStack.clear(); backStack.add(HomeRoute(MediaSource.WORKS)) },
                 )
             }
             entry<ImageCropRoute> { route ->
@@ -195,7 +221,7 @@ fun MainApp() {
                     onBack = { backStack.removeLastOrNull() },
                     onGoHome = {
                         backStack.clear()
-                        backStack.add(HomeRoute)
+                        backStack.add(HomeRoute(MediaSource.WORKS))
                     },
                 )
             }
@@ -205,7 +231,7 @@ fun MainApp() {
                     onBack = { backStack.removeLastOrNull() },
                     onGoHome = {
                         backStack.clear()
-                        backStack.add(HomeRoute)
+                        backStack.add(HomeRoute(MediaSource.WORKS))
                     },
                 )
             }
@@ -215,7 +241,7 @@ fun MainApp() {
                     onBack = { backStack.removeLastOrNull() },
                     onGoHome = {
                         backStack.clear()
-                        backStack.add(HomeRoute)
+                        backStack.add(HomeRoute(MediaSource.WORKS))
                     },
                 )
             }

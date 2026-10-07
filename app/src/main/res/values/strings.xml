@@ -14,17 +14,13 @@
     <string name="exporting">导出中…</string>
     <string name="export_success">导出成功</string>
     <string name="export_failed_retry">导出失败，重试</string>
-    <string name="saved_to_music_folder">已保存到 Music/FFmpegKitNext 文件夹。</string>
+    <string name="saved_to_music_folder">已保存到作品库。</string>
     <string name="back_to_home">回到首页</string>
     <string name="export_failed">导出失败：%1$s</string>
     <string name="audio_transcode_failed">音频转码失败</string>
     <string name="export_error_output_creation">无法创建导出文件</string>
     <string name="unknown_error">未知错误</string>
     <string name="back">返回</string>
-    <string name="video_functions">视频功能</string>
-    <string name="image_functions">图片功能</string>
-    <string name="audio_functions">音频功能</string>
-    <string name="functions_description">选择要对视频文件 %1$s 执行的操作。</string>
     <string name="coming_soon">敬请期待</string>
     <string name="media_permission_rationale">需要媒体访问权限，用于展示设备上的图片、视频和音乐。</string>
     <string name="grant_media_permission">授予权限</string>
@@ -39,7 +35,7 @@
     <string name="progress_percent_format">%1$.1f%%</string>
     <string name="convert_success">转换成功</string>
     <string name="convert_failed_retry">转换失败，重试</string>
-    <string name="saved_to_movies_folder">已保存到 Movies/FFmpegKitNext 文件夹。</string>
+    <string name="saved_to_movies_folder">已保存到作品库。</string>
     <string name="convert_failed">转换失败：%1$s</string>
     <string name="convert_error_transcode">视频转码失败</string>
     <string name="cannot_create_conversion_file">无法创建转换文件</string>
@@ -53,7 +49,6 @@
     <string name="balanced">平衡</string>
     <string name="most_suitable">最合适</string>
     <string name="audio_convert">音频转换</string>
-    <string name="functions_description_audio">选择要对音频文件 %1$s 执行的操作。</string>
     <string name="wav">WAV</string>
     <string name="flac">FLAC</string>
     <string name="ogg">OGG</string>
@@ -81,12 +76,11 @@
     <string name="trim_error_bounds">时间必须在视频时长范围内</string>
     <string name="start_time_must_precede_end_time">开始时间必须小于结束时间</string>
     <string name="image_crop">裁剪图片</string>
-    <string name="functions_description_image">选择要对图片文件 %1$s 执行的操作。</string>
     <string name="image_crop_preview">待裁剪图片</string>
     <string name="image_crop_dimensions">原图 %1$d × %2$d · 裁剪 %3$d × %4$d</string>
     <string name="loading_image">正在加载图片…</string>
     <string name="image_crop_saving">正在裁剪并保存…</string>
-    <string name="saved_to_pictures_folder">已保存到 Pictures/Vicu 文件夹。</string>
+    <string name="saved_to_pictures_folder">已保存到作品库。</string>
     <string name="image_load_failed_reselect">无法加载图片，请返回后重新选择。</string>
     <string name="image_crop_error_animation">暂不支持裁剪动画图片。</string>
     <string name="image_crop_error_large">图片过大，超出可用内存预算，无法保留原始像素裁剪。</string>
@@ -155,4 +149,8 @@
     <string name="replace_audio_error_transcode">音轨替换失败</string>
     <string name="replace_audio_error_output_creation">无法创建替换文件</string>
     <string name="replace_audio_error_invalid">无法读取媒体时长，请重新选择</string>
+    <string name="media_source_system">系统</string>
+    <string name="media_source_works">作品库</string>
+    <string name="works_empty">你还未创建作品</string>
+    <string name="works_load_retry">作品库读取失败，点击重试</string>
 </resources>

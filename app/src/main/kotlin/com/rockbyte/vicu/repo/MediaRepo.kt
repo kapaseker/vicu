@@ -15,6 +15,9 @@ data class MediaItem(
 )
 
 @Serializable
+enum class MediaSource { SYSTEM, WORKS }
+
+@Serializable
 enum class MediaKind { IMAGE, VIDEO, AUDIO }
 
 @Serializable

@@ -8,6 +8,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rockbyte.vicu.repo.MediaItem
 import com.rockbyte.vicu.repo.MediaKind
+import com.rockbyte.vicu.repo.WorksRepo
+import com.rockbyte.vicu.repo.WorksLibraryState
 import com.rockbyte.vicu.repo.MediaRepo
 import com.rockbyte.vicu.repo.SelectedMedia
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,10 +31,12 @@ data class MediaPickerUiState(
 class MediaPickerViewModel(
     private val appContext: Context,
     private val mediaRepo: MediaRepo,
+    private val worksRepo: WorksRepo,
 ) : ViewModel() {
 
     private var kinds: Set<MediaKind> = emptySet()
     private var items: List<MediaItem> = emptyList()
+    private var systemLoaded = false
 
     val uiState: StateFlow<MediaPickerUiState>
         field = MutableStateFlow(MediaPickerUiState())
@@ -40,11 +44,18 @@ class MediaPickerViewModel(
     val selected: StateFlow<SelectedMedia?>
         field = MutableStateFlow<SelectedMedia?>(null)
 
+    val worksState: StateFlow<WorksLibraryState>
+        field = MutableStateFlow(WorksLibraryState())
+
     init {
+        viewModelScope.launch {
+            worksRepo.library.collect { publishWorks() }
+        }
         viewModelScope.launch {
             // repo 每次重查（含授权后 refresh）都会发射，这里统一过滤并重算权限状态
             mediaRepo.library.collect { mediaItems ->
                 items = mediaItems
+                systemLoaded = true
                 publishState()
             }
         }
@@ -55,6 +66,7 @@ class MediaPickerViewModel(
         if (this.kinds == kinds) return
         this.kinds = kinds
         publishState()
+        publishWorks()
     }
 
     /** 选中条目并映射为回传结果。 */
@@ -68,19 +80,28 @@ class MediaPickerViewModel(
     }
 
     /** 权限授权回调后触发 repo 重查。 */
-    fun refresh() = mediaRepo.refresh()
+    fun refresh() {
+        mediaRepo.refresh()
+        worksRepo.refresh()
+    }
 
     private fun publishState() {
         if (kinds.isEmpty()) return
         val permissions = requiredMediaPermissions()
         uiState.value = MediaPickerUiState(
-            loading = false,
+            loading = !systemLoaded,
             items = items.filter { it.kind in kinds },
             hasAccess = permissions.any {
                 appContext.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED
             },
             permissionsToRequest = permissions,
         )
+    }
+
+    private fun publishWorks() {
+        if (kinds.isEmpty()) return
+        val state = worksRepo.library.value
+        worksState.value = state.copy(items = state.items.filter { it.kind in kinds })
     }
 
     private fun requiredMediaPermissions(): List<String> =

@@ -4,7 +4,7 @@ import android.media.MediaExtractor
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.test.AndroidTestCase
 import com.arthenica.ffmpegkit.FFmpegKit
 import com.arthenica.ffmpegkit.ReturnCode
@@ -20,12 +20,14 @@ class AudioTrimDeviceTest : AndroidTestCase() {
     private val outputs = mutableListOf<Uri>()
     private val main = Handler(Looper.getMainLooper())
     private lateinit var encoder: FFmpegAudioEncoder
+    private lateinit var works: WorksStorage
     private lateinit var outputStore: AudioTrimStorage
 
     override fun setUp() {
         super.setUp()
         encoder = FFmpegAudioEncoder(context)
-        outputStore = AudioTrimStorage(context, System::currentTimeMillis)
+        works = WorksStorage(context, System::currentTimeMillis)
+        outputStore = AudioTrimStorage(context, works)
     }
     override fun tearDown() {
         outputs.forEach(outputStore::delete)
@@ -64,18 +66,13 @@ class AudioTrimDeviceTest : AndroidTestCase() {
             assertEquals(sourceInfo.codec, outputInfo.codec)
             val tolerance = if (format == AudioTrimFormat.FLAC) 150L else 100L
             assertTrue("$format duration=${outputInfo.durationMs}", kotlin.math.abs(outputInfo.durationMs!! - 3000) <= tolerance)
-            context.contentResolver.query(output, arrayOf(MediaStore.MediaColumns.IS_PENDING,
-                MediaStore.MediaColumns.RELATIVE_PATH, MediaStore.MediaColumns.MIME_TYPE,
-                MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)!!.use {
-                assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0))
-                assertEquals("Music/FFmpegKitNext/", it.getString(1))
-                val allowedMime = when (format) {
-                    AudioTrimFormat.WAV -> setOf("audio/wav", "audio/x-wav")
-                    AudioTrimFormat.FLAC -> setOf("audio/flac", "audio/x-flac")
-                    else -> setOf(format.mime)
-                }
-                assertTrue("mime=${it.getString(2)}", it.getString(2) in allowedMime)
-                assertTrue(it.getString(3).endsWith(".${format.extension}"))
+            val work = works.query().single { it.uri == output }
+            assertEquals(MediaKind.AUDIO, work.kind)
+            assertEquals("${context.packageName}.works", output.authority)
+            assertTrue(work.name.endsWith(".${format.extension}"))
+            context.contentResolver.query(output, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)!!.use {
+                assertTrue(it.moveToFirst())
+                assertEquals(work.name, it.getString(0))
             }
             val extractor = MediaExtractor()
             try {
@@ -106,9 +103,12 @@ class AudioTrimDeviceTest : AndroidTestCase() {
                     assertEquals(AudioTrimError.TrimFailed, result.error)
                     destination?.let { uri ->
                         outputs.remove(uri) // The repository already deleted this failed pending output.
-                        context.contentResolver.query(uri, arrayOf("_id"), null, null, null)!!.use {
-                        assertEquals(0, it.count)
-                    } }
+                        assertFalse(works.query().any { it.uri == uri })
+                        try {
+                            context.contentResolver.openInputStream(uri)?.close()
+                            fail("Deleted output must not be readable")
+                        } catch (_: java.io.FileNotFoundException) { }
+                    }
                 }
             }
         }

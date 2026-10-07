@@ -8,6 +8,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rockbyte.vicu.repo.MediaItem
 import com.rockbyte.vicu.repo.MediaKind
+import com.rockbyte.vicu.repo.WorksRepo
+import com.rockbyte.vicu.repo.WorksLibraryState
 import com.rockbyte.vicu.repo.MediaRepo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,12 +27,15 @@ data class MediaLibraryUiState(
 class HomeViewModel(
     private val appContext: Context,
     private val mediaRepo: MediaRepo,
+    private val worksRepo: WorksRepo,
 ) : ViewModel() {
 
     private val requiredMediaPermissions = mediaPermissionsForSdk(Build.VERSION.SDK_INT)
 
     val uiState: StateFlow<MediaLibraryUiState>
         field = MutableStateFlow(MediaLibraryUiState())
+
+    val worksState: StateFlow<WorksLibraryState> = worksRepo.library
 
     init {
         viewModelScope.launch {
@@ -47,7 +52,10 @@ class HomeViewModel(
     }
 
     /** 权限授权回调后触发 repo 重查。 */
-    fun refresh() = mediaRepo.refresh()
+    fun refresh() {
+        mediaRepo.refresh()
+        worksRepo.refresh()
+    }
 
     /** 任一媒体权限已授权即视为可访问（部分授权可用）。 */
     private fun hasMediaAccess(): Boolean =

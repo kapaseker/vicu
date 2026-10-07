@@ -1,5 +1,6 @@
 package com.rockbyte.vicu.ui.component
 
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,6 +30,7 @@ fun VicuScaffold(
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     backEnabled: Boolean = true,
+    marqueeTitle: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val screenState = remember { MutableStyleState(null) }
@@ -38,7 +40,7 @@ fun VicuScaffold(
             .styleable(screenState, VicuTheme.styles.screen)
     ) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            VicuTopAppBar(title = title, onBack = onBack, backEnabled = backEnabled)
+            VicuTopAppBar(title = title, onBack = onBack, backEnabled = backEnabled, marqueeTitle = marqueeTitle)
             content()
         }
     }
@@ -51,6 +53,7 @@ fun VicuTopAppBar(
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     backEnabled: Boolean = true,
+    marqueeTitle: Boolean = false,
 ) {
     val headerState = remember { MutableStyleState(null) }
     Row(
@@ -63,16 +66,16 @@ fun VicuTopAppBar(
         BasicText(
             text = title,
             style = VicuTheme.typography.topAppBarTitle,
-            modifier = Modifier.padding(
+            modifier = (if (marqueeTitle) Modifier.weight(1f) else Modifier).padding(
                 start = if (onBack == null) {
                     VicuTheme.dimensions.topAppBarTitlePaddingWithoutNavigation
                 } else {
                     VicuTheme.dimensions.topAppBarTitlePadding
                 },
                 end = VicuTheme.dimensions.topAppBarTitlePadding,
-            ),
+            ).then(if (marqueeTitle) Modifier.basicMarquee(iterations = Int.MAX_VALUE) else Modifier),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            overflow = if (marqueeTitle) TextOverflow.Clip else TextOverflow.Ellipsis,
         )
     }
 }

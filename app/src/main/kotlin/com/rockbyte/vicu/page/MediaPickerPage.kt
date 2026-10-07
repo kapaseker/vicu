@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
@@ -20,8 +19,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.repo.MediaItem
+import com.rockbyte.vicu.repo.WorksLibraryState
+import com.rockbyte.vicu.ui.component.MediaSourcePager
 import com.rockbyte.vicu.repo.MediaKind
-import com.rockbyte.vicu.ui.component.MediaGrid
 import com.rockbyte.vicu.ui.component.PrimaryButton
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.theme.VicuTheme
@@ -29,7 +29,7 @@ import java.time.Instant
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * 自建媒体选择页：替代 SAF 文件夹选择，展示 [MediaRepo] 媒体库中 [kinds] 类型的条目
+ * 自建媒体选择页：按 [kinds] 过滤系统素材和作品库中的条目
  * （参考首页 UI：日期分组 + Grid Card）；单选即点即回，选中结果经 [MediaPickerViewModel] 回传调用页。
  */
 @Composable
@@ -37,9 +37,11 @@ fun MediaPickerPage(kinds: Set<MediaKind>, onDone: () -> Unit, onBack: () -> Uni
     val viewModel = koinViewModel<MediaPickerViewModel>()
     LaunchedEffect(kinds) { viewModel.bind(kinds) }
     val state by viewModel.uiState.collectAsState()
+    val works by viewModel.worksState.collectAsState()
 
     MediaPickerContent(
         state = state,
+        works = works,
         onGrant = viewModel::refresh,
         onPick = { item ->
             viewModel.confirm(item)
@@ -50,8 +52,9 @@ fun MediaPickerPage(kinds: Set<MediaKind>, onDone: () -> Unit, onBack: () -> Uni
 }
 
 @Composable
-private fun MediaPickerContent(
+internal fun MediaPickerContent(
     state: MediaPickerUiState,
+    works: WorksLibraryState = WorksLibraryState(),
     onGrant: () -> Unit,
     onPick: (MediaItem) -> Unit,
     onBack: () -> Unit,
@@ -61,11 +64,8 @@ private fun MediaPickerContent(
     ) { onGrant() }
 
     VicuScaffold(title = stringResource(R.string.select_music), onBack = onBack) {
-        when (state.hasAccess) {
-            true -> MediaGrid(state.items, state.loading, onPick)
-            false -> PermissionPrompt(state.permissionsToRequest, permissionLauncher::launch)
-            null -> Unit
-        }
+        MediaSourcePager(state.items, state.loading, state.hasAccess, works, onPick, onGrant,
+            permissionPrompt = { PermissionPrompt(state.permissionsToRequest, permissionLauncher::launch) })
     }
 }
 

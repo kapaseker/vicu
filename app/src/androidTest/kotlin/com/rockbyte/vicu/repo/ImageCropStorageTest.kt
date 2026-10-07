@@ -6,7 +6,6 @@ import android.graphics.ColorSpace
 import android.graphics.ImageDecoder
 import android.media.ExifInterface
 import android.net.Uri
-import android.provider.MediaStore
 import android.test.AndroidTestCase
 import java.io.File
 
@@ -15,11 +14,13 @@ import java.io.File
 class ImageCropStorageTest : AndroidTestCase() {
     private val sourceFiles = mutableListOf<File>()
     private val outputs = mutableListOf<Uri>()
+    private lateinit var works: WorksStorage
     private lateinit var store: ImageCropStorage
 
     override fun setUp() {
         super.setUp()
-        store = ImageCropStorage(context.contentResolver, System::currentTimeMillis) { 512L * 1024 * 1024 }
+        works = WorksStorage(context, System::currentTimeMillis)
+        store = ImageCropStorage(context.contentResolver, works) { 512L * 1024 * 1024 }
     }
 
     override fun tearDown() {
@@ -72,11 +73,11 @@ class ImageCropStorageTest : AndroidTestCase() {
             assertEquals(0, Color.alpha(bitmap.getPixel(300, 225)))
             assertEquals(ColorSpace.get(ColorSpace.Named.SRGB), bitmap.colorSpace)
         } finally { bitmap.recycle() }
-        context.contentResolver.query(result, arrayOf(MediaStore.MediaColumns.IS_PENDING,
-            MediaStore.MediaColumns.RELATIVE_PATH, MediaStore.MediaColumns.MIME_TYPE), null, null, null)!!.use {
-            assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0))
-            assertEquals("Pictures/Vicu/", it.getString(1)); assertEquals("image/png", it.getString(2))
-        }
+        val work = works.query().single { it.uri == result }
+        assertEquals(MediaKind.IMAGE, work.kind)
+        assertTrue(work.name.endsWith(".png"))
+        assertEquals("${context.packageName}.works", result.authority)
+        assertEquals("image/png", context.contentResolver.getType(result))
         assertTrue(file.exists())
     }
 
@@ -152,7 +153,7 @@ class ImageCropStorageTest : AndroidTestCase() {
         try {
             assertEquals(4097, preview.info.width); assertEquals(2049, preview.info.height)
             assertEquals(2048, preview.bitmap.width)
-            val smallBudgetStore = ImageCropStorage(context.contentResolver, System::currentTimeMillis) { 16L * 1024 * 1024 }
+            val smallBudgetStore = ImageCropStorage(context.contentResolver, works) { 16L * 1024 * 1024 }
             try {
                 smallBudgetStore.decodeCrop(Uri.fromFile(file), ImageCropRegion(0, 0, 10, 10), preview.bitmap.allocationByteCount.toLong())
                 fail("Even a tiny crop must account for full source decoding")

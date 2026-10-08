@@ -34,9 +34,12 @@ import kotlin.math.roundToInt
 /** 缩放框的四个角。 */
 internal enum class ScaleCorner { TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT }
 
-/** 以图片中心等比缩放；两轴拖动投影到角点方向，对边同步移动。 */
+/**
+ * 以图片中心保比例缩放；两轴拖动投影到角点方向，对边同步移动。
+ * [ratio] 为归一化框宽高比（框宽占比 / 框高占比）；取 1f 时框为正方形，等价于保持原图比例。
+ */
 internal fun CropRectF.moveCornerUniform(
-    corner: ScaleCorner, dx: Float, dy: Float, minSize: Float = 0.05f,
+    corner: ScaleCorner, dx: Float, dy: Float, minSize: Float = 0.05f, ratio: Float = 1f,
 ): CropRectF {
     val delta = when (corner) {
         ScaleCorner.BOTTOM_RIGHT -> dx + dy
@@ -44,8 +47,7 @@ internal fun CropRectF.moveCornerUniform(
         ScaleCorner.TOP_RIGHT -> dx - dy
         ScaleCorner.BOTTOM_LEFT -> dy - dx
     }
-    val side = (right - left + delta).coerceIn(minSize, 1f)
-    return centeredScaleRect(side, side)
+    return fittedCenteredRect(right - left + delta, ratio, minSize)
 }
 
 /** 非等比缩放只改变拖动轴，对边镜像移动。 */
@@ -65,10 +67,33 @@ internal fun CropRectF.moveScaleEdge(
 private fun centeredScaleRect(width: Float, height: Float): CropRectF =
     CropRectF((1f - width) / 2f, (1f - height) / 2f, (1f + width) / 2f, (1f + height) / 2f)
 
-/** 切回等比模式时取较小缩放比例，保持图片居中。 */
-internal fun CropRectF.snapToUniform(minSize: Float = 0.05f): CropRectF {
-    val side = minOf(right - left, bottom - top).coerceIn(minSize, 1f)
-    return centeredScaleRect(side, side)
+/**
+ * 以归一化宽 [width] 为驱动尺寸、按归一化宽高比 [ratio] 求居中矩形：驱动宽夹在 [minSize, 1]，
+ * 另一轴按比例推导；推导轴撑出图片（> 1）时改由该轴反推回宽。结果恒居中且不超出图片。
+ * ponytail: 单轮修正；归一化比例极端（超出约 20 倍）时推导轴会小于 minSize，届时需改为按面积求解。
+ */
+internal fun fittedCenteredRect(width: Float, ratio: Float, minSize: Float = 0.05f): CropRectF {
+    val k = ratio.coerceAtLeast(1e-4f)
+    var w = width.coerceIn(minSize, 1f)
+    var h = w / k
+    if (h > 1f) { h = 1f; w = h * k }
+    if (h < minSize) { h = minSize; w = h * k }
+    if (w > 1f) { w = 1f; h = w / k }
+    return centeredScaleRect(w, h)
+}
+
+/** 该归一化宽高比在当前图片内能放下的最大居中矩形。 */
+internal fun maxCenteredRect(ratio: Float, minSize: Float = 0.05f): CropRectF =
+    fittedCenteredRect(1f, ratio, minSize)
+
+/** 输出宽高比 → 归一化框宽高比（框以图片宽高为量纲，故需除以图片宽高比）。 */
+internal fun normalizedRectRatio(outputRatio: Float, imageAspect: Float): Float =
+    outputRatio / imageAspect
+
+/** 切回等比模式时按 [ratio] 收敛：保持较小边，图片居中。 */
+internal fun CropRectF.snapToUniform(minSize: Float = 0.05f, ratio: Float = 1f): CropRectF {
+    val width = minOf(right - left, (bottom - top) * ratio)
+    return fittedCenteredRect(width, ratio, minSize)
 }
 
 /** 输出像素尺寸：框宽高占比 × 原图，逐轴 round 后夹在 [1, 原图]。 */
@@ -89,11 +114,12 @@ internal fun cornerCenterPx(corner: ScaleCorner, rect: CropRectF, size: IntSize)
     return Offset(x, y)
 }
 
-/** 缩放边框与手柄：等比模式拖四角，非等比模式拖边中点；均以图片中心缩放。 */
+/** 缩放边框与手柄：等比模式拖四角（保持 [ratio] 归一化宽高比），非等比模式拖边中点；均以图片中心缩放。 */
 @Composable
 internal fun ScaleMarquee(
     rect: CropRectF,
     uniform: Boolean,
+    ratio: Float,
     enabled: Boolean,
     onRectChange: (CropRectF) -> Unit,
     modifier: Modifier = Modifier,
@@ -172,7 +198,7 @@ internal fun ScaleMarquee(
                             val w = size.width.toFloat()
                             val h = size.height.toFloat()
                             if (w > 0f && h > 0f) {
-                                latestOnRectChange(latestRect.moveCornerUniform(corner, dx / w, dy / h))
+                                latestOnRectChange(latestRect.moveCornerUniform(corner, dx / w, dy / h, ratio = ratio))
                             }
                         },
                     )

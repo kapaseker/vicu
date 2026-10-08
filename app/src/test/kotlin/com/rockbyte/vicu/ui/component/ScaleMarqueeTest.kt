@@ -49,6 +49,48 @@ class ScaleMarqueeTest {
     }
 
     @Test
+    fun cornerDragKeepsRequestedNormalizedRatio() {
+        // 归一化宽高比 1.5：驱动宽 0.6 - 0.2 = 0.4 → 高 0.4 / 1.5，居中。
+        val height = 0.4f / 1.5f
+        assertRect(0.3f, (1f - height) / 2f, 0.7f, (1f + height) / 2f,
+            CropRectF(0.2f, 0.2f, 0.8f, 0.8f)
+                .moveCornerUniform(ScaleCorner.BOTTOM_RIGHT, -0.2f, 0f, ratio = 1.5f))
+        // 归一化宽高比 0.5：驱动宽超出上界后以高反推，收敛为高 1、宽 0.5。
+        assertRect(0.25f, 0f, 0.75f, 1f,
+            CropRectF(0.2f, 0.2f, 0.8f, 0.8f)
+                .moveCornerUniform(ScaleCorner.BOTTOM_RIGHT, 1f, 1f, ratio = 0.5f))
+    }
+
+    @Test
+    fun snapToUniformKeepsRequestedNormalizedRatio() {
+        // 比例 1.5：较小边取宽 0.6 → 高 0.4。
+        assertRect(0.2f, 0.3f, 0.8f, 0.7f,
+            CropRectF(0.2f, 0.2f, 0.8f, 0.8f).snapToUniform(ratio = 1.5f))
+        // 比例 2：较小边取宽 0.6 → 高 0.3，保持居中。
+        assertRect(0.2f, 0.35f, 0.8f, 0.65f,
+            CropRectF(0.2f, 0.2f, 0.8f, 0.8f).snapToUniform(ratio = 2f))
+    }
+
+    @Test
+    fun maxCenteredRectFitsTheWholePicture() {
+        assertRect(0f, 0f, 1f, 1f, maxCenteredRect(1f))
+        assertRect(0f, 0.25f, 1f, 0.75f, maxCenteredRect(2f))
+        assertRect(0.25f, 0f, 0.75f, 1f, maxCenteredRect(0.5f))
+    }
+
+    @Test
+    fun presetRatioMapsToRequestedOutputAspect() {
+        val landscape = normalizedRectRatio(16f / 9f, 4000f / 3000f)
+        assertEquals(ScaleOutputSize(4000, 2250), scaleOutputSize(maxCenteredRect(landscape), 4000, 3000))
+        // 竖图选 16:9：宽撑满、高按比例收缩（1687.5 → 1688）。
+        val portrait = normalizedRectRatio(16f / 9f, 3000f / 4000f)
+        assertEquals(ScaleOutputSize(3000, 1688), scaleOutputSize(maxCenteredRect(portrait), 3000, 4000))
+        // 原图比例（归一化比例 1）取整图。
+        assertEquals(ScaleOutputSize(4000, 3000),
+            scaleOutputSize(maxCenteredRect(normalizedRectRatio(4000f / 3000f, 4000f / 3000f)), 4000, 3000))
+    }
+
+    @Test
     fun freeEdgesMirrorOppositeEdgeAndKeepOtherAxis() {
         val rect = CropRectF(0.2f, 0.3f, 0.8f, 0.7f)
         assertRect(0.3f, 0.3f, 0.7f, 0.7f, rect.moveScaleEdge(CropEdge.LEFT, 0.1f, 0.5f))

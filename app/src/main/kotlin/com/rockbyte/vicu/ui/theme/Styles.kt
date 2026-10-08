@@ -80,6 +80,17 @@ object VicuStyles {
     }
 
     /**
+     * 选择 chip：pill 形 + button 字号（DESIGN.md 无 chip 规格，取按钮 pill 语言）。
+     * 复用按钮最小高度保证 48dp+ 触控尺寸；选中/未选中底色由调用方按 then 覆盖。
+     */
+    val chip: Style = Style {
+        shape(shapes.full)
+        textStyle(typography.button)
+        minHeight(dimensions.buttonMinHeight)
+        contentPaddingHorizontal(dimensions.spacingUnit * 2)
+    }
+
+    /**
      * 功能按钮 tile：卡片视觉（card then 覆盖内边距）。
      * DESIGN.md 卡片 32dp 内边距下限针对整幅卡片；grid 内约 100dp 的 tile 装不下，
      * 降到 16dp。后续功能变多或 tile 尺寸放大时可回到 card 默认。

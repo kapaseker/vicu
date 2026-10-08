@@ -21,7 +21,7 @@ import org.junit.Test
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito
 
-/** applyEffects 的调用编排（crop → 滤镜链；trim → 播放区间 + 起点跳转）。 */
+/** applyEffects 的调用编排（crop/scale → 滤镜链；trim → 播放区间 + 起点跳转）。 */
 class PlayerRepositoryTest {
 
     private val player = FakeNativePlayer()
@@ -62,6 +62,16 @@ class PlayerRepositoryTest {
 
         assertEquals("crop=w=100:h=50:x=10:y=20", player.filterChain)
         // 无 trim 时重置播放区间（清理历史 trim 的区间限制）
+        assertEquals(0L to -1L, player.playRange)
+    }
+
+    @Test
+    fun applyScaleSetsFilterGraphOnly() = runBlocking {
+        repository.open(uri)
+
+        repository.applyEffects(listOf(PlayerEffect.Scale(1280, 720)))
+
+        assertEquals("scale=w=1280:h=720", player.filterChain)
         assertEquals(0L to -1L, player.playRange)
     }
 

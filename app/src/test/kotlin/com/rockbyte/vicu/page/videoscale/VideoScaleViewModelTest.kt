@@ -79,7 +79,7 @@ class VideoScaleViewModelTest {
         val request = repo.requests.single()
         assertSame(parsedUri, request.uri)
         assertEquals("clip.mkv", request.displayName)
-        assertEquals("scale=406:720", request.videoFilter)
+        assertEquals("scale=w=406:h=720", request.videoFilter)
         assertEquals(VideoConvertFormat.MKV, request.format)
         assertEquals(VideoConvertQuality.SUITABLE, request.quality)
     }

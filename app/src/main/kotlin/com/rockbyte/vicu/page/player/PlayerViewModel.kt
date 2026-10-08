@@ -25,11 +25,12 @@ data class PlayerUiState(
     val durationMs: Long = 0L,
     val positionMs: Long = 0L,
     val crop: PlayerEffect.Crop? = null,
+    val scale: PlayerEffect.Scale? = null,
     val trim: PlayerEffect.Trim? = null,
 ) {
-    /** 当前效果列表（crop 在前，滤镜链顺序稳定）。 */
+    /** 当前效果列表（crop → scale 在前，滤镜链顺序稳定）。 */
     val effects: List<PlayerEffect>
-        get() = listOfNotNull(crop, trim)
+        get() = listOfNotNull(crop, scale, trim)
 }
 
 sealed interface PlayerPhase {
@@ -219,6 +220,21 @@ class PlayerViewModel(private val playerRepo: PlayerRepo) : ViewModel() {
     fun setCrop(crop: PlayerEffect.Crop?) {
         uiState.update { it.copy(crop = crop?.normalized()) }
         applyEffects()
+    }
+
+    /** 设置缩放（null 清除）；立即生效于预览滤镜链。 */
+    fun setScale(scale: PlayerEffect.Scale?) {
+        val normalized = scale?.normalized()
+        // 幂等：重组导致的重复调用不重建滤镜图，也不触发多余的刷新 seek
+        if (uiState.value.scale == normalized) return
+        uiState.update { it.copy(scale = normalized) }
+        applyEffects()
+        // 暂停/结束态下滤镜变更不会重绘静止帧（渲染端等冻结时钟、解码线程阻塞在满队列），
+        // 补一次 seek 强制按新链重解码当前帧；播放态帧持续流动，无需额外动作。
+        val state = uiState.value
+        if (state.phase != PlayerPhase.Playing && state.positionMs > 0) {
+            playerRepo.seekTo(state.positionMs)
+        }
     }
 
     /** 设置时间裁剪（null 清除）；立即生效于播放区间。 */

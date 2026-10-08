@@ -70,6 +70,51 @@ class PlayerViewModelTest {
     }
 
     @Test
+    fun setScaleNormalizesAndAppliesEffects() {
+        val viewModel = PlayerViewModel(repo)
+        viewModel.setScale(PlayerEffect.Scale(width = 1281, height = 721))
+
+        assertEquals(PlayerEffect.Scale(1280, 720), viewModel.uiState.value.scale)
+        assertEquals(listOf(listOf(PlayerEffect.Scale(1280, 720))), repo.appliedEffects)
+    }
+
+    @Test
+    fun setScaleSameValueIsNoOp() {
+        val viewModel = PlayerViewModel(repo)
+        viewModel.setScale(PlayerEffect.Scale(1280, 720))
+        viewModel.setScale(PlayerEffect.Scale(1280, 720))
+
+        // 幂等：重复同值不重建滤镜图，也不触发刷新 seek
+        assertEquals(1, repo.appliedEffects.size)
+        assertEquals(emptyList<Long>(), repo.seekCalls)
+    }
+
+    @Test
+    fun setScaleWhilePausedRefreshesStillFrame() {
+        val viewModel = PlayerViewModel(repo)
+        viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 60000))
+        viewModel.onEventForTest(PlayerEvent.Position(5000))
+        viewModel.pause()
+
+        viewModel.setScale(PlayerEffect.Scale(1080, 1080))
+
+        assertEquals(listOf(PlayerEffect.Scale(1080, 1080)), repo.appliedEffects.single())
+        // 暂停态补一次 seek 强制按新滤镜链重解码静止帧
+        assertEquals(listOf(5000L), repo.seekCalls)
+    }
+
+    @Test
+    fun setScaleWhilePlayingDoesNotSeek() {
+        val viewModel = PlayerViewModel(repo)
+        viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 60000))
+        viewModel.onEventForTest(PlayerEvent.Position(5000))
+
+        viewModel.setScale(PlayerEffect.Scale(1080, 1080))
+
+        assertEquals(emptyList<Long>(), repo.seekCalls)
+    }
+
+    @Test
     fun setTrimClampsToDurationAndAppliesEffects() {
         val viewModel = PlayerViewModel(repo)
         viewModel.onEventForTest(PlayerEvent.Prepared(1920, 1080, 10000))

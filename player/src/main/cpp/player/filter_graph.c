@@ -47,14 +47,8 @@ int filter_state_configure(FilterState *fs, const AVCodecContext *codec, const c
     rc = avfilter_graph_create_filter(&fs->sink, buffersink, "out", NULL, NULL, fs->graph);
     if (rc < 0) goto fail;
 
-    // 滤镜输出统一 YUV420P（与直通路径的 sws 转换目标一致）；
-    // 预构建头文件无 av_opt_set_int_list 宏，按其展开用 av_opt_set_bin 等价设置
-    const enum AVPixelFormat pix_fmts[] = {AV_PIX_FMT_YUV420P, AV_PIX_FMT_NONE};
-    rc = av_opt_set_bin(fs->sink, "pix_fmts", (const uint8_t *) pix_fmts,
-                        (int) (sizeof(pix_fmts) - sizeof(pix_fmts[0])),
-                        AV_OPT_SEARCH_CHILDREN);
-    if (rc < 0) goto fail;
-
+    // 不在此约束 sink 的 pix_fmts：预构建 FFmpeg 上 av_opt_set_bin 会返回
+    // AVERROR_OPTION_NOT_FOUND 导致整图构建失败；输出格式由 push_frame 的 sws 统一转 YUV420P。
     // 链两端接到 buffersrc/buffersink（名字与 create_filter 一致）
     AVFilterInOut *outputs = avfilter_inout_alloc(); // buffersrc 的输出
     AVFilterInOut *inputs = avfilter_inout_alloc();  // buffersink 的输入

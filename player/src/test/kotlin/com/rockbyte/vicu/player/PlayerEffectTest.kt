@@ -87,4 +87,40 @@ class PlayerEffectTest {
             args,
         )
     }
+
+    @Test
+    fun previewChainRendersScale() {
+        val chain = listOf(PlayerEffect.Scale(width = 1280, height = 720)).toPreviewFilterChain()
+        assertEquals("scale=w=1280:h=720", chain)
+    }
+
+    @Test
+    fun previewChainNormalizesOddScaleValues() {
+        // YUV420 色度对齐：尺寸偶数化（向下取整），至少 2
+        val chain = listOf(PlayerEffect.Scale(width = 1281, height = 721)).toPreviewFilterChain()
+        assertEquals("scale=w=1280:h=720", chain)
+    }
+
+    @Test
+    fun previewChainJoinsCropAndScaleInListOrder() {
+        val chain = listOf(
+            PlayerEffect.Crop(left = 0, top = 0, width = 100, height = 100),
+            PlayerEffect.Scale(width = 64, height = 64),
+        ).toPreviewFilterChain()
+        assertEquals("crop=w=100:h=100:x=0:y=0,scale=w=64:h=64", chain)
+    }
+
+    @Test
+    fun scaleVideoFilterNormalizesAndMatchesPreviewChain() {
+        val scale = PlayerEffect.Scale(width = 1281, height = 721)
+        assertEquals("scale=w=1280:h=720", scale.toVideoFilter())
+        // 导出滤镜与预览链共用同一字符串，保证所见即所得
+        assertEquals(scale.toVideoFilter(), listOf(scale).toPreviewFilterChain())
+    }
+
+    @Test
+    fun exportArgumentsRenderScaleAsVideoFilter() {
+        val args = listOf(PlayerEffect.Scale(width = 1280, height = 720)).toExportArguments()
+        assertArrayEquals(arrayOf("-vf", "scale=w=1280:h=720"), args)
+    }
 }

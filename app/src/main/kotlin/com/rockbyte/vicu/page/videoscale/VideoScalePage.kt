@@ -48,6 +48,7 @@ import com.rockbyte.vicu.page.messageRes
 import com.rockbyte.vicu.page.player.PlayerPhase
 import com.rockbyte.vicu.page.player.PlayerUiState
 import com.rockbyte.vicu.page.player.PlayerViewModel
+import com.rockbyte.vicu.player.PlayerEffect
 import com.rockbyte.vicu.player.PlayerError
 import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.ui.component.OutlineButton
@@ -73,7 +74,8 @@ import org.koin.androidx.compose.koinViewModel
  * 「确认」按输出尺寸 `scale=W:H` 拉伸重编码导出（比例与源不一致时画面变形），
  * 导出中锁定全部操作并拦截返回。
  *
- * 预览始终为完整原画（不套 scale 滤镜），输出尺寸以尺寸行文案确认；导出时才应用滤镜。
+ * 预览实时套用与导出同一 `scale=W:H` 滤镜链：播放中逐帧生效，暂停/结束态由 PlayerViewModel 补一次
+ * seek 刷新静止帧；输出尺寸同时以尺寸行文案确认。
  */
 @Composable
 fun VideoScalePage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Unit) {
@@ -98,6 +100,7 @@ fun VideoScalePage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Uni
         onScrub = playerViewModel::scrubTo,
         onScrubEnd = playerViewModel::scrubEnd,
         onSurfaceAvailable = playerViewModel::setSurface,
+        onScaleChange = playerViewModel::setScale,
         onScale = scaleViewModel::scale,
         onBack = onBack,
         onGoHome = onGoHome,
@@ -114,6 +117,7 @@ private fun VideoScaleContent(
     onScrub: (Long) -> Unit,
     onScrubEnd: (Long) -> Unit,
     onSurfaceAvailable: (android.view.Surface?) -> Unit,
+    onScaleChange: (PlayerEffect.Scale?) -> Unit,
     onScale: (Int, Int) -> Unit,
     onBack: () -> Unit,
     onGoHome: () -> Unit,
@@ -145,6 +149,15 @@ private fun VideoScaleContent(
             heightPreset.height,
         )
     } else null
+    // 预览实时套用与导出同串的 scale；输出尺寸等于源尺寸时清空滤镜链（无需重建）。
+    val scaleEffect = if (ready && output != null &&
+        (output.first != playerState.videoWidth || output.second != playerState.videoHeight)
+    ) {
+        PlayerEffect.Scale(output.first, output.second)
+    } else {
+        null
+    }
+    LaunchedEffect(scaleEffect) { onScaleChange(scaleEffect) }
 
     VicuScaffold(
         title = stringResource(R.string.video_scale),
@@ -409,6 +422,7 @@ private fun VideoScalePageReadyPreview() {
             onScrub = {},
             onScrubEnd = {},
             onSurfaceAvailable = {},
+            onScaleChange = {},
             onScale = { _, _ -> },
             onBack = {},
             onGoHome = {},
@@ -436,6 +450,7 @@ private fun VideoScalePageScalingPreview() {
             onScrub = {},
             onScrubEnd = {},
             onSurfaceAvailable = {},
+            onScaleChange = {},
             onScale = { _, _ -> },
             onBack = {},
             onGoHome = {},

@@ -3,6 +3,8 @@ package com.rockbyte.vicu.page.videoscale
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rockbyte.vicu.player.PlayerEffect
+import com.rockbyte.vicu.player.toVideoFilter
 import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.repo.VideoConvertError
 import com.rockbyte.vicu.repo.VideoConvertQuality
@@ -61,7 +63,8 @@ class VideoScaleViewModel(private val videoConvertRepo: VideoConvertRepo) : View
                     displayName = media.name,
                     format = videoOutputFormat(media.name),
                     quality = VideoConvertQuality.SUITABLE,
-                    videoFilter = "scale=$targetWidth:$targetHeight",
+                    // 与预览滤镜链共用同一字符串，保证所见即所得
+                    videoFilter = PlayerEffect.Scale(targetWidth, targetHeight).toVideoFilter(),
                 ),
             ) { progress ->
                 // 回调来自 FFmpeg 线程；StateFlow.update 原子且线程安全

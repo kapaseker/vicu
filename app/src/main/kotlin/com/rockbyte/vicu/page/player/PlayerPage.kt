@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.view.Surface
-import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.compose.foundation.background
@@ -41,7 +40,7 @@ import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * 播放页：沉浸式全屏播放所选视频——视频等比 letterbox 居中，控制层（返回/进度/播放暂停/时间）
+ * 播放页：全屏播放所选视频——视频等比 letterbox 居中，控制层（返回/进度/播放暂停/时间）
  * 悬浮于画面上层，播放中 [VicuTheme.motion.controlsHideDelayMillis] 无操作自动隐藏，点按画面切换显隐；
  * 页面离开时释放引擎（引擎由 [PlayerViewModel.release] 终结）。
  */
@@ -81,7 +80,7 @@ private fun PlayerContent(
     var scrubbing by remember { mutableStateOf(false) }
     val controlsHideDelayMillis = VicuTheme.motion.controlsHideDelayMillis.toLong()
 
-    ImmersivePlayerWindow()
+    PlayerWindowEffect()
 
     // 播放中显示控制层超过时限且未在拖拽进度条时自动隐藏；暂停/Ended/Preparing 常显
     LaunchedEffect(controlsVisible, state.playing, state.phase, scrubbing) {
@@ -185,22 +184,19 @@ private fun videoAspectRatio(state: PlayerUiState): Float =
     }
 
 /**
- * 沉浸式全屏：隐藏系统状态栏与导航栏（下滑临时呼出），状态栏图标切浅色，播放期间保持屏幕常亮；
- * 离开页面恢复浅色主题的系统栏外观。宿主非 Activity（如 Preview）时不生效。
+ * 播放页窗口效果：状态栏常驻不隐藏（隐藏后退出时系统栏会重新播放出现动画），
+ * 仅把状态栏图标切浅色以适配黑底播放器；播放期间保持屏幕常亮，离开页面恢复浅色主题的系统栏外观。
+ * 宿主非 Activity（如 Preview）时不生效。
  */
 @Composable
-private fun ImmersivePlayerWindow() {
+private fun PlayerWindowEffect() {
     val context = LocalContext.current
     DisposableEffect(context) {
         val window = context.findActivity()?.window
         val controller = window?.insetsController
-        controller?.hide(WindowInsets.Type.systemBars())
-        controller?.systemBarsBehavior =
-            WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         setLightSystemBars(controller, light = false)
         window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose {
-            controller?.show(WindowInsets.Type.systemBars())
             setLightSystemBars(controller, light = true)
             window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }

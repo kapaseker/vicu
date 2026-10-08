@@ -77,7 +77,7 @@ class ImageScaleUiDeviceTest : InstrumentationTestCase() {
                     screenshot.getPixel(original.left + 2, original.centerY()) != Color.RED)
             } finally { screenshot.recycle() }
         }
-        tapNode(descriptionNode(R.string.image_scale_uniform_linked))
+        tapNode(textNode(R.string.image_scale_uniform))
         awaitCondition { hasDescription(R.string.scale_edge_left) }
         val before = bounds(R.string.image_scale_preview)
         val left = bounds(R.string.scale_edge_left)
@@ -86,7 +86,7 @@ class ImageScaleUiDeviceTest : InstrumentationTestCase() {
         val stretched = bounds(R.string.image_scale_preview)
         assertCentered(original, stretched)
         assertEquals(before.height(), stretched.height())
-        tapNode(descriptionNode(R.string.image_scale_uniform_free))
+        tapNode(textNode(R.string.image_scale_uniform))
         awaitCondition { hasDescription(R.string.scale_corner_bottom_right) }
         val linked = bounds(R.string.image_scale_preview)
         assertCentered(original, linked)
@@ -102,6 +102,9 @@ class ImageScaleUiDeviceTest : InstrumentationTestCase() {
     }
     private fun descriptionNode(resource: Int) = nodes().first {
         it.contentDescription?.toString() == instrumentation.targetContext.getString(resource)
+    }
+    private fun textNode(resource: Int) = nodes().first {
+        it.text?.toString() == instrumentation.targetContext.getString(resource)
     }
     private fun bounds(resource: Int) = Rect().also { descriptionNode(resource).getBoundsInScreen(it) }
     private fun tapNode(node: AccessibilityNodeInfo) {

@@ -34,6 +34,10 @@ data class VicuDimensions(
     val radioOuterSize: Dp,
     val radioBorderWidth: Dp,
     val radioInnerSize: Dp,
+    val switchTrackWidth: Dp,
+    val switchTrackHeight: Dp,
+    val switchThumbSize: Dp,
+    val switchThumbInset: Dp,
     val playerProgressTrackHeight: Dp,
     val playerProgressThumbSize: Dp,
     val playerProgressTouchHeight: Dp,
@@ -60,6 +64,7 @@ data class VicuAlpha(
 data class VicuMotion(
     val statusPulseDurationMillis: Int,
     val controlsHideDelayMillis: Int,
+    val switchAnimationDurationMillis: Int,
 )
 
 @Composable
@@ -90,6 +95,10 @@ internal fun resourceDimensions() = VicuDimensions(
     radioOuterSize = dimensionResource(R.dimen.vicu_radio_outer_size),
     radioBorderWidth = dimensionResource(R.dimen.vicu_radio_border_width),
     radioInnerSize = dimensionResource(R.dimen.vicu_radio_inner_size),
+    switchTrackWidth = dimensionResource(R.dimen.vicu_switch_track_width),
+    switchTrackHeight = dimensionResource(R.dimen.vicu_switch_track_height),
+    switchThumbSize = dimensionResource(R.dimen.vicu_switch_thumb_size),
+    switchThumbInset = dimensionResource(R.dimen.vicu_switch_thumb_inset),
     playerProgressTrackHeight = dimensionResource(R.dimen.vicu_player_progress_track_height),
     playerProgressThumbSize = dimensionResource(R.dimen.vicu_player_progress_thumb_size),
     playerProgressTouchHeight = dimensionResource(R.dimen.vicu_player_progress_touch_height),
@@ -104,4 +113,5 @@ internal fun resourceDimensions() = VicuDimensions(
 internal fun resourceMotion() = VicuMotion(
     statusPulseDurationMillis = integerResource(R.integer.vicu_status_pulse_duration_millis),
     controlsHideDelayMillis = integerResource(R.integer.vicu_controls_hide_delay_millis),
+    switchAnimationDurationMillis = integerResource(R.integer.vicu_switch_animation_duration_millis),
 )

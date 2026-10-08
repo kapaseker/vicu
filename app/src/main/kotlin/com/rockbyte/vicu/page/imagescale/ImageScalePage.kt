@@ -2,7 +2,10 @@ package com.rockbyte.vicu.page.imagescale
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -13,10 +16,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.style.MutableStyleState
+import androidx.compose.foundation.style.Style
+import androidx.compose.foundation.style.styleable
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -31,12 +39,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreOwner
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.repo.ImageCropError
@@ -49,12 +60,13 @@ import com.rockbyte.vicu.ui.component.ProgressButton
 import com.rockbyte.vicu.ui.component.ScaleMarquee
 import com.rockbyte.vicu.ui.component.ScaleOutputSize
 import com.rockbyte.vicu.ui.component.StatusRow
-import com.rockbyte.vicu.ui.component.VicuButton
 import com.rockbyte.vicu.ui.component.VicuScaffold
 import com.rockbyte.vicu.ui.component.scaleOutputSize
 import com.rockbyte.vicu.ui.component.snapToUniform
 import com.rockbyte.vicu.ui.component.videoPreviewWidth
 import com.rockbyte.vicu.ui.theme.VicuTheme
+import com.rockbyte.vicu.ui.theme.colors
+import com.rockbyte.vicu.ui.theme.dimensions
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -111,24 +123,19 @@ fun ImageScalePage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Uni
                             modifier = Modifier.matchParentSize(),
                         )
                     }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        BasicText(
-                            text = stringResource(R.string.image_scale_dimensions, preview.info.width,
-                                preview.info.height, output.width, output.height),
-                            style = VicuTheme.typography.bodySm.copy(color = VicuTheme.colors.onSurfaceVariant),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
-                        UniformToggleButton(uniform = uniform, enabled = !saving) {
-                            // 非等比 → 等比：取较小占比收敛成等比框；等比 → 非等比：框不变。
-                            if (!uniform) scaleRect = scaleRect.snapToUniform()
-                            uniform = !uniform
-                            viewModel.selectionChanged()
-                        }
+                    BasicText(
+                        text = stringResource(R.string.image_scale_dimensions, preview.info.width,
+                            preview.info.height, output.width, output.height),
+                        style = VicuTheme.typography.bodySm.copy(color = VicuTheme.colors.onSurfaceVariant),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    UniformToggleRow(uniform = uniform, enabled = !saving) {
+                        // 非等比 → 等比：取较小占比收敛成等比框；等比 → 非等比：框不变。
+                        if (!uniform) scaleRect = scaleRect.snapToUniform()
+                        uniform = !uniform
+                        viewModel.selectionChanged()
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit)) {
@@ -176,23 +183,85 @@ fun ImageScalePage(media: SelectedMedia, onBack: () -> Unit, onGoHome: () -> Uni
     }
 }
 
-/** 等比/非等比切换：等比显示 link（已联动），非等比显示 unlink（已断开）。 */
+/** 等比开关行：左侧开关滑块表达状态，右侧文字说明。整行可点。 */
 @Composable
-private fun UniformToggleButton(uniform: Boolean, enabled: Boolean, onToggle: () -> Unit) {
-    VicuButton(
-        onClick = onToggle,
-        enabled = enabled,
-        style = VicuTheme.styles.outlineButton,
-        rippleColor = VicuTheme.colors.onSurface,
+private fun UniformToggleRow(uniform: Boolean, enabled: Boolean, onToggle: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(VicuTheme.shapes.base)
+            .toggleable(
+                value = uniform,
+                enabled = enabled,
+                role = Role.Switch,
+                interactionSource = interactionSource,
+                onValueChange = { onToggle() },
+            )
+            // 竖向留白把 32dp 滑块行撑到 48dp 触控高度，同时扩到可点区内。
+            .padding(vertical = VicuTheme.dimensions.spacingUnit)
+            .alpha(if (enabled) VicuTheme.alpha.full else VicuTheme.alpha.disabled),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit),
     ) {
-        Image(
-            painter = painterResource(if (uniform) R.drawable.ic_link else R.drawable.ic_unlink),
-            contentDescription = stringResource(
-                if (uniform) R.string.image_scale_uniform_linked else R.string.image_scale_uniform_free,
-            ),
-            modifier = Modifier.size(VicuTheme.dimensions.iconMedium),
-            colorFilter = ColorFilter.tint(VicuTheme.colors.onSurface),
+        VicuSwitch(checked = uniform)
+        BasicText(
+            text = stringResource(R.string.image_scale_uniform),
+            style = VicuTheme.typography.bodyLg,
+            modifier = Modifier.weight(1f),
         )
+    }
+}
+
+/** 开关滑块：黑轨 + 白钮表示已开启，灰轨 + 白钮表示关闭，钮带位移动画。手绘以避开 Material3 依赖。 */
+@Composable
+private fun VicuSwitch(checked: Boolean) {
+    val trackState = remember { MutableStyleState(null) }
+    val thumbState = remember { MutableStyleState(null) }
+    val dimensions = VicuTheme.dimensions
+    val travel by animateDpAsState(
+        targetValue = if (checked) {
+            dimensions.switchTrackWidth - dimensions.switchThumbSize - dimensions.switchThumbInset * 2
+        } else {
+            0.dp
+        },
+        animationSpec = tween(VicuTheme.motion.switchAnimationDurationMillis),
+        label = "switchThumb",
+    )
+    Box(
+        modifier = Modifier
+            .size(dimensions.switchTrackWidth, dimensions.switchTrackHeight)
+            .clip(VicuTheme.shapes.full)
+            .styleable(trackState, Style {
+                background(if (checked) colors.primary else colors.surfaceContainerHighest)
+            }),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(start = dimensions.switchThumbInset)
+                .offset(x = travel)
+                .size(dimensions.switchThumbSize)
+                .clip(VicuTheme.shapes.full)
+                .styleable(thumbState, Style {
+                    background(if (checked) colors.onPrimary else colors.surfaceContainerLowest)
+                }),
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun UniformToggleRowPreview() {
+    VicuTheme {
+        Column(
+            modifier = Modifier.padding(VicuTheme.dimensions.screenGutter),
+            verticalArrangement = Arrangement.spacedBy(VicuTheme.dimensions.spacingUnit * 2),
+        ) {
+            UniformToggleRow(uniform = true, enabled = true, onToggle = {})
+            UniformToggleRow(uniform = false, enabled = true, onToggle = {})
+            UniformToggleRow(uniform = true, enabled = false, onToggle = {})
+        }
     }
 }
 

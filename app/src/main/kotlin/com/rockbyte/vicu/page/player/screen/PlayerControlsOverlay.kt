@@ -57,8 +57,6 @@ internal fun PlayerControlsOverlay(
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         // 顶部返回：对齐标准标题栏几何（64dp 行高 + 4dp 行边距），白色 tint。
-        // 用 statusBarsIgnoringVisibility 保留状态栏真实高度：即使播放页隐藏了状态栏，
-        // 返回按钮的屏幕位置也与其他页面（状态栏可见时）完全一致，进出页面不产生视觉跳动。
         Row(
             modifier = Modifier
                 .fillMaxWidth()

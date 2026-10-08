@@ -93,14 +93,13 @@
     <string name="image_scale">缩放图片</string>
     <string name="image_scale_preview">待缩放图片</string>
     <string name="image_scale_dimensions">原图 %1$d × %2$d · 缩放 %3$d × %4$d</string>
+    <string name="image_scale_uniform">等比缩放</string>
     <string name="image_scale_saving">正在缩放并保存…</string>
     <string name="image_scale_success">缩放成功</string>
     <string name="image_scale_failed_retry">缩放失败，重试</string>
     <string name="image_scale_error_animation">暂不支持缩放动画图片。</string>
     <string name="image_scale_error_large">图片过大，超出可用内存预算，无法完成缩放。</string>
     <string name="image_scale_error_scale">图片缩放失败，请重试。</string>
-    <string name="image_scale_uniform_linked">已联动等比缩放，点击切换为非等比</string>
-    <string name="image_scale_uniform_free">已断开非等比缩放，点击切换为等比</string>
     <string name="scale_corner_top_left">缩放框左上角</string>
     <string name="scale_corner_top_right">缩放框右上角</string>
     <string name="scale_corner_bottom_left">缩放框左下角</string>

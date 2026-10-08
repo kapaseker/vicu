@@ -2,4 +2,5 @@
 <resources>
     <integer name="vicu_status_pulse_duration_millis">600</integer>
     <integer name="vicu_controls_hide_delay_millis">3000</integer>
+    <integer name="vicu_switch_animation_duration_millis">200</integer>
 </resources>

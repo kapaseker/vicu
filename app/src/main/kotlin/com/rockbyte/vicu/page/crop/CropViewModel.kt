@@ -8,11 +8,11 @@ import com.rockbyte.vicu.player.normalized
 import com.rockbyte.vicu.player.toVideoFilter
 import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.repo.VideoConvertError
-import com.rockbyte.vicu.repo.VideoConvertFormat
 import com.rockbyte.vicu.repo.VideoConvertQuality
 import com.rockbyte.vicu.repo.VideoConvertRepo
 import com.rockbyte.vicu.repo.VideoConvertRequest
 import com.rockbyte.vicu.repo.VideoConvertResult
+import com.rockbyte.vicu.repo.videoOutputFormat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -62,7 +62,7 @@ class CropViewModel(private val videoConvertRepo: VideoConvertRepo) : ViewModel(
                 VideoConvertRequest(
                     uri = Uri.parse(media.uri),
                     displayName = media.name,
-                    format = cropOutputFormat(media.name),
+                    format = videoOutputFormat(media.name),
                     quality = VideoConvertQuality.SUITABLE,
                     videoFilter = filter,
                 ),
@@ -80,10 +80,4 @@ class CropViewModel(private val videoConvertRepo: VideoConvertRepo) : ViewModel(
             }
         }
     }
-}
-
-/** 由源文件名扩展名映射输出容器（保持源格式）；未知或缺失回退 MP4。 */
-internal fun cropOutputFormat(fileName: String): VideoConvertFormat {
-    val extension = fileName.substringAfterLast('.', "").lowercase()
-    return VideoConvertFormat.entries.firstOrNull { it.extension == extension } ?: VideoConvertFormat.MP4
 }

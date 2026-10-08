@@ -12,6 +12,7 @@ fun VideoFunctionsPage(
     media: SelectedMedia,
     onPlayVideo: () -> Unit,
     onCropVideo: () -> Unit,
+    onScaleVideo: () -> Unit,
     onTrimVideo: () -> Unit,
     onExportAudio: () -> Unit,
     onConvertVideo: () -> Unit,
@@ -23,6 +24,7 @@ fun VideoFunctionsPage(
             listOf(
                 FunctionEntry(R.drawable.ic_play, R.string.play, onPlayVideo),
                 FunctionEntry(R.drawable.ic_crop, R.string.crop, onCropVideo),
+                FunctionEntry(R.drawable.ic_scale, R.string.video_scale, onScaleVideo),
                 FunctionEntry(R.drawable.ic_cut, R.string.video_trim, onTrimVideo),
                 FunctionEntry(R.drawable.ic_audio, R.string.export_audio, onExportAudio),
                 FunctionEntry(R.drawable.ic_transfer, R.string.video_convert, onConvertVideo),

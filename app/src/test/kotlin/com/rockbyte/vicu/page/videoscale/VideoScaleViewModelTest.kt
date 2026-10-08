@@ -1,7 +1,6 @@
-package com.rockbyte.vicu.page.crop
+package com.rockbyte.vicu.page.videoscale
 
 import android.net.Uri
-import com.rockbyte.vicu.player.PlayerEffect
 import com.rockbyte.vicu.repo.MediaKind
 import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.repo.VideoConvertError
@@ -10,7 +9,6 @@ import com.rockbyte.vicu.repo.VideoConvertQuality
 import com.rockbyte.vicu.repo.VideoConvertRepo
 import com.rockbyte.vicu.repo.VideoConvertRequest
 import com.rockbyte.vicu.repo.VideoConvertResult
-import com.rockbyte.vicu.repo.videoOutputFormat
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,12 +28,12 @@ import org.mockito.Mockito
 import org.mockito.Mockito.mock
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class CropViewModelTest {
+class VideoScaleViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val repo = FakeVideoConvertRepo()
     private val parsedUri: Uri = mock(Uri::class.java)
-    private val media = SelectedMedia("content://media/video/1", "clip.mp4", MediaKind.VIDEO)
+    private val media = SelectedMedia("content://media/video/1", "clip.mkv", MediaKind.VIDEO)
     private lateinit var uriStatic: MockedStatic<Uri>
 
     @Before
@@ -54,100 +52,115 @@ class CropViewModelTest {
     }
 
     @Test
-    fun bindSetsVideoNameAndIsIdempotent() {
-        val viewModel = CropViewModel(repo)
+    fun bindIsIdempotent() {
+        val viewModel = VideoScaleViewModel(repo)
         viewModel.bind(media)
 
-        assertEquals("clip.mp4", viewModel.uiState.value.videoName)
-        assertEquals(CutPhase.Idle, viewModel.uiState.value.cutPhase)
+        assertEquals(ScalePhase.Idle, viewModel.uiState.value.scalePhase)
     }
 
     @Test
-    fun cutBeforeBindIsIgnored() {
-        val viewModel = CropViewModel(repo)
-        viewModel.cut(PlayerEffect.Crop(0, 0, 100, 100))
+    fun scaleBeforeBindIsIgnored() {
+        val viewModel = VideoScaleViewModel(repo)
+        viewModel.scale(640, 480)
         dispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(repo.requests.isEmpty())
-        assertEquals(CutPhase.Idle, viewModel.uiState.value.cutPhase)
+        assertEquals(ScalePhase.Idle, viewModel.uiState.value.scalePhase)
     }
 
     @Test
-    fun cutSendsNormalizedFilterWithSourceFormat() {
-        val viewModel = CropViewModel(repo)
+    fun scaleSendsFilterWithSourceFormatAndSuitableQuality() {
+        val viewModel = VideoScaleViewModel(repo)
         viewModel.bind(media)
-        viewModel.cut(PlayerEffect.Crop(11, 21, 101, 51))
+        viewModel.scale(406, 720)
         dispatcher.scheduler.advanceUntilIdle()
 
         val request = repo.requests.single()
         assertSame(parsedUri, request.uri)
-        assertEquals("clip.mp4", request.displayName)
-        assertEquals("crop=w=100:h=50:x=10:y=20", request.videoFilter)
-        assertEquals(VideoConvertFormat.MP4, request.format)
+        assertEquals("clip.mkv", request.displayName)
+        assertEquals("scale=406:720", request.videoFilter)
+        assertEquals(VideoConvertFormat.MKV, request.format)
         assertEquals(VideoConvertQuality.SUITABLE, request.quality)
     }
 
     @Test
-    fun progressUpdatesCuttingPhaseThenCompletes() {
-        val viewModel = CropViewModel(repo)
+    fun progressUpdatesScalingPhaseThenCompletes() {
+        val viewModel = VideoScaleViewModel(repo)
         viewModel.bind(media)
         repo.progress = listOf(0.25f, 0.5f)
         val gate = CompletableDeferred<Unit>()
         repo.gate = gate
 
-        viewModel.cut(PlayerEffect.Crop(0, 0, 100, 100))
+        viewModel.scale(1280, 720)
         dispatcher.scheduler.advanceUntilIdle()
 
-        // 转码进行中：进度透传到 Cutting 阶段
-        assertEquals(CutPhase.Cutting(progress = 0.5f), viewModel.uiState.value.cutPhase)
+        // 转码进行中：进度透传到 Scaling 阶段
+        assertEquals(ScalePhase.Scaling(progress = 0.5f), viewModel.uiState.value.scalePhase)
 
         gate.complete(Unit)
         dispatcher.scheduler.advanceUntilIdle()
-        assertEquals(CutPhase.Complete, viewModel.uiState.value.cutPhase)
+        assertEquals(ScalePhase.Complete, viewModel.uiState.value.scalePhase)
     }
 
     @Test
     fun failureMapsToFailedPhase() {
-        val viewModel = CropViewModel(repo)
+        val viewModel = VideoScaleViewModel(repo)
         viewModel.bind(media)
         repo.result = VideoConvertResult.Failure(VideoConvertError.TranscodeFailed)
 
-        viewModel.cut(PlayerEffect.Crop(0, 0, 100, 100))
+        viewModel.scale(1280, 720)
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(
-            CutPhase.Failed(VideoConvertError.TranscodeFailed),
-            viewModel.uiState.value.cutPhase,
+            ScalePhase.Failed(VideoConvertError.TranscodeFailed),
+            viewModel.uiState.value.scalePhase,
         )
     }
 
     @Test
-    fun repeatedCutWhileCuttingIsIgnored() {
-        val viewModel = CropViewModel(repo)
+    fun repeatedScaleWhileScalingIsIgnored() {
+        val viewModel = VideoScaleViewModel(repo)
         viewModel.bind(media)
         val gate = CompletableDeferred<Unit>()
         repo.gate = gate
 
-        viewModel.cut(PlayerEffect.Crop(0, 0, 100, 100))
+        viewModel.scale(1280, 720)
         dispatcher.scheduler.advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.cutPhase is CutPhase.Cutting)
+        assertTrue(viewModel.uiState.value.scalePhase is ScalePhase.Scaling)
 
-        // 导出中重复点击「剪切」应被忽略，不产生第二次转换
-        viewModel.cut(PlayerEffect.Crop(0, 0, 50, 50))
+        // 导出中重复点击「确认」应被忽略，不产生第二次转换
+        viewModel.scale(640, 360)
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals(1, repo.requests.size)
 
         gate.complete(Unit)
         dispatcher.scheduler.advanceUntilIdle()
-        assertEquals(CutPhase.Complete, viewModel.uiState.value.cutPhase)
+        assertEquals(ScalePhase.Complete, viewModel.uiState.value.scalePhase)
     }
 
     @Test
-    fun videoOutputFormatFollowsSourceExtensionAndFallsBackToMp4() {
-        assertEquals(VideoConvertFormat.MKV, videoOutputFormat("clip.mkv"))
-        assertEquals(VideoConvertFormat.WEBM, videoOutputFormat("CLIP.WebM"))
-        assertEquals(VideoConvertFormat.MP4, videoOutputFormat("clip"))
-        assertEquals(VideoConvertFormat.MP4, videoOutputFormat("clip.txt"))
+    fun scaleOutputSizeFollowsSourceAspectWhenRatioNull() {
+        // 原始高度 + 原图比例 = 原样输出
+        assertEquals(1920 to 1080, scaleOutputSize(1920, 1080, null, null))
+        // 指定高度、比例跟随源画面
+        assertEquals(1280 to 720, scaleOutputSize(1920, 1080, null, 720))
+    }
+
+    @Test
+    fun scaleOutputSizeAppliesTargetHeightAndRatio() {
+        // 16:9 源 → 9:16 比例 + 480p 高度：宽 = 480 * 9/16 = 270
+        assertEquals(270 to 480, scaleOutputSize(1920, 1080, 9f / 16f, 480))
+        // 源比例与所选比例一致时输出不变
+        assertEquals(1280 to 720, scaleOutputSize(1920, 1080, 16f / 9f, 720))
+    }
+
+    @Test
+    fun scaleOutputSizeRoundsDownToEvenWithFloorTwo() {
+        // 奇数源高取偶（719→718）；宽按比例推导后同样取偶（1918.32→1918）
+        assertEquals(1918 to 718, scaleOutputSize(1921, 719, null, null))
+        // 极小高度下限 2
+        assertEquals(2 to 2, scaleOutputSize(1920, 1080, 1f, 2))
     }
 }
 

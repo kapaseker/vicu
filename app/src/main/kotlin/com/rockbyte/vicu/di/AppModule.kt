@@ -15,6 +15,7 @@ import com.rockbyte.vicu.page.MediaPickerViewModel
 import com.rockbyte.vicu.page.VideoConvertViewModel
 import com.rockbyte.vicu.page.AudioReplaceViewModel
 import com.rockbyte.vicu.page.crop.CropViewModel
+import com.rockbyte.vicu.page.videoscale.VideoScaleViewModel
 import com.rockbyte.vicu.page.trim.TrimViewModel
 import com.rockbyte.vicu.page.audiotrim.AudioTrimViewModel
 import com.rockbyte.vicu.repo.AudioTrimRepo
@@ -100,5 +101,6 @@ val appModule = module {
     viewModel { AudioConvertViewModel(get()) }
     viewModel { PlayerViewModel(get()) }
     viewModel { CropViewModel(get()) }
+    viewModel { VideoScaleViewModel(get()) }
     viewModel { TrimViewModel(get()) }
 }

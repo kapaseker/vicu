@@ -18,6 +18,7 @@ import com.rockbyte.vicu.page.ImageFunctionsPage
 import com.rockbyte.vicu.page.VideoConvertPage
 import com.rockbyte.vicu.page.imagecrop.ImageCropPage
 import com.rockbyte.vicu.page.imagescale.ImageScalePage
+import com.rockbyte.vicu.page.videoscale.VideoScalePage
 import com.rockbyte.vicu.page.crop.CropPage
 import com.rockbyte.vicu.page.trim.TrimPage
 import com.rockbyte.vicu.page.audiotrim.AudioTrimPage
@@ -72,6 +73,12 @@ data class CropRoute(
     val media: SelectedMedia,
 ) : NavKey
 
+/** 视频缩放目的地；携带所选视频。 */
+@Serializable
+data class VideoScaleRoute(
+    val media: SelectedMedia,
+) : NavKey
+
 /** 图片裁剪目的地。 */
 @Serializable
 data class ImageCropRoute(val media: SelectedMedia) : NavKey
@@ -122,6 +129,7 @@ fun MainApp() {
                     media = route.media,
                     onPlayVideo = { backStack.add(PlayerRoute(route.media)) },
                     onCropVideo = { backStack.add(CropRoute(route.media)) },
+                    onScaleVideo = { backStack.add(VideoScaleRoute(route.media)) },
                     onTrimVideo = { backStack.add(TrimRoute(route.media)) },
                     onExportAudio = { backStack.add(AudioExportRoute(route.media)) },
                     onConvertVideo = { backStack.add(VideoConvertRoute(route.media)) },
@@ -237,6 +245,16 @@ fun MainApp() {
             }
             entry<CropRoute> { route ->
                 CropPage(
+                    media = route.media,
+                    onBack = { backStack.removeLastOrNull() },
+                    onGoHome = {
+                        backStack.clear()
+                        backStack.add(HomeRoute(MediaSource.WORKS))
+                    },
+                )
+            }
+            entry<VideoScaleRoute> { route ->
+                VideoScalePage(
                     media = route.media,
                     onBack = { backStack.removeLastOrNull() },
                     onGoHome = {

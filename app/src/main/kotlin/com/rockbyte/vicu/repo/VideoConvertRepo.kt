@@ -40,3 +40,9 @@ interface VideoConvertRepo {
     /** 转码视频或所选段落并保存到作品库；取消时回滚并传播取消信号。[onProgress] 在转码期间以 0..1 进度回调（FFmpeg 线程）。 */
     suspend fun convert(request: VideoConvertRequest, onProgress: (Float) -> Unit = {}): VideoConvertResult
 }
+
+/** 由源文件名扩展名映射输出容器（保持源格式）；未知或缺失回退 MP4。 */
+internal fun videoOutputFormat(fileName: String): VideoConvertFormat {
+    val extension = fileName.substringAfterLast('.', "").lowercase()
+    return VideoConvertFormat.entries.firstOrNull { it.extension == extension } ?: VideoConvertFormat.MP4
+}

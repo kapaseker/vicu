@@ -1,6 +1,10 @@
 package com.rockbyte.vicu.page.imagescale
 
 import com.rockbyte.vicu.R
+import com.rockbyte.vicu.ui.component.ScaleRatioPreset
+import com.rockbyte.vicu.ui.component.labelRes
+import com.rockbyte.vicu.ui.component.nextRatioSelection
+import com.rockbyte.vicu.ui.component.outputRatio
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test

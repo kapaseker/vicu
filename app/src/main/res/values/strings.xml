@@ -65,6 +65,17 @@
     <string name="crop_success">裁剪成功</string>
     <string name="crop_failed_retry">裁剪失败，重试</string>
     <string name="crop_failed">裁剪失败：%1$s</string>
+    <string name="video_scale">缩放视频</string>
+    <string name="video_scale_dimensions">原画 %1$d × %2$d · 输出 %3$d × %4$d</string>
+    <string name="video_scale_height_original">原始高度</string>
+    <string name="video_scale_height_1080p">1080p</string>
+    <string name="video_scale_height_720p">720p</string>
+    <string name="video_scale_height_480p">480p</string>
+    <string name="video_scale_height_360p">360p</string>
+    <string name="video_scale_scaling">正在缩放并保存…</string>
+    <string name="video_scale_success">缩放成功</string>
+    <string name="video_scale_failed_retry">缩放失败，重试</string>
+    <string name="video_scale_failed">缩放失败：%1$s</string>
     <string name="video_trim">截取视频</string>
     <string name="start_time_seconds">开始时间（秒）</string>
     <string name="end_time_seconds">结束时间（秒）</string>

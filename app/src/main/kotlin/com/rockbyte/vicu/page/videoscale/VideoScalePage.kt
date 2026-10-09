@@ -149,6 +149,9 @@ private fun VideoScaleContent(
             heightPreset.height,
         )
     } else null
+    // 预览框跟随输出比例布局（输出 == 源时与源一致）：选择比例后框体本身随之变宽/变窄，
+    // 黑边画面也能看出缩放效果；渲染器按帧比例 letterbox，框比例 == 帧比例时正好铺满，所见即所得。
+    val previewAspect = output?.let { it.first.toFloat() / it.second } ?: aspect
     // 预览实时套用与导出同串的 scale；输出尺寸等于源尺寸时清空滤镜链（无需重建）。
     val scaleEffect = if (ready && output != null &&
         (output.first != playerState.videoWidth || output.second != playerState.videoHeight)
@@ -178,8 +181,8 @@ private fun VideoScaleContent(
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
-                        .width(videoPreviewWidth(availableWidth, availableHeight, aspect))
-                        .aspectRatio(aspect),
+                        .width(videoPreviewWidth(availableWidth, availableHeight, previewAspect))
+                        .aspectRatio(previewAspect),
                 ) {
                     VideoSurface(
                         modifier = Modifier.matchParentSize(),

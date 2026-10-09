@@ -290,7 +290,7 @@ class PlayerViewModel(private val playerRepo: PlayerRepo) : ViewModel() {
                 phase = PlayerPhase.Playing,
             )
             is PlayerEvent.Position -> copy(positionMs = event.positionMs)
-            PlayerEvent.Ended -> copy(playing = false, phase = PlayerPhase.Ended)
+            PlayerEvent.Ended -> copy(playing = false, phase = PlayerPhase.Ended, positionMs = durationMs)
             is PlayerEvent.Failed -> copy(playing = false, phase = PlayerPhase.Failed(event.error))
         }
 }

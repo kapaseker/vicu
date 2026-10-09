@@ -253,11 +253,16 @@ static ANativeWindow *acquire_window(PlayerContext *ctx) {
     return window;
 }
 
-/** 主时钟：有音频时钟（媒体时间）时用之，否则回退墙钟。 */
+/** 主时钟：有音频时钟（媒体时间）时用之，否则回退墙钟。
+ *  音频解码已 EOF 时音频时钟封顶不再前进，若视频尾部 PTS 更晚将死等
+ *  （最后一帧永不上屏、ended 不触发）；此时切回墙钟推进视频收尾。 */
 static int64_t master_clock_us(PlayerContext *ctx) {
     if (ctx->has_audio && ctx->callbacks.get_audio_clock_us) {
         int64_t audio = ctx->callbacks.get_audio_clock_us(ctx->user);
-        if (audio >= 0) return audio;
+        if (audio >= 0 &&
+            atomic_load_explicit(&ctx->audio_eof_epoch, memory_order_relaxed) !=
+                atomic_load_explicit(&ctx->media_epoch, memory_order_relaxed))
+            return audio;
     }
     return clock_playback_us(&ctx->clock);
 }
@@ -352,13 +357,13 @@ void *render_thread_func(void *arg) {
                 // Surface 销毁/替换可以让 swap 短暂失败；释放 EGL 并在下轮重绑，不上报永久播放错误
                 renderer_destroy(&rs);
             }
-            // 进度回报节流（200ms）
+            // 进度回报节流（20ms）
             if (report_epoch != stamp) {
                 report_epoch = stamp;
                 ctx->last_report_us = 0;
             }
             if (ctx->callbacks.on_position &&
-                (ctx->last_report_us == 0 || pts_us - ctx->last_report_us >= 200000)) {
+                (ctx->last_report_us == 0 || pts_us - ctx->last_report_us >= 20000)) {
                 ctx->last_report_us = pts_us;
                 ctx->callbacks.on_position(ctx->user, pts_us / 1000);
             }

@@ -10,7 +10,8 @@
 .cxx/
 .omx
 .cursor/
-.trae/
+.trae/*
+!.trae/skills/
 .agents/
 .codex/
 app/release/

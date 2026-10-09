@@ -35,6 +35,7 @@ import com.rockbyte.vicu.R
 import com.rockbyte.vicu.page.player.PlayerPhase
 import com.rockbyte.vicu.page.player.PlayerUiState
 import com.rockbyte.vicu.page.player.playerTimeText
+import com.rockbyte.vicu.page.player.seekablePhases
 import com.rockbyte.vicu.ui.component.BackButton
 import com.rockbyte.vicu.ui.component.VideoSeekBar
 import com.rockbyte.vicu.ui.theme.VicuTheme
@@ -130,8 +131,6 @@ private fun BottomControls(
         }
     }
 }
-
-private val seekablePhases = setOf(PlayerPhase.Playing, PlayerPhase.Paused, PlayerPhase.Ended)
 
 /** 圆形半透明底播放/暂停图标按钮。 */
 @Composable

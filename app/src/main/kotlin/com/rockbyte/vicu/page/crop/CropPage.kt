@@ -42,6 +42,7 @@ import com.rockbyte.vicu.page.messageRes
 import com.rockbyte.vicu.page.player.PlayerPhase
 import com.rockbyte.vicu.page.player.PlayerUiState
 import com.rockbyte.vicu.page.player.PlayerViewModel
+import com.rockbyte.vicu.page.player.seekablePhases
 import com.rockbyte.vicu.player.PlayerEffect
 import com.rockbyte.vicu.player.PlayerError
 import com.rockbyte.vicu.player.normalized
@@ -302,8 +303,6 @@ private fun cutButtonText(phase: CutPhase): String = stringResource(
         CutPhase.Idle -> R.string.confirm
     }
 )
-
-private val seekablePhases = setOf(PlayerPhase.Playing, PlayerPhase.Paused, PlayerPhase.Ended)
 
 private val PlayerError.messageRes: Int
     get() = when (this) {

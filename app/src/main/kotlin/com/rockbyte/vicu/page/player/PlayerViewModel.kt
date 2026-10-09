@@ -42,6 +42,10 @@ sealed interface PlayerPhase {
     data class Failed(val error: PlayerError) : PlayerPhase
 }
 
+/** 进度条允许拖拽/跳转的阶段。 */
+internal val seekablePhases: Set<PlayerPhase> =
+    setOf(PlayerPhase.Playing, PlayerPhase.Paused, PlayerPhase.Ended)
+
 /** 播放页状态：无声预览 + 播放/暂停控制（阶段 2 补进度与 seek）。 */
 class PlayerViewModel(private val playerRepo: PlayerRepo) : ViewModel() {
 

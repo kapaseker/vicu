@@ -14,6 +14,7 @@ import com.rockbyte.vicu.page.HomeViewModel
 import com.rockbyte.vicu.page.MediaPickerViewModel
 import com.rockbyte.vicu.page.VideoConvertViewModel
 import com.rockbyte.vicu.page.AudioReplaceViewModel
+import com.rockbyte.vicu.page.FunctionsViewModel
 import com.rockbyte.vicu.page.crop.CropViewModel
 import com.rockbyte.vicu.page.videoscale.VideoScaleViewModel
 import com.rockbyte.vicu.page.trim.TrimViewModel
@@ -103,4 +104,5 @@ val appModule = module {
     viewModel { CropViewModel(get()) }
     viewModel { VideoScaleViewModel(get()) }
     viewModel { TrimViewModel(get()) }
+    viewModel { FunctionsViewModel(androidContext()) }
 }

@@ -38,6 +38,7 @@ class MediaFunctionsUiDeviceTest : InstrumentationTestCase() {
                     MediaKind.VIDEO -> VideoFunctionsPage(media,
                         onPlayVideo = { clicked = "play" },
                         onCropVideo = { clicked = "crop" },
+                        onScaleVideo = { clicked = "scaleVideo" },
                         onTrimVideo = { clicked = "trimVideo" },
                         onExportAudio = { clicked = "export" },
                         onConvertVideo = { clicked = "convertVideo" },
@@ -65,7 +66,10 @@ class MediaFunctionsUiDeviceTest : InstrumentationTestCase() {
             MediaKind.AUDIO to listOf(R.string.audio_trim to "trimAudio", R.string.audio_convert to "convertAudio"),
             MediaKind.IMAGE to listOf(R.string.image_crop to "cropImage", R.string.image_scale to "scaleImage"),
         )
-        val allLabels = groups.flatMap { it.second }.map { instrumentation.targetContext.getString(it.first) }
+        // 分享 tile 由页面内部 ViewModel 承接，不在本测试的点击分发断言内，但参与每页标签集合断言
+        val share = R.string.share to "share"
+        val allLabels = (groups.flatMap { it.second } + share)
+            .map { instrumentation.targetContext.getString(it.first) }
         for ((kind, entries) in groups) {
             val name = when (kind) {
                 MediaKind.VIDEO -> "短视频.mp4"
@@ -73,7 +77,7 @@ class MediaFunctionsUiDeviceTest : InstrumentationTestCase() {
                 MediaKind.IMAGE -> "very-long-image-file-name-".repeat(8) + ".png"
             }
             show(kind, name)
-            val expected = entries.map { instrumentation.targetContext.getString(it.first) }
+            val expected = (entries + share).map { instrumentation.targetContext.getString(it.first) }
             await { nodes().mapNotNull { it.text?.toString() }.containsAll(expected) }
             assertEquals(expected.toSet(), nodes().mapNotNull { it.text?.toString() }.filter { it in allLabels }.toSet())
             assertFalse(nodes().any { it.text?.toString()?.contains("选择要对") == true })

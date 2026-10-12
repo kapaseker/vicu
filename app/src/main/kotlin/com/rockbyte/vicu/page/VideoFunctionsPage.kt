@@ -6,6 +6,7 @@ import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.ui.component.FunctionEntry
 import com.rockbyte.vicu.ui.component.FunctionGrid
 import com.rockbyte.vicu.ui.component.VicuScaffold
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun VideoFunctionsPage(
@@ -19,9 +20,11 @@ fun VideoFunctionsPage(
     onReplaceAudio: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val viewModel = koinViewModel<FunctionsViewModel>()
     VicuScaffold(title = media.name, onBack = onBack, marqueeTitle = true) {
         FunctionGrid(
             listOf(
+                FunctionEntry(R.drawable.ic_share, R.string.share) { viewModel.share(media) },
                 FunctionEntry(R.drawable.ic_play, R.string.play, onPlayVideo),
                 FunctionEntry(R.drawable.ic_crop, R.string.crop, onCropVideo),
                 FunctionEntry(R.drawable.ic_scale, R.string.video_scale, onScaleVideo),

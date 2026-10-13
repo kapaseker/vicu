@@ -114,8 +114,8 @@ fun MainApp() {
                 // A save starts a fresh library entry; ordinary back keeps its existing pager state.
                 key(route.entryId) { HomePage(
                     initialSource = route.initialSource,
-                    onMediaClick = { item ->
-                        val media = SelectedMedia(item.uri.toString(), item.name, item.kind)
+                    onMediaClick = { item, source ->
+                        val media = SelectedMedia(item.uri.toString(), item.name, item.kind, source)
                         backStack.add(when (item.kind) {
                             MediaKind.VIDEO -> VideoFunctionsRoute(media)
                             MediaKind.AUDIO -> AudioFunctionsRoute(media)

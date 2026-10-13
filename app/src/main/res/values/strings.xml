@@ -178,4 +178,7 @@
     <string name="works_empty">你还未创建作品</string>
     <string name="works_load_retry">作品库读取失败，点击重试</string>
     <string name="share">分享</string>
+    <string name="save_to_album">保存到相册</string>
+    <string name="saved_to_album">已保存到相册。</string>
+    <string name="save_failed">保存失败：%1$s</string>
 </resources>

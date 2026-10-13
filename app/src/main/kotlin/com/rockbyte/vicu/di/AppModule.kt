@@ -8,6 +8,10 @@ import com.rockbyte.vicu.repo.ImageCropRepo
 import com.rockbyte.vicu.repo.ImageCropRepository
 import com.rockbyte.vicu.repo.ImageCropStore
 import com.rockbyte.vicu.repo.ImageCropStorage
+import com.rockbyte.vicu.repo.GalleryRepo
+import com.rockbyte.vicu.repo.GalleryRepository
+import com.rockbyte.vicu.repo.GalleryStore
+import com.rockbyte.vicu.repo.GalleryStorage
 import com.rockbyte.vicu.repo.ImageScaleRepo
 import com.rockbyte.vicu.repo.ImageScaleRepository
 import com.rockbyte.vicu.page.HomeViewModel
@@ -68,6 +72,8 @@ val appModule = module {
     single<WorksStore> { WorksStorage(androidContext(), System::currentTimeMillis) }
     single<WorksRepo> { WorksRepository(get()) }
     single<MediaLibraryStore> { MediaLibraryStorage(androidContext()) }
+    single<GalleryStore> { GalleryStorage(androidContext()) }
+    single<GalleryRepo> { GalleryRepository(get()) }
     single<ImageCropStore> {
         ImageCropStorage(androidContext().contentResolver, get()) { Runtime.getRuntime().maxMemory() }
     }
@@ -104,5 +110,5 @@ val appModule = module {
     viewModel { CropViewModel(get()) }
     viewModel { VideoScaleViewModel(get()) }
     viewModel { TrimViewModel(get()) }
-    viewModel { FunctionsViewModel(androidContext()) }
+    viewModel { FunctionsViewModel(androidContext(), get()) }
 }

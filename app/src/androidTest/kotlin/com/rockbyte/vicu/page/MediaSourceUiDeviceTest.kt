@@ -48,7 +48,7 @@ class MediaSourceUiDeviceTest : InstrumentationTestCase() {
                     onGrant = {}, onPick = { selected = it }, onBack = {})
                 else HomePageContent(
                     MediaLibraryUiState(loading = false, items = system, hasAccess = !denied), works,
-                    initialSource, onRefresh = {}, onMediaClick = { selected = it })
+                    initialSource, onRefresh = {}, onMediaClick = { item, _ -> selected = item })
             } } }
         }
         await { tab("系统") != null && tab("作品库") != null }

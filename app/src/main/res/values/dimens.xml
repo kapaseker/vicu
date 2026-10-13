@@ -18,7 +18,7 @@
     <dimen name="vicu_card_shadow_radius">40dp</dimen>
     <dimen name="vicu_button_horizontal_padding">24dp</dimen>
     <dimen name="vicu_button_min_height">52dp</dimen>
-    <dimen name="vicu_function_tile_padding">16dp</dimen>
+    <dimen name="vicu_function_tile_padding">0dp</dimen>
     <dimen name="vicu_status_dot_size">8dp</dimen>
     <dimen name="vicu_type_badge_size">24dp</dimen>
 

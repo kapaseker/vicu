@@ -73,10 +73,3 @@ internal class MediaRepository(
 internal interface MediaLibraryStore {
     fun query(kind: MediaKind): List<MediaItem>
 }
-
-private val MediaKind.collection: Uri
-    get() = when (this) {
-        MediaKind.IMAGE -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-        MediaKind.VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-        MediaKind.AUDIO -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-    }

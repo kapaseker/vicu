@@ -38,7 +38,8 @@ internal class MediaLibraryStorage(context: Context) : MediaLibraryStore {
     }
 }
 
-private val MediaKind.collection: Uri
+// 查询与保存相册共用同一集合映射
+internal val MediaKind.collection: Uri
     get() = when (this) {
         MediaKind.IMAGE -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         MediaKind.VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI

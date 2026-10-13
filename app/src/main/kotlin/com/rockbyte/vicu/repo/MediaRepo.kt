@@ -25,6 +25,8 @@ data class SelectedMedia(
     val uri: String,
     val name: String,
     val kind: MediaKind,
+    /** 条目来源；仅作品库文件可保存到系统相册（系统相册文件已在相册中）。 */
+    val source: MediaSource = MediaSource.SYSTEM,
 )
 
 /** MediaStore 聚合查询（domain-facing 数据操作）。 */

@@ -33,7 +33,7 @@ import org.koin.androidx.compose.koinViewModel
  * 系统素材需要媒体权限，作品库独立于系统授权。
  */
 @Composable
-fun HomePage(initialSource: MediaSource = MediaSource.SYSTEM, onMediaClick: (MediaItem) -> Unit) {
+fun HomePage(initialSource: MediaSource = MediaSource.SYSTEM, onMediaClick: (MediaItem, MediaSource) -> Unit) {
     val viewModel = koinViewModel<HomeViewModel>()
     val state by viewModel.uiState.collectAsState()
     val works by viewModel.worksState.collectAsState()
@@ -52,7 +52,7 @@ internal fun HomePageContent(
     works: WorksLibraryState = WorksLibraryState(),
     initialSource: MediaSource = MediaSource.SYSTEM,
     onRefresh: () -> Unit,
-    onMediaClick: (MediaItem) -> Unit,
+    onMediaClick: (MediaItem, MediaSource) -> Unit,
 ) {
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -77,7 +77,7 @@ private fun HomePageBody(
     initialSource: MediaSource = MediaSource.SYSTEM,
     onRequestPermission: () -> Unit,
     onRefresh: () -> Unit = {},
-    onMediaClick: (MediaItem) -> Unit,
+    onMediaClick: (MediaItem, MediaSource) -> Unit,
 ) {
     VicuScaffold(title = stringResource(R.string.app_name)) {
         MediaSourcePager(state.items, state.loading, state.hasAccess, works,
@@ -123,7 +123,7 @@ private fun HomePageGridPreview() {
                 )
             ),
             onRefresh = {},
-            onMediaClick = {},
+            onMediaClick = { _, _ -> },
         )
     }
 }
@@ -135,7 +135,7 @@ private fun HomePageEmptyPreview() {
         HomePageContent(
             state = MediaLibraryUiState(loading = false, hasAccess = true),
             onRefresh = {},
-            onMediaClick = {},
+            onMediaClick = { _, _ -> },
         )
     }
 }
@@ -151,7 +151,7 @@ private fun HomePagePermissionPreview() {
                 permissionsToRequest = listOf("android.permission.READ_MEDIA_VIDEO"),
             ),
             onRequestPermission = {},
-            onMediaClick = {},
+            onMediaClick = { _, _ -> },
         )
     }
 }

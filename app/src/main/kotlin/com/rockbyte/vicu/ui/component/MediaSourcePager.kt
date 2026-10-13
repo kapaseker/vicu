@@ -42,7 +42,7 @@ internal fun MediaSourcePager(
     loading: Boolean,
     hasAccess: Boolean?,
     works: WorksLibraryState,
-    onMediaClick: (MediaItem) -> Unit,
+    onMediaClick: (MediaItem, MediaSource) -> Unit,
     onRefresh: () -> Unit,
     initialSource: MediaSource = MediaSource.SYSTEM,
     permissionPrompt: @Composable () -> Unit,
@@ -80,7 +80,7 @@ internal fun MediaSourcePager(
         HorizontalPager(state = pager, modifier = Modifier.weight(1f), beyondViewportPageCount = 1) { page ->
             if (page == MediaSource.SYSTEM.ordinal) {
                 when (hasAccess) {
-                    true -> MediaGrid(items, loading, onMediaClick, gridState = systemGrid)
+                    true -> MediaGrid(items, loading, { onMediaClick(it, MediaSource.SYSTEM) }, gridState = systemGrid)
                     false -> permissionPrompt()
                     null -> Unit
                 }
@@ -89,7 +89,7 @@ internal fun MediaSourcePager(
                     PrimaryButton(stringResource(R.string.works_load_retry), onRefresh)
                 }
             } else {
-                MediaGrid(works.items, works.loading, onMediaClick,
+                MediaGrid(works.items, works.loading, { onMediaClick(it, MediaSource.WORKS) },
                     emptyText = stringResource(R.string.works_empty), gridState = worksGrid)
             }
         }

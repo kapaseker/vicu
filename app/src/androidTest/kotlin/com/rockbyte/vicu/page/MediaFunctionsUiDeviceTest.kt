@@ -81,6 +81,10 @@ class MediaFunctionsUiDeviceTest : InstrumentationTestCase() {
             await { nodes().mapNotNull { it.text?.toString() }.containsAll(expected) }
             assertEquals(expected.toSet(), nodes().mapNotNull { it.text?.toString() }.filter { it in allLabels }.toSet())
             assertFalse(nodes().any { it.text?.toString()?.contains("选择要对") == true })
+            // 系统相册条目本就在相册中，不提供“保存到相册”
+            assertFalse(nodes().any {
+                it.text?.toString() == instrumentation.targetContext.getString(R.string.save_to_album)
+            })
             for ((label, action) in entries) {
                 clicked = ""
                 var node = nodes().first { it.text?.toString() == instrumentation.targetContext.getString(label) }
@@ -150,6 +154,10 @@ class MediaFunctionsUiDeviceTest : InstrumentationTestCase() {
                 click(nodes().first { it.contentDescription?.toString() == name })
                 await { nodes().any { it.text?.toString() == name } }
                 assertTrue(nodes().any { it.text?.toString() == instrumentation.targetContext.getString(entry.second) })
+                // 作品库条目才提供“保存到相册”
+                assertTrue(nodes().any {
+                    it.text?.toString() == instrumentation.targetContext.getString(R.string.save_to_album)
+                })
                 click(nodes().first { it.contentDescription?.toString() == instrumentation.targetContext.getString(R.string.back) })
                 await { nodes().any { it.contentDescription?.toString() == name } }
                 var tab = nodes().first { it.text?.toString() == "作品库" }

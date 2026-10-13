@@ -64,7 +64,7 @@ internal fun MediaPickerContent(
     ) { onGrant() }
 
     VicuScaffold(title = stringResource(R.string.select_music), onBack = onBack) {
-        MediaSourcePager(state.items, state.loading, state.hasAccess, works, onPick, onGrant,
+        MediaSourcePager(state.items, state.loading, state.hasAccess, works, { item, _ -> onPick(item) }, onGrant,
             permissionPrompt = { PermissionPrompt(state.permissionsToRequest, permissionLauncher::launch) })
     }
 }

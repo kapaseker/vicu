@@ -2,6 +2,7 @@ package com.rockbyte.vicu.page
 
 import androidx.compose.runtime.Composable
 import com.rockbyte.vicu.R
+import com.rockbyte.vicu.repo.MediaSource
 import com.rockbyte.vicu.repo.SelectedMedia
 import com.rockbyte.vicu.ui.component.FunctionEntry
 import com.rockbyte.vicu.ui.component.FunctionGrid
@@ -23,16 +24,19 @@ fun VideoFunctionsPage(
     val viewModel = koinViewModel<FunctionsViewModel>()
     VicuScaffold(title = media.name, onBack = onBack, marqueeTitle = true) {
         FunctionGrid(
-            listOf(
-                FunctionEntry(R.drawable.ic_share, R.string.share) { viewModel.share(media) },
-                FunctionEntry(R.drawable.ic_play, R.string.play, onPlayVideo),
-                FunctionEntry(R.drawable.ic_crop, R.string.crop, onCropVideo),
-                FunctionEntry(R.drawable.ic_scale, R.string.video_scale, onScaleVideo),
-                FunctionEntry(R.drawable.ic_cut, R.string.video_trim, onTrimVideo),
-                FunctionEntry(R.drawable.ic_audio, R.string.export_audio, onExportAudio),
-                FunctionEntry(R.drawable.ic_transfer, R.string.video_convert, onConvertVideo),
-                FunctionEntry(R.drawable.ic_audio_tape, R.string.video_replace_audio, onReplaceAudio),
-            ),
+            buildList {
+                add(FunctionEntry(R.drawable.ic_share, R.string.share) { viewModel.share(media) })
+                if (media.source == MediaSource.WORKS) {
+                    add(FunctionEntry(R.drawable.ic_album, R.string.save_to_album) { viewModel.saveToAlbum(media) })
+                }
+                add(FunctionEntry(R.drawable.ic_play, R.string.play, onPlayVideo))
+                add(FunctionEntry(R.drawable.ic_crop, R.string.crop, onCropVideo))
+                add(FunctionEntry(R.drawable.ic_scale, R.string.video_scale, onScaleVideo))
+                add(FunctionEntry(R.drawable.ic_cut, R.string.video_trim, onTrimVideo))
+                add(FunctionEntry(R.drawable.ic_audio, R.string.export_audio, onExportAudio))
+                add(FunctionEntry(R.drawable.ic_transfer, R.string.video_convert, onConvertVideo))
+                add(FunctionEntry(R.drawable.ic_audio_tape, R.string.video_replace_audio, onReplaceAudio))
+            },
         )
     }
 }

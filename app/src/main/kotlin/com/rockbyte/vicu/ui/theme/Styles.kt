@@ -5,6 +5,7 @@ import androidx.compose.foundation.style.border
 import androidx.compose.foundation.style.contentPadding
 import androidx.compose.foundation.style.contentPaddingHorizontal
 import androidx.compose.foundation.style.disabled
+import androidx.compose.foundation.style.focused
 import androidx.compose.foundation.style.size
 import androidx.compose.foundation.style.then
 import androidx.compose.ui.graphics.shadow.Shadow
@@ -128,5 +129,26 @@ object VicuStyles {
         size(dimensions.typeBadgeSize)
         shape(shapes.base)
         background(colors.surfaceContainerLowest.copy(alpha = alpha.glassOverlay))
+    }
+
+    /**
+     * 输入框：surfaceContainerLow 填充 + base 圆角 + 1px 边框，聚焦时主色边框（对齐 TrimTimeInput 视觉）。
+     * 内边距由 VicuTextField 布局负责（尾部图标要能落进 padding 区域），样式只描述容器视觉。
+     */
+    val textField: Style = Style {
+        shape(shapes.base)
+        background(colors.surfaceContainerLow)
+        border(dimensions.cardBorderWidth, colors.outlineVariant)
+        contentColor(colors.onSurface)
+        textStyle(typography.bodyLg)
+        focused {
+            border(dimensions.cardBorderWidth, colors.primary)
+        }
+    }
+
+    /** 清除图标按钮：48dp 标准触控区（navigationTouchSize）+ 圆形（对齐按钮 pill 语言），图标由组件居中放置。 */
+    val clearIconButton: Style = Style {
+        size(dimensions.navigationTouchSize)
+        shape(shapes.full)
     }
 }

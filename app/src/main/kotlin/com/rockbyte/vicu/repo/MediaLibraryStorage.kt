@@ -1,6 +1,7 @@
 package com.rockbyte.vicu.repo
 
 import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
@@ -35,6 +36,14 @@ internal class MediaLibraryStorage(context: Context) : MediaLibraryStore {
             }
         }
         return items
+    }
+
+    // 重名冲突由 MediaStore 自动改名（如 "a (1).mp3"），uri 在 Q+ 保持稳定
+    override fun rename(uri: Uri, displayName: String) {
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+        }
+        resolver.update(uri, values, null, null)
     }
 }
 

@@ -110,5 +110,5 @@ val appModule = module {
     viewModel { CropViewModel(get()) }
     viewModel { VideoScaleViewModel(get()) }
     viewModel { TrimViewModel(get()) }
-    viewModel { FunctionsViewModel(androidContext(), get()) }
+    viewModel { FunctionsViewModel(androidContext(), get(), get(), get()) }
 }

@@ -13,10 +13,15 @@ class MediaRepositoryTest {
     private class FakeMediaLibraryStore : MediaLibraryStore {
         val items = mutableMapOf<MediaKind, List<MediaItem>>()
         var queryFailure: Pair<MediaKind, Exception>? = null
+        val renamed = mutableListOf<Pair<Uri, String>>()
 
         override fun query(kind: MediaKind): List<MediaItem> {
             queryFailure?.takeIf { it.first == kind }?.second?.let { throw it }
             return items[kind].orEmpty()
+        }
+
+        override fun rename(uri: Uri, displayName: String) {
+            renamed += uri to displayName
         }
     }
 
@@ -47,5 +52,16 @@ class MediaRepositoryTest {
 
         val items = withTimeout(5_000) { repo.library.first() }
         assertEquals(listOf(audioUri, imageUri), items.map(MediaItem::uri))
+    }
+
+    @Test
+    fun renameDelegatesToStore() = runBlocking {
+        val store = FakeMediaLibraryStore()
+        val repo = MediaRepository(mock(ContentResolver::class.java), store)
+        val uri = mock(Uri::class.java)
+
+        repo.rename(uri, "renamed.mp4")
+
+        assertEquals(listOf(uri to "renamed.mp4"), store.renamed)
     }
 }

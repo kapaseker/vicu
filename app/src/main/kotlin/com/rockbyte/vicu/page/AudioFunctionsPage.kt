@@ -17,10 +17,12 @@ fun AudioFunctionsPage(
     onBack: () -> Unit,
 ) {
     val viewModel = koinViewModel<FunctionsViewModel>()
-    VicuScaffold(title = media.name, onBack = onBack, marqueeTitle = true) {
+    val title = rememberMediaTitle(media, viewModel)
+    VicuScaffold(title = title.text, onBack = onBack, marqueeTitle = true) {
         FunctionGrid(
             buildList {
                 add(FunctionEntry(R.drawable.ic_share, R.string.share) { viewModel.share(media) })
+                add(FunctionEntry(R.drawable.ic_edit, R.string.rename, title.onClick))
                 if (media.source == MediaSource.WORKS) {
                     add(FunctionEntry(R.drawable.ic_album, R.string.save_to_album) { viewModel.saveToAlbum(media) })
                 }

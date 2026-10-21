@@ -181,4 +181,9 @@
     <string name="save_to_album">保存到相册</string>
     <string name="saved_to_album">已保存到相册。</string>
     <string name="save_failed">保存失败：%1$s</string>
+    <string name="rename">重命名</string>
+    <string name="cancel">取消</string>
+    <string name="clear">清除</string>
+    <string name="rename_failed">重命名失败：%1$s</string>
+    <string name="rename_permission_denied">未获得修改权限，无法重命名。</string>
 </resources>

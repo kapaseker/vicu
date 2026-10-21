@@ -39,12 +39,15 @@ class MediaPickerViewModelTest {
         override fun refresh() {
             refreshCount++
         }
+
+        override suspend fun rename(uri: Uri, displayName: String) = Unit
     }
 
     private val works = object : WorksRepo {
         override val library = MutableStateFlow(WorksLibraryState())
         var refreshCount = 0
         override fun refresh() { refreshCount++ }
+        override suspend fun rename(uri: Uri, displayName: String) = Unit
     }
 
     private val dispatcher = StandardTestDispatcher()

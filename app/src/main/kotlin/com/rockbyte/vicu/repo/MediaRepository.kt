@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * [MediaRepo] 实现：构造后即监听 MediaStore 变更，通过 [MediaLibraryStore] 重查并聚合。
@@ -40,6 +41,10 @@ internal class MediaRepository(
 
     override fun refresh() {
         scope.launch { requery() }
+    }
+
+    override suspend fun rename(uri: Uri, displayName: String) = withContext(Dispatchers.IO) {
+        mediaStore.rename(uri, displayName)
     }
 
     private suspend fun requery() {
@@ -72,4 +77,7 @@ internal class MediaRepository(
 /** MediaStore 本地存储查询。 */
 internal interface MediaLibraryStore {
     fun query(kind: MediaKind): List<MediaItem>
+
+    /** 更新 DISPLAY_NAME（含扩展名）；无写权限时由 ContentResolver 抛 RecoverableSecurityException。 */
+    fun rename(uri: Uri, displayName: String)
 }

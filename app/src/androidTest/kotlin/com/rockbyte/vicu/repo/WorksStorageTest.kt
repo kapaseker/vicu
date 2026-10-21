@@ -173,6 +173,25 @@ class WorksStorageTest : AndroidTestCase() {
         } finally { fixture.delete() }
     }
 
+    fun testRenameUpdatesDisplayOnlyMetadataAndSurvivesRestart() {
+        val uri = create()
+        writeImage(uri)
+        store.publish(uri)
+        val before = store.query().single { it.uri == uri }
+
+        store.rename(uri, "  我的作品 ")
+        val renamed = store.query().single { it.uri == uri }
+        assertEquals("我的作品", renamed.name) // 展示名去空白后生效
+        assertEquals(before.kind, renamed.kind)
+        assertEquals(before.dateAdded, renamed.dateAdded)
+        assertEquals(before.durationMs, renamed.durationMs)
+        assertTrue(file(uri).exists()) // 磁盘文件名与 uri 不变
+        try { store.rename(uri, "  "); fail("Blank display name must be rejected") }
+        catch (_: IllegalArgumentException) { }
+        // 新实例（模拟重启）仍读到展示名
+        assertEquals("我的作品", WorksStorage(context, { now }).query().single { it.uri == uri }.name)
+    }
+
     fun testRepositoryRefreshAndPublicationNotifications() = runBlocking {
         val available = java.util.concurrent.atomic.AtomicBoolean(false)
         val storage = WorksStorage(context, { now }, {

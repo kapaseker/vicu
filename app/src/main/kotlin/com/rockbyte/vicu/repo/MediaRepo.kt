@@ -36,4 +36,11 @@ interface MediaRepo {
 
     /** 权限状态变化后由外部触发重查（授权回调后调用）。 */
     fun refresh()
+
+    /**
+     * 重命名系统媒体（含扩展名的完整显示名），成功后 ContentObserver 自动刷新 [library]。
+     * 第三方文件无写权限时抛 [RecoverableSecurityException]，
+     * 调用方取其 IntentSender 申请授权（用户允许后对同一文件持久有效）再重试。
+     */
+    suspend fun rename(uri: Uri, displayName: String)
 }

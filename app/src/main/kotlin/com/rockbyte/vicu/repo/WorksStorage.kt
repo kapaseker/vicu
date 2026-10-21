@@ -71,21 +71,7 @@ internal class WorksStorage(
             put("dateAdded", currentTimeMillis() / 1000)
             put("durationMs", if (kind == MediaKind.IMAGE) 0L else duration(uri))
         }
-        val bytes = metadata.toString().toByteArray(Charsets.UTF_8)
-        val atomic = AtomicFile(File(file.parentFile, "completed.json"))
-        val output = atomic.startWrite()
-        try {
-            output.write(bytes)
-            output.fd.sync()
-            atomic.finishWrite(output)
-            // AtomicFile logs rename failures rather than throwing them.
-            if (!atomic.baseFile.isFile || atomic.baseFile.length() != bytes.size.toLong()) {
-                throw IOException("Metadata publication failed")
-            }
-        } catch (error: Exception) {
-            atomic.failWrite(output)
-            throw error
-        }
+        writeMetadata(AtomicFile(File(file.parentFile, "completed.json")), metadata)
         pending.remove(uri)
         changes.tryEmit(Unit)
     }
@@ -101,13 +87,48 @@ internal class WorksStorage(
 
     @Synchronized
     override fun delete(uri: Uri) {
-        require(uri.authority == "${context.packageName}.works" && uri.pathSegments.firstOrNull() == "works")
-        val external = context.getExternalFilesDir(null) ?: throw IOException("External storage unavailable")
-        val file = File(File(external, "works"), uri.pathSegments.drop(1).joinToString("/")).canonicalFile
-        require(file.parentFile?.parentFile == root().canonicalFile) { "Output outside works directory" }
-        if (file.parentFile!!.exists() && !file.parentFile!!.deleteRecursively()) throw IOException("Cannot delete output")
+        val folder = workFolder(uri)
+        if (folder.exists() && !folder.deleteRecursively()) throw IOException("Cannot delete output")
         pending.remove(uri)
         changes.tryEmit(Unit)
+    }
+
+    @Synchronized
+    override fun rename(uri: Uri, displayName: String) {
+        val name = displayName.trim()
+        require(name.isNotEmpty()) { "Empty display name" }
+        val folder = workFolder(uri)
+        val atomic = AtomicFile(File(folder, "completed.json"))
+        val metadata = JSONObject(atomic.openRead().bufferedReader(Charsets.UTF_8).use { it.readText() })
+        metadata.put("displayName", name)
+        writeMetadata(atomic, metadata)
+        changes.tryEmit(Unit)
+    }
+
+    /** 校验 uri 属于作品库并解析出对应目录（与 [delete] 同一信任边界检查）。 */
+    private fun workFolder(uri: Uri): File {
+        require(uri.authority == "${context.packageName}.works" && uri.pathSegments.firstOrNull() == "works")
+        val external = context.getExternalFilesDir(null) ?: throw IOException("External storage unavailable")
+        val folder = File(File(external, "works"), uri.pathSegments.drop(1).joinToString("/")).canonicalFile
+        require(folder.parentFile?.parentFile == root().canonicalFile) { "Output outside works directory" }
+        return folder
+    }
+
+    private fun writeMetadata(atomic: AtomicFile, metadata: JSONObject) {
+        val bytes = metadata.toString().toByteArray(Charsets.UTF_8)
+        val output = atomic.startWrite()
+        try {
+            output.write(bytes)
+            output.fd.sync()
+            atomic.finishWrite(output)
+            // AtomicFile logs rename failures rather than throwing them.
+            if (!atomic.baseFile.isFile || atomic.baseFile.length() != bytes.size.toLong()) {
+                throw IOException("Metadata publication failed")
+            }
+        } catch (error: Exception) {
+            atomic.failWrite(output)
+            throw error
+        }
     }
 
     // ponytail: scan completed metadata on refresh; add an index if large libraries make this slow.
@@ -118,8 +139,9 @@ internal class WorksStorage(
             try {
                 val metadata = JSONObject(AtomicFile(File(folder, "completed.json")).openRead()
                     .bufferedReader(Charsets.UTF_8).use { it.readText() })
-                val name = metadata.getString("name")
-                val file = File(folder, name).canonicalFile
+                // displayName 可选：旧元数据回退为磁盘文件名
+                val name = metadata.optString("displayName", metadata.getString("name"))
+                val file = File(folder, metadata.getString("name")).canonicalFile
                 if (file.parentFile != folder.canonicalFile || !file.isFile || file.length() == 0L) return@mapNotNull null
                 MediaItem(FileProvider.getUriForFile(context, "${context.packageName}.works", file),
                     name, MediaKind.valueOf(metadata.getString("kind")),

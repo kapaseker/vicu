@@ -6,17 +6,25 @@ import android.net.Uri
 import android.widget.Toast
 import com.rockbyte.vicu.R
 import com.rockbyte.vicu.repo.GalleryRepo
+import com.rockbyte.vicu.repo.MediaItem
 import com.rockbyte.vicu.repo.MediaKind
+import com.rockbyte.vicu.repo.MediaRepo
+import com.rockbyte.vicu.repo.MediaSource
 import com.rockbyte.vicu.repo.SelectedMedia
+import com.rockbyte.vicu.repo.WorksLibraryState
+import com.rockbyte.vicu.repo.WorksRepo
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.ArgumentMatchers.any
@@ -52,6 +60,9 @@ class FunctionsViewModelTest {
             .thenReturn(chooser)
         toastStatic = Mockito.mockStatic(Toast::class.java)
         toastStatic.`when`<Toast> { Toast.makeText(any(), anyInt(), anyInt()) }.thenReturn(toast)
+        // 失败/重命名 Toast 走字符串重载，同样需要打桩，否则返回 null 在协程里抛 NPE
+        toastStatic.`when`<Toast> { Toast.makeText(any(), any(CharSequence::class.java), anyInt()) }
+            .thenReturn(toast)
         intents = Mockito.mockConstruction(Intent::class.java) { _, _ -> }
         // 桩方法返回 null，链式 addFlags 需要回传自身
         Mockito.`when`(chooser.addFlags(Mockito.anyInt())).thenReturn(chooser)
@@ -68,8 +79,11 @@ class FunctionsViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(repo: GalleryRepo = FakeGalleryRepo()) =
-        FunctionsViewModel(context, repo, launched::add)
+    private fun viewModel(
+        repo: GalleryRepo = FakeGalleryRepo(),
+        mediaRepo: MediaRepo = FakeMediaRepo(),
+        worksRepo: WorksRepo = FakeWorksRepo(),
+    ) = FunctionsViewModel(context, repo, mediaRepo, worksRepo, launched::add)
 
     private val video = SelectedMedia("content://media/video/1", "clip.mp4", MediaKind.VIDEO)
 
@@ -126,6 +140,43 @@ class FunctionsViewModelTest {
         assertEquals(1, repo.calls)
     }
 
+    @Test
+    fun renameKeepsExtensionAndRoutesBySource() = runTest {
+        val mediaRepo = FakeMediaRepo()
+        val worksRepo = FakeWorksRepo()
+        val vm = viewModel(mediaRepo = mediaRepo, worksRepo = worksRepo)
+        val success = mutableListOf<String>()
+
+        vm.rename(video, " 我的作品 ", { success += it }, {})
+        vm.rename(video.copy(source = MediaSource.WORKS), "work", { success += it }, {})
+
+        assertEquals("我的作品.mp4", mediaRepo.renamed.single().second)
+        assertEquals(parsedUri, mediaRepo.renamed.single().first)
+        assertEquals("work.mp4", worksRepo.renamed.single().second)
+        assertEquals(listOf("我的作品.mp4", "work.mp4"), success)
+    }
+
+    @Test
+    fun renameIgnoresBlankStem() = runTest {
+        val mediaRepo = FakeMediaRepo()
+        val worksRepo = FakeWorksRepo()
+
+        viewModel(mediaRepo = mediaRepo, worksRepo = worksRepo).rename(video, "   ", {}, {})
+
+        assertTrue(mediaRepo.renamed.isEmpty() && worksRepo.renamed.isEmpty())
+    }
+
+    @Test
+    fun renameToastsFailureWithMessageOnRepoError() = runTest {
+        Mockito.`when`(context.getString(R.string.rename_failed, "boom"))
+            .thenReturn("重命名失败：boom")
+
+        viewModel(mediaRepo = FakeMediaRepo(error = IllegalStateException("boom")))
+            .rename(video, "new", {}, {})
+
+        toastStatic.verify { Toast.makeText(eq(context), eq("重命名失败：boom"), eq(Toast.LENGTH_SHORT)) }
+    }
+
     private class FakeGalleryRepo(
         private val error: Exception? = null,
         private val gate: CompletableDeferred<Unit>? = null,
@@ -138,6 +189,29 @@ class FunctionsViewModelTest {
             gate?.await()
             error?.let { throw it }
             saved = media
+        }
+    }
+
+    private class FakeMediaRepo(private val error: Exception? = null) : MediaRepo {
+        override val library = MutableSharedFlow<List<MediaItem>>(replay = 1)
+        val renamed = mutableListOf<Pair<Uri, String>>()
+
+        override fun refresh() {}
+
+        override suspend fun rename(uri: Uri, displayName: String) {
+            error?.let { throw it }
+            renamed += uri to displayName
+        }
+    }
+
+    private class FakeWorksRepo : WorksRepo {
+        override val library = MutableStateFlow(WorksLibraryState())
+        val renamed = mutableListOf<Pair<Uri, String>>()
+
+        override fun refresh() {}
+
+        override suspend fun rename(uri: Uri, displayName: String) {
+            renamed += uri to displayName
         }
     }
 }
